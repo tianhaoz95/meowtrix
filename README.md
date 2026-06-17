@@ -16,6 +16,12 @@ meowtrix
 
 And open `http://localhost:3000` in your browser.
 
+## Update
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash
+```
+
 
 
 - **Split panes** — split vertically or horizontally, drag dividers to resize
