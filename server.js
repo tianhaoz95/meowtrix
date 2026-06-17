@@ -43,6 +43,10 @@ app.post('/api/settings', (req, res) => {
   writeSettings(merged);
   res.json(merged);
 });
+app.post('/api/settings/reset', (req, res) => {
+  writeSettings({ ...DEFAULT_SETTINGS });
+  res.json({ ...DEFAULT_SETTINGS });
+});
 
 // ── Proxy: fetch server-side, strip X-Frame-Options / CSP frame directives ──
 const STRIP_HEADERS = new Set([
