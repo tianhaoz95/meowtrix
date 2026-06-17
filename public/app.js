@@ -23,27 +23,33 @@ function showTabTypePicker(e, pane) {
   });
 }
 
+// Exposed globally so settings.js can call it
+function applyTheme(theme) {
+  const themeBtn = document.getElementById('btn-theme');
+  document.documentElement.classList.toggle('light', theme === 'light');
+  if (themeBtn) themeBtn.textContent = theme === 'light' ? '🌙' : '☀';
+  localStorage.setItem('theme', theme);
+  const sel = document.getElementById('s-theme');
+  if (sel) sel.value = theme;
+  const newTheme = getTermTheme();
+  getAllPanes().forEach(p => p.tabs.forEach(t => {
+    if (t.term) t.term.options.theme = newTheme;
+  }));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const workspace = document.getElementById('workspace');
 
-  // ── Theme ──
-  const themeBtn = document.getElementById('btn-theme');
-  const savedTheme = localStorage.getItem('theme') || 'dark';
+  // Apply saved theme immediately (server settings loaded async in settings.js)
+  applyTheme(localStorage.getItem('theme') || 'dark');
 
-  const applyTheme = (theme) => {
-    document.documentElement.classList.toggle('light', theme === 'light');
-    themeBtn.textContent = theme === 'light' ? '🌙' : '☀';
-    localStorage.setItem('theme', theme);
-    // Re-theme all open terminals
-    const newTheme = getTermTheme();
-    getAllPanes().forEach(p => p.tabs.forEach(t => {
-      if (t.term) t.term.options.theme = newTheme;
-    }));
-  };
-
-  applyTheme(savedTheme);
-  themeBtn.addEventListener('click', () => {
-    applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
+  document.getElementById('btn-theme').addEventListener('click', async () => {
+    const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
+    applyTheme(next);
+    await fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme: next }),
+    });
   });
 
   // ── Initial pane ──

@@ -6,13 +6,43 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 const { URL } = require('url');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Settings persistence ─────────────────────────────────────────────────────
+const SETTINGS_FILE = path.join(os.homedir(), '.meowtrix', 'settings.json');
+const DEFAULT_SETTINGS = {
+  theme: 'dark',
+  termFontSize: 13,
+  termFontFamily: 'Cascadia Code, JetBrains Mono, Menlo, Monaco, monospace',
+  termScrollback: 10000,
+  shell: process.env.SHELL || '/bin/bash',
+  browserHomepage: 'https://google.com',
+};
+
+function readSettings() {
+  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; }
+  catch { return { ...DEFAULT_SETTINGS }; }
+}
+
+function writeSettings(data) {
+  fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/settings', (req, res) => res.json(readSettings()));
+app.post('/api/settings', (req, res) => {
+  const merged = { ...readSettings(), ...req.body };
+  writeSettings(merged);
+  res.json(merged);
+});
 
 // ── Proxy: fetch server-side, strip X-Frame-Options / CSP frame directives ──
 const STRIP_HEADERS = new Set([
@@ -87,7 +117,7 @@ wss.on('connection', (ws) => {
     switch (msg.type) {
       case 'pty:create': {
         const id = msg.id || uuidv4();
-        const shell = process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
+        const shell = readSettings().shell || process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
         const ptyEnv = { ...process.env };
         delete ptyEnv.npm_config_prefix;
         const ptyProc = pty.spawn(shell, [], {

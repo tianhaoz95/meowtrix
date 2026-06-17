@@ -102,12 +102,13 @@ function closeTab(pane, id) {
 
 function initTerminalTab(tab) {
   tab.viewEl.classList.add('terminal-view');
+  const s = getSettings();
   const term = new Terminal({
     theme: getTermTheme(),
-    fontSize: 13,
-    fontFamily: '"Cascadia Code", "JetBrains Mono", Menlo, Monaco, monospace',
+    fontSize: s.termFontSize || 13,
+    fontFamily: s.termFontFamily || '"Cascadia Code", "JetBrains Mono", Menlo, Monaco, monospace',
     cursorBlink: true,
-    scrollback: 10000,
+    scrollback: s.termScrollback || 10000,
   });
   const fitAddon = new FitAddon.FitAddon();
   term.loadAddon(fitAddon);
@@ -158,7 +159,7 @@ function initBrowserTab(tab, viewEl, label) {
 
   viewEl.append(bar, loadingBar, frame);
 
-  let currentUrl = 'https://google.com';
+  let currentUrl = getSettings().browserHomepage || 'https://google.com';
 
   const navigate = (url) => {
     url = url.trim();
