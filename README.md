@@ -16,6 +16,14 @@ meowtrix
 
 And open `http://localhost:3000` in your browser.
 
+### Install as a service (auto-start on login)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service
+```
+
+Uses **launchd** on macOS and **systemd** on Linux. Meowtrix will start automatically on login and restart if it crashes.
+
 ## Update
 
 ```bash
