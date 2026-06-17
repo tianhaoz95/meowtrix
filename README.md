@@ -2,7 +2,21 @@
 
 Remote vibe engineering tool — a browser-based workspace with split panes, each pane being a terminal or a browser tab.
 
-## Features
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash
+```
+
+Then run:
+
+```bash
+meowtrix
+```
+
+And open `http://localhost:3000` in your browser.
+
+
 
 - **Split panes** — split vertically or horizontally, drag dividers to resize
 - **Terminals** — full PTY-backed terminals via xterm.js, multiple tabs per pane
