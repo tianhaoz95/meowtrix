@@ -287,6 +287,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-split-h').addEventListener('click', () => {
     if (activePane) splitPane(activePane, 'horizontal');
   });
+  document.getElementById('btn-broadcast').addEventListener('click', () => {
+    setBroadcastInput(!broadcastInput);
+  });
   document.getElementById('btn-close-pane').addEventListener('click', () => {
     if (!activePane || getAllPanes().length <= 1) return;
     const pane = activePane;

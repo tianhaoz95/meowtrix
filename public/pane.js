@@ -2,6 +2,35 @@ let activePane = null;
 let tabCounter = 0;
 const paneRegistry = new Map();
 
+// ── Broadcast input ──────────────────────────────────────────────────────────
+// When on, keystrokes from any terminal are mirrored to every *visible* terminal
+// (the active tab of each pane), like iTerm2 broadcast / tmux synchronize-panes.
+let broadcastInput = false;
+
+function visibleTerminalTabs() {
+  return getAllPanes()
+    .map(p => p.activeTab)
+    .filter(t => t && t.type === 'terminal' && t.ptyId);
+}
+
+function setBroadcastInput(on) {
+  broadcastInput = on;
+  document.body.classList.toggle('broadcasting', on);
+  const btn = document.getElementById('btn-broadcast');
+  if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', String(on)); }
+}
+
+// Send terminal input to its own PTY, or fan out to all visible terminals when
+// broadcast is enabled.
+function sendTerminalInput(ptyId, data) {
+  const targets = broadcastInput ? visibleTerminalTabs() : null;
+  if (targets && targets.length > 1) {
+    targets.forEach(t => wsSend({ type: 'pty:input', id: t.ptyId, data }));
+  } else {
+    wsSend({ type: 'pty:input', id: ptyId, data });
+  }
+}
+
 function uid() { return 'id-' + (++tabCounter) + '-' + Math.random().toString(36).slice(2, 7); }
 
 function paneOfTab(tabEl) {
@@ -321,7 +350,7 @@ function initTerminalTab(tab, existingPtyId) {
   term.onData(data => {
     // Apply any armed mobile sticky modifiers (Ctrl/Alt/Cmd) to typed input.
     const out = (typeof applyStickyMods === 'function') ? applyStickyMods(data) : data;
-    if (out) wsSend({ type: 'pty:input', id: ptyId, data: out });
+    if (out) sendTerminalInput(ptyId, out);
   });
   term.onResize(({ cols, rows }) => wsSend({ type: 'pty:resize', id: ptyId, cols, rows }));
   term.onTitleChange(title => { if (title) tab.label.textContent = title; });

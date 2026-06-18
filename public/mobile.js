@@ -60,7 +60,11 @@ function applyStickyMods(data) {
 
 function sendToActiveTerm(data) {
   const tab = activePane?.activeTab;
-  if (tab?.type === 'terminal' && tab.ptyId) wsSend({ type: 'pty:input', id: tab.ptyId, data });
+  if (tab?.type === 'terminal' && tab.ptyId) {
+    // Respect broadcast mode so key-bar keys fan out like typed input.
+    if (typeof sendTerminalInput === 'function') sendTerminalInput(tab.ptyId, data);
+    else wsSend({ type: 'pty:input', id: tab.ptyId, data });
+  }
 }
 
 function buildKeyBar() {
