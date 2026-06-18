@@ -76,23 +76,53 @@ function restoreWorkspaceState(state) {
   }
 }
 
+let workspaceReady = false;
+
+// Save workspace state to server (debounced)
+let _saveTimer = null;
+function saveSessionState() {
+  if (!workspaceReady) return;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    const state = captureWorkspaceState();
+    if (state) fetch('/api/session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    });
+  }, 300);
+}
+
+function fitAllTerminals() {
+  const fit = () => getAllPanes().forEach(p => p.tabs.forEach(t => { if (t.fitAddon) t.fitAddon.fit(); }));
+  requestAnimationFrame(() => { fit(); setTimeout(fit, 150); });
+}
+
 function claimSession(state) {
   isOwner = true;
   localStorage.setItem(SESSION_KEY, JSON.stringify({ id: myTabId, ts: Date.now() }));
   sessionChannel.postMessage({ type: 'claimed', id: myTabId });
   document.getElementById('inactive-overlay').hidden = true;
 
+  const startHeartbeat = () => {
+    heartbeatTimer = setInterval(() => {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ id: myTabId, ts: Date.now() }));
+    }, HEARTBEAT_MS);
+  };
+
   if (state) {
     restoreWorkspaceState(state);
+    workspaceReady = true;
+    fitAllTerminals();
+    startHeartbeat();
   } else {
-    // No live owner to transfer from — start fresh or reconnect existing ptys
-    if (getAllPanes().length === 0) initWorkspace();
-    else reconnectAllPtys();
+    fetch('/api/session').then(r => r.json()).then(saved => {
+      if (saved) restoreWorkspaceState(saved);
+      else initWorkspace();
+      workspaceReady = true;
+      fitAllTerminals();
+    }).catch(() => { initWorkspace(); workspaceReady = true; })
+      .finally(startHeartbeat);
   }
-
-  heartbeatTimer = setInterval(() => {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ id: myTabId, ts: Date.now() }));
-  }, HEARTBEAT_MS);
 }
 
 function releaseSession() {
@@ -219,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (remaining.length) setActivePane(remaining[0]);
       else activePane = null;
     }
+    saveSessionState();
   });
 
   // ── Keyboard shortcuts ──
@@ -231,9 +262,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'w')  { e.preventDefault(); if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); }
   });
 
+  // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal
+  document.addEventListener('dblclick', () => {
+    if (activePane?.activeTab?.term) activePane.activeTab.term.input('\t');
+  });
+
   initSession();
 
   window.addEventListener('beforeunload', () => {
+    if (workspaceReady) {
+      const state = captureWorkspaceState();
+      if (state) navigator.sendBeacon('/api/session', new Blob([JSON.stringify(state)], { type: 'application/json' }));
+    }
     if (isOwner) releaseSession();
   });
 });

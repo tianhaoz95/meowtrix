@@ -16,6 +16,33 @@ const wss = new WebSocketServer({ server });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── Hot reload (dev only) ────────────────────────────────────────────────────
+if (process.env.HOTRELOAD) {
+  const reloadClients = new Set();
+  app.get('/__reload', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.flushHeaders();
+    reloadClients.add(res);
+    req.on('close', () => reloadClients.delete(res));
+  });
+  // nodemon sends SIGUSR2 before restarting
+  process.on('SIGUSR2', () => {
+    reloadClients.forEach(r => r.write('data: reload\n\n'));
+  });
+}
+
+// Inject hot-reload snippet into index.html in dev mode
+app.get('/', (req, res) => {
+  let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  if (process.env.HOTRELOAD) {
+    html = html.replace('</body>', `<script>
+(function(){var s=new EventSource('/__reload');s.onmessage=function(){location.reload()};s.onerror=function(){setTimeout(function(){location.reload()},500)}})();
+</script></body>`);
+  }
+  res.send(html);
+});
+
 // ── Settings persistence ─────────────────────────────────────────────────────
 const SETTINGS_FILE = path.join(os.homedir(), '.meowtrix', 'settings.json');
 const DEFAULT_SETTINGS = {
@@ -46,6 +73,18 @@ app.post('/api/settings', (req, res) => {
 app.post('/api/settings/reset', (req, res) => {
   writeSettings({ ...DEFAULT_SETTINGS });
   res.json({ ...DEFAULT_SETTINGS });
+});
+
+// ── Session state persistence ────────────────────────────────────────────────
+const SESSION_FILE = path.join(os.homedir(), '.meowtrix', 'session.json');
+app.get('/api/session', (req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'))); }
+  catch { res.json(null); }
+});
+app.post('/api/session', (req, res) => {
+  fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true });
+  fs.writeFileSync(SESSION_FILE, JSON.stringify(req.body));
+  res.json({ ok: true });
 });
 
 // ── Proxy: fetch server-side, strip X-Frame-Options / CSP frame directives ──
@@ -109,8 +148,12 @@ app.get('/proxy', (req, res) => {
 });
 
 // ── PTY / WebSocket ──────────────────────────────────────────────────────────
-// ptys: id -> { proc, dataListeners: Set }
+// ptys: id -> { proc, dataListeners: Set, buffer: string }
 const ptys = new Map();
+
+// Keep ~200KB of recent output per PTY so a reconnecting client (e.g. after a
+// page refresh) can be re-hydrated with the existing terminal content.
+const PTY_BUFFER_MAX = 200000;
 
 function attachPtyToWs(id, ptyEntry, ws) {
   const listener = (data) => {
@@ -133,11 +176,23 @@ wss.on('connection', (ws) => {
       case 'pty:create': {
         const id = msg.id || uuidv4();
         if (ptys.has(id)) {
-          // Reconnect: reattach data stream
+          // Reconnect: replay buffered output, then reattach the live stream.
           const entry = ptys.get(id);
           if (attached.has(id)) { attached.get(id)(); }
+          if (entry.buffer && ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'pty:data', id, data: entry.buffer }));
+          }
           attached.set(id, attachPtyToWs(id, entry, ws));
           ws.send(JSON.stringify({ type: 'pty:created', id }));
+          // Full-screen TUIs (vim, htop, …) only repaint on SIGWINCH, so the
+          // replayed buffer alone leaves them blank until the user resizes.
+          // Force a redraw by jiggling the PTY size to its target dimensions.
+          const cols = msg.cols || entry.proc.cols || 80;
+          const rows = msg.rows || entry.proc.rows || 24;
+          try {
+            entry.proc.resize(cols, Math.max(1, rows - 1));
+            setTimeout(() => { try { entry.proc.resize(cols, rows); } catch {} }, 50);
+          } catch {}
           break;
         }
         const shell = readSettings().shell || process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
@@ -150,8 +205,16 @@ wss.on('connection', (ws) => {
           cwd: process.env.HOME || process.cwd(),
           env: ptyEnv,
         });
-        const entry = { proc, dataListeners: new Set() };
+        const entry = { proc, dataListeners: new Set(), buffer: '' };
         ptys.set(id, entry);
+        // Persistently buffer output (independent of any connected WS) so it can
+        // be replayed on reconnect. Capped to the most recent PTY_BUFFER_MAX bytes.
+        proc.onData((data) => {
+          entry.buffer += data;
+          if (entry.buffer.length > PTY_BUFFER_MAX) {
+            entry.buffer = entry.buffer.slice(-PTY_BUFFER_MAX);
+          }
+        });
         proc.onExit(() => {
           ptys.delete(id);
           if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:exit', id }));
