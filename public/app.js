@@ -9,6 +9,7 @@ let isActiveSession = false;  // are we the active session right now?
 let hasClaimed = false;       // have we sent our first claim yet?
 let bootstrapped = false;     // workspace built and ready to claim?
 let streamsLost = false;      // another session took over our PTY streams
+let everActive = false;       // have we ever been the active session?
 
 // Serialize current workspace state for transfer
 function captureWorkspaceState() {
@@ -81,18 +82,30 @@ function restoreWorkspaceState(state) {
 
 let workspaceReady = false;
 
-// Save workspace state to server (debounced)
+// Save workspace state to server (debounced). Only the active session may write
+// — an inactive tab holds a stale layout and must never clobber the server with
+// it (otherwise e.g. its unload beacon would resurrect panes the active tab
+// already closed).
 let _saveTimer = null;
+function _postSessionState() {
+  _saveTimer = null;
+  const state = captureWorkspaceState();
+  if (state) fetch('/api/session', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state),
+  });
+}
 function saveSessionState() {
-  if (!workspaceReady) return;
+  if (!workspaceReady || !isActiveSession) return;
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => {
-    const state = captureWorkspaceState();
-    if (state) fetch('/api/session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state),
-    });
-  }, 300);
+  _saveTimer = setTimeout(_postSessionState, 300);
+}
+// Push any pending save immediately (e.g. right before handing off the active
+// session) so the next tab resyncs against the very latest layout.
+function flushSessionState() {
+  if (!_saveTimer) return;
+  clearTimeout(_saveTimer);
+  _postSessionState();
 }
 
 function fitAllTerminals() {
@@ -143,17 +156,40 @@ function onWsConnected() {
   }
 }
 
+// Re-fetch the server's saved session and rebuild the workspace from it. Used
+// when we reactivate after being idle: the session that was active meanwhile may
+// have changed the layout (split/closed panes, added/moved tabs), so our DOM is
+// stale. Rebuilding also re-creates the terminals, which reconnects their PTYs.
+async function resyncWorkspace() {
+  try {
+    const saved = await fetch('/api/session').then(r => r.json());
+    if (saved) restoreWorkspaceState(saved);
+  } catch {}
+  fitAllTerminals();
+}
+
 // Called by ws.js when a session:state message arrives.
 function onSessionState(activeTabId) {
   const active = activeTabId === myTabId;
+  const was = isActiveSession;
   isActiveSession = active;
   document.getElementById('inactive-overlay').hidden = active;
   if (active) {
-    // If our streams were taken over while we were idle, pull them back.
-    if (streamsLost && workspaceReady) { reconnectAllPtys(); }
+    if (everActive && !was && workspaceReady) {
+      // Idle → active: rebuild from the server so the layout matches what the
+      // previously-active session left behind.
+      resyncWorkspace();
+    } else if (everActive && was && streamsLost && workspaceReady) {
+      // Reconnected while still active (e.g. a network blip): layout is
+      // unchanged, just re-grab the live PTY streams.
+      reconnectAllPtys();
+    }
+    everActive = true;
     streamsLost = false;
   } else {
-    // An active session elsewhere now owns the live PTY streams.
+    // Handing off: push our final layout now so the new active tab resyncs
+    // against it, then mark our PTY streams as owned elsewhere.
+    flushSessionState();
     streamsLost = true;
   }
 }
@@ -174,7 +210,7 @@ function showTabTypePicker(e, pane) {
   [['⬛  Terminal', 'terminal'], ['🌐  Browser', 'browser']].forEach(([text, type]) => {
     const btn = document.createElement('button');
     btn.textContent = text;
-    btn.addEventListener('click', () => { addTab(pane, type); picker.remove(); activePicker = null; });
+    btn.addEventListener('click', () => { addTab(pane, type); saveSessionState(); picker.remove(); activePicker = null; });
     picker.appendChild(btn);
   });
 
@@ -294,7 +330,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initSession();
 
   window.addEventListener('beforeunload', () => {
-    if (workspaceReady) {
+    // Only the active session persists on unload — an inactive tab's state is
+    // stale and would overwrite the real layout.
+    if (workspaceReady && isActiveSession) {
       const state = captureWorkspaceState();
       if (state) navigator.sendBeacon('/api/session', new Blob([JSON.stringify(state)], { type: 'application/json' }));
     }

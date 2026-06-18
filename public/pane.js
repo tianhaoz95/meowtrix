@@ -273,6 +273,7 @@ function closeTab(pane, id) {
   tab.tabEl.remove();
   pane.tabs.splice(idx, 1);
   if (pane.tabs.length) activateTab(pane, pane.tabs[Math.max(0, idx - 1)].id);
+  saveSessionState();
 }
 
 function initTerminalTab(tab, existingPtyId) {

@@ -21,6 +21,7 @@ function splitPane(pane, dir) {
 
   addTab(newPane, 'terminal');
   setActivePane(newPane);
+  saveSessionState();
   return newPane;
 }
 
