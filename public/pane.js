@@ -198,7 +198,7 @@ function collapseEmptyPane(pane) {
 function getTermTheme() {
   return document.documentElement.classList.contains('light')
     ? { background: '#ffffff', foreground: '#1a1a1a', cursor: '#7c3aed', selectionBackground: 'rgba(124,58,237,0.2)', cursorAccent: '#fff' }
-    : { background: '#000000', foreground: '#e0e0e0', cursor: '#8b5cf6', selectionBackground: 'rgba(139,92,246,0.3)', cursorAccent: '#000' };
+    : { background: '#0a0a0e', foreground: '#ededf2', cursor: '#8b5cf6', selectionBackground: 'rgba(139,92,246,0.3)', cursorAccent: '#0a0a0e' };
 }
 
 function createPane() {
