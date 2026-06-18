@@ -3,13 +3,31 @@ let ws = null;
 let wsReady = false;
 const ptyCallbacks = new Map(); // ptyId -> Terminal instance
 const pendingPtys = []; // queued pty:create calls before WS is open
+const pendingRestoreFit = new Set(); // ptyIds whose next pty:data is the replay buffer
 
 // Shared inbound-message dispatch — used by both the real WebSocket and the
 // serverless demo backend (demo.js), which speaks the identical message shapes.
 function handleWsMessage(msg) {
   if (msg.type === 'pty:data') {
     const term = ptyCallbacks.get(msg.id);
-    if (term) term.write(msg.data);
+    if (term) {
+      if (pendingRestoreFit.has(msg.id)) {
+        // This is the replayed buffer (the terminal was just snapped to the
+        // PTY's generation width by pty:created). Re-fit to the real pane only
+        // after the buffer has finished rendering, so the reflow is clean.
+        pendingRestoreFit.delete(msg.id);
+        term.write(msg.data, () => { if (typeof onReplayDone === 'function') onReplayDone(msg.id); });
+      } else {
+        term.write(msg.data);
+      }
+    }
+  } else if (msg.type === 'pty:created') {
+    // On reconnect the server reports the PTY's current grid size before the
+    // buffer; match it so the replay renders at the width that produced it.
+    if (msg.cols && msg.rows) {
+      if (typeof onPtyRestore === 'function') onPtyRestore(msg.id, msg.cols, msg.rows);
+      pendingRestoreFit.add(msg.id);
+    }
   } else if (msg.type === 'pty:exit') {
     const term = ptyCallbacks.get(msg.id);
     if (term) term.write('\r\n\x1b[31m[process exited]\x1b[0m\r\n');

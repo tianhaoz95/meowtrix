@@ -37,15 +37,8 @@ function schedFmtRemaining(ms) {
   return `${sec}s`;
 }
 
-// ── Tab lookup / reconciliation ──────────────────────────────────────────────
-function tabByPtyId(ptyId) {
-  if (!ptyId || typeof getAllPanes !== 'function') return null;
-  for (const pane of getAllPanes()) {
-    const tab = pane.tabs.find(t => t.type === 'terminal' && t.ptyId === ptyId);
-    if (tab) return tab;
-  }
-  return null;
-}
+// ── Reconciliation ───────────────────────────────────────────────────────────
+// (tabByPtyId lives in pane.js — shared with the PTY reconnect/restore logic.)
 
 // Make the on-screen lock overlays match `scheduledByPty`. Called whenever the
 // server's schedule state changes *and* after the workspace is (re)built, since

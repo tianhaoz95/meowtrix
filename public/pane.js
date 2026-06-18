@@ -481,6 +481,34 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   extBtn.addEventListener('click', () => { if (tab.currentUrl) window.open(tab.currentUrl, '_blank'); });
 }
 
+// Find a live terminal tab by its PTY id (used by reconnect restore + schedules).
+function tabByPtyId(ptyId) {
+  if (!ptyId) return null;
+  for (const pane of getAllPanes()) {
+    const t = pane.tabs.find(t => t.type === 'terminal' && t.ptyId === ptyId);
+    if (t) return t;
+  }
+  return null;
+}
+
+// Called from ws.js when the server reports a reconnecting PTY's generation grid
+// size (just before replaying its buffer). Snap the xterm to that size so the
+// buffer renders exactly as it was produced — otherwise zsh's PROMPT_EOL_MARK
+// strands a `%` at the start of every prompt line.
+function onPtyRestore(ptyId, cols, rows) {
+  const tab = tabByPtyId(ptyId);
+  if (tab?.term && cols && rows) { try { tab.term.resize(cols, rows); } catch {} }
+}
+
+// Called once the replayed buffer has finished rendering: re-fit the visible
+// terminal to its actual pane, which reflows the (correctly rendered) content.
+function onReplayDone(ptyId) {
+  const tab = tabByPtyId(ptyId);
+  if (tab?.fitAddon && tab.viewEl.classList.contains('active')) {
+    requestAnimationFrame(() => { try { tab.fitAddon.fit(); } catch {} });
+  }
+}
+
 function getAllPanes() {
   const results = [];
   function walk(el) {

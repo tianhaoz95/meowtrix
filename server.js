@@ -326,10 +326,19 @@ wss.on('connection', (ws) => {
           const entry = ptys.get(id);
           if (attached.has(id)) { attached.get(id)(); }
           if (entry.buffer && ws.readyState === ws.OPEN) {
+            // Send the PTY's current grid size *before* the buffer so the client
+            // can replay it at the width that produced it. Rendering the buffer
+            // into a narrower terminal strands zsh's PROMPT_EOL_MARK (a reverse-
+            // video `%`) on every prompt line — the classic "`%` before every
+            // line after refresh" bug. The client snaps to this size, writes the
+            // buffer, then re-fits to its pane, which reflows the (now correct)
+            // content cleanly.
+            ws.send(JSON.stringify({ type: 'pty:created', id, cols: entry.cols, rows: entry.rows }));
             ws.send(JSON.stringify({ type: 'pty:data', id, data: entry.buffer }));
+          } else {
+            ws.send(JSON.stringify({ type: 'pty:created', id }));
           }
           attached.set(id, attachPtyToWs(id, entry, ws));
-          ws.send(JSON.stringify({ type: 'pty:created', id }));
           // Full-screen TUIs (vim, htop, …) only repaint on SIGWINCH, so the
           // replayed buffer alone leaves them blank until the user resizes.
           // Force a redraw by briefly jiggling the PTY size. Restore to the
