@@ -37,6 +37,7 @@
         <a href="#terminals">Terminals</a>
         <a href="#browser">Browser panes</a>
         <a href="#broadcast">Broadcast input</a>
+        <a href="#palette">Command palette</a>
         <a href="#settings">Settings &amp; themes</a>
         <a href="#sessions">Sessions &amp; devices</a>
         <a href="#mobile">On mobile</a>
@@ -110,22 +111,35 @@ npm start</code></pre>
 
       <section id="running">
         <h2>Running it</h2>
-        <p>Start the server (defaults to port <code>3000</code>, override with the <code>PORT</code> env var):</p>
+        <p>Start the server (defaults to port <code>9123</code>, override with the <code>PORT</code> env var):</p>
         <pre><code>meowtrix            # if installed via the installer
 # or, from source:
 npm start
 PORT=8080 npm start</code></pre>
-        <p>Then open <code>http://localhost:3000</code> in your browser. You'll land in a single pane with one terminal, ready to type.</p>
+        <p>Then open <code>http://localhost:9123</code> in your browser. You'll land in a single pane with one terminal, ready to type.</p>
+        <p>By default Meowtrix binds to <code>127.0.0.1</code> (<strong>localhost only</strong>), so it is not reachable from other machines on your network — see <a href="#remote">Reaching it remotely</a> to change that safely.</p>
       </section>
 
       <section id="remote">
         <h2>Reaching it remotely</h2>
-        <p>On the same network, open <code>http://&lt;host-ip&gt;:3000</code> from any device. To reach it over the internet, run it on a server or front it with a tunnel:</p>
-        <pre><code># Example with ngrok
-ngrok http 3000</code></pre>
+        <p>Meowtrix hands whoever can reach it a <strong>real shell on the host</strong>, so it binds to <code>127.0.0.1</code> (localhost only) by default. There are two safe ways to use it from another device.</p>
+
+        <h3>1. SSH tunnel (recommended)</h3>
+        <p>Leave the default localhost binding and forward the port over SSH from your client machine:</p>
+        <pre><code>ssh -L 9123:localhost:9123 &lt;user&gt;@&lt;host&gt;
+# then open http://localhost:9123 in your local browser</code></pre>
+        <p>This keeps Meowtrix off the network entirely — only your authenticated SSH session can reach it. Tunnels like <code>ngrok http 9123</code> work the same way, since they connect to localhost on the host.</p>
+
+        <h3>2. Bind to the network</h3>
+        <p>To reach Meowtrix directly from other devices on a <strong>trusted</strong> network, bind to all interfaces:</p>
+        <pre><code>meowtrix --network          # or: meowtrix --host 0.0.0.0
+# from source:
+HOST=0.0.0.0 npm start</code></pre>
+        <p>Then open <code>http://&lt;host-ip&gt;:9123</code> from any device. Use <code>--host &lt;addr&gt;</code> (or the <code>HOST</code> env var) to bind a specific interface instead.</p>
+
         <div class="callout">
           <span class="ico">🔐</span>
-          <p>Meowtrix gives whoever can reach it a real shell on the host. Only expose it over trusted networks or behind authentication (e.g. your tunnel provider's access controls).</p>
+          <p><strong>There is no built-in authentication.</strong> <code>--network</code> exposes a shell to anyone who can reach the port — only do this on a network you trust, or front it with your own auth/firewall. The SSH-tunnel option above avoids this entirely.</p>
         </div>
       </section>
 
@@ -168,6 +182,20 @@ ngrok http 3000</code></pre>
         <p>Toggle the toolbar's <strong>📡 Broadcast</strong> button to mirror your keystrokes to every visible terminal at once — like iTerm2 broadcast or tmux <code>synchronize-panes</code>. Great for running the same command across several hosts side by side. Toggle it off to return to typing into just the focused terminal.</p>
       </section>
 
+      <section id="palette">
+        <h2>Command palette</h2>
+        <p>Press <kbd>⌘</kbd><kbd>K</kbd> (macOS) or <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> anywhere to open a fuzzy launcher for every workspace action — no need to remember individual shortcuts or hunt through the toolbar. You can also click the <strong>⌘ Commands</strong> button in the toolbar.</p>
+        <ul>
+          <li><strong>Type</strong> to filter; the list narrows as you go (fuzzy, so "spv" finds "Split pane vertically").</li>
+          <li><kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> to run, <kbd>Esc</kbd> to dismiss.</li>
+        </ul>
+        <p>Commands include splitting panes, opening terminal or browser tabs, switching between tabs and panes, toggling broadcast input, switching themes, uploading a file, and opening settings.</p>
+        <div class="callout">
+          <span class="ico">⌨️</span>
+          <p><kbd>⌘</kbd><kbd>K</kbd> and <kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> are used (rather than <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>P</kbd>) so they don't clash with the readline editing keys your shell uses inside the terminal.</p>
+        </div>
+      </section>
+
       <section id="settings">
         <h2>Settings &amp; themes</h2>
         <p>Open the <strong>⚙</strong> settings panel to adjust:</p>
@@ -206,6 +234,7 @@ ngrok http 3000</code></pre>
         <table>
           <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
           <tbody>
+            <tr><td><kbd>⌘</kbd><kbd>K</kbd> / <kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Open the <a href="#palette">command palette</a></td></tr>
             <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>\</kbd></td><td>Split the active pane vertically</td></tr>
             <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>-</kbd></td><td>Split the active pane horizontally</td></tr>
             <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>t</kbd></td><td>New tab in the active pane</td></tr>

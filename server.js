@@ -352,7 +352,31 @@ wss.on('connection', (ws) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Meowtrix running at http://0.0.0.0:${PORT}`);
+// ── Network binding ──────────────────────────────────────────────────────────
+// A Meowtrix server hands whoever can reach it a real shell on the host, so by
+// default we bind to loopback only (127.0.0.1) — reachable from the host itself
+// (e.g. via an SSH tunnel) but invisible to the rest of the network. Opt in to
+// LAN/remote exposure with `--network`/`-n` (binds 0.0.0.0) or a specific
+// address via `--host <addr>` or the HOST env var.
+function resolveHost() {
+  const argv = process.argv.slice(2);
+  if (argv.includes('--network') || argv.includes('-n')) return '0.0.0.0';
+  const hostFlag = argv.indexOf('--host');
+  if (hostFlag !== -1 && argv[hostFlag + 1]) return argv[hostFlag + 1];
+  return process.env.HOST || '127.0.0.1';
+}
+
+const PORT = process.env.PORT || 9123;
+const HOST = resolveHost();
+const isLoopback = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
+server.listen(PORT, HOST, () => {
+  console.log(`Meowtrix running at http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  if (isLoopback) {
+    console.log('🔒 Bound to localhost only — not reachable from the network.');
+    console.log('   Tunnel in with:  ssh -L ' + PORT + ':localhost:' + PORT + ' <user>@<host>');
+    console.log('   Expose on the network with:  meowtrix --network   (or HOST=0.0.0.0)');
+  } else {
+    console.log('⚠️  Reachable over the network — anyone who can connect gets a shell on this host.');
+    console.log('   Only do this on a trusted network or behind authentication.');
+  }
 });

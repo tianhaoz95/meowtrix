@@ -10,7 +10,7 @@ Meowtrix — a browser-based remote workspace ("vibe engineering tool"). The UI 
 
 ```bash
 npm install        # install deps (node-pty compiles natively)
-npm start          # run the server on PORT (default 3000)
+npm start          # run the server on PORT (default 9123)
 ./start.sh         # dev mode: nodemon + browser hot-reload (sets HOTRELOAD=1)
 ```
 
@@ -22,6 +22,8 @@ There is no test suite, linter, or build step — the frontend is plain ES scrip
 - **HTTP**: serves `public/`, the settings/session REST API, and the embedding proxy.
 - **WebSocket**: PTY lifecycle (`pty:create/input/resize/destroy`) plus active-session coordination messages.
 
+**Network binding defaults to loopback.** `resolveHost()` (`server.js`) picks the listen address: `--network`/`-n` → `0.0.0.0`, `--host <addr>` or the `HOST` env var → that address, otherwise `127.0.0.1`. Since reaching the server means getting a shell and there is *no* built-in auth, the safe default is localhost-only (use over an SSH tunnel); LAN/remote exposure is an explicit opt-in. The startup log prints the chosen mode plus a tunnel hint or a warning accordingly.
+
 **PTYs outlive WebSocket connections.** The `ptys` Map keys each PTY by id and keeps a rolling ~200KB output buffer. On reconnect, `pty:create` with an existing id replays the buffer and reattaches the live stream instead of spawning a new shell — this is what makes refreshes and network blips non-destructive. Closing a browser tab/WS only detaches listeners; the shell keeps running.
 
 **Single-session enforcement is server-coordinated** (`server.js` + `public/app.js`). Only one client is the "active" session; every other connected client (across browsers and devices, not just tabs) sees the inactive overlay. The newest client to send `session:claim` wins; others get a `session:state` broadcast and drop to the overlay until they press "Move session here". When the active socket drops, the server hands off to the most-recently-connected remaining client. This is deliberately *not* done via BroadcastChannel/localStorage so it works cross-device.
@@ -32,7 +34,7 @@ There is no test suite, linter, or build step — the frontend is plain ES scrip
 
 ## Frontend module map (`public/`, all global-scope, load order matters)
 
-Load order in `index.html`: `ws.js` → `pane.js` → `layout.js` → `app.js` → `mobile.js` → `settings.js`. Functions are shared via the global scope (e.g. `wsSend`, `getAllPanes`, `applyStickyMods`, `runAppShortcut`), so cross-file calls are plain function references, not imports.
+Load order in `index.html`: `ws.js` → `pane.js` → `layout.js` → `app.js` → `mobile.js` → `settings.js` → `palette.js`. Functions are shared via the global scope (e.g. `wsSend`, `getAllPanes`, `applyStickyMods`, `runAppShortcut`), so cross-file calls are plain function references, not imports.
 
 - **`ws.js`** — the single WebSocket, auto-reconnect (1s), and the `ptyCallbacks` map (ptyId → xterm Terminal). Queues `pty:create` calls made before the socket opens.
 - **`pane.js`** — pane/tab model and registry, tab creation for terminals and browsers, tab drag-and-drop (HTML5 DnD for mouse + a parallel Pointer-Events path for touch), and broadcast-input fan-out.
@@ -40,6 +42,7 @@ Load order in `index.html`: `ws.js` → `pane.js` → `layout.js` → `app.js` �
 - **`app.js`** — session bootstrap/claim/handoff logic, workspace serialize/restore, keyboard shortcuts, and double-click/double-tap → autocomplete (Tab) in the active terminal.
 - **`mobile.js`** — on-screen key bar above the soft keyboard. Ctrl/Alt/Cmd are *sticky* modifiers applied at the PTY-input layer (`applyStickyMods`, called from xterm `onData`) rather than via synthetic keyboard events, because mobile keyboards don't emit reliable keydowns.
 - **`settings.js`** — settings panel, live application of terminal font/scrollback/theme.
+- **`palette.js`** — the `⌘K` / `Ctrl·⌘+Shift+P` command palette: a fuzzy launcher whose commands are rebuilt on each open and call the same shared action functions as the toolbar (`splitPane`, `addTab`, `closeActivePane`, `setBroadcastInput`, `setTheme`, `openSettings`, plus `cycleTab`/`cyclePane`). The open shortcut deliberately avoids `Ctrl+K`/`Ctrl+P` so it doesn't collide with terminal readline bindings.
 
 ## Persisted state (host machine)
 

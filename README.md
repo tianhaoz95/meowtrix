@@ -10,6 +10,8 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **Persistent terminals** — full PTY-backed shells via xterm.js that outlive the connection; refresh or reconnect and they reattach with replayed scrollback
 - **Embedded browser panes** — built-in browser with a server-side proxy that strips frame-blocking headers so otherwise un-embeddable pages render in a pane
 - **Cross-device sessions** — server-coordinated single active session; move the whole workspace between browsers and devices and your layout follows
+- **Command palette** — `⌘K` (or `Ctrl/⌘+Shift+P`) fuzzy launcher for every action: split, new tab, switch tabs/panes, broadcast, themes, settings
+- **Localhost-first** — binds to `127.0.0.1` by default so it's not exposed to your network; opt into LAN/remote access explicitly (see [Network access](#network-access--security))
 - **Broadcast input** — mirror keystrokes to every visible terminal at once (like tmux `synchronize-panes`)
 - **Mobile-ready** — on-screen key bar with sticky Ctrl/Alt/Cmd modifiers and double-tap autocomplete
 - **10 themes** — Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Bubblegum, Catppuccin, Cappuccino, Synthwave; terminals are themed to match
@@ -39,7 +41,7 @@ Then run:
 meowtrix
 ```
 
-And open `http://localhost:3000` in your browser.
+And open `http://localhost:9123` in your browser.
 
 ### Install as a service (auto-start on login)
 
@@ -61,17 +63,35 @@ curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh
 
 ```bash
 npm install      # node-pty compiles natively
-npm start        # serves on PORT (default 3000)
+npm start        # serves on PORT (default 9123)
 ```
 
-Then open `http://localhost:3000` in your browser.
+Then open `http://localhost:9123` in your browser.
 
-To expose it over the internet, run it on a server or use a tunnel:
+## Network access & security
+
+Meowtrix hands whoever can reach it a **real shell on the host**, so by default it binds to **`127.0.0.1` (localhost only)** — reachable from the host itself but invisible to the rest of the network. There are two safe ways to use it remotely:
+
+**1. SSH tunnel (recommended).** Leave the default localhost binding and forward the port over SSH from your client machine:
 
 ```bash
-# Example with ngrok
-ngrok http 3000
+ssh -L 9123:localhost:9123 <user>@<host>
+# then open http://localhost:9123 in your local browser
 ```
+
+This keeps Meowtrix off the network entirely — only your authenticated SSH session can reach it. Tunnels like `ngrok http 9123` also work with the default binding, since they connect to localhost on the host.
+
+**2. Bind to the network.** To reach Meowtrix directly from other devices on a **trusted** LAN, bind to all interfaces:
+
+```bash
+meowtrix --network         # or: meowtrix --host 0.0.0.0
+# from source:
+HOST=0.0.0.0 npm start
+```
+
+Then open `http://<host-ip>:9123` from any device. You can also bind to one specific interface with `--host <addr>` or the `HOST` env var.
+
+> ⚠️ `--network` exposes a shell to anyone who can reach the port — there is no built-in authentication. Only do this on a network you trust, or front it with your own auth/firewall.
 
 ### Dev mode (hot reload)
 
@@ -94,10 +114,13 @@ Use `⌘` on macOS or `Ctrl` elsewhere.
 
 | Shortcut | Action |
 |---|---|
+| `⌘K` / `Ctrl+Shift+P` | Open the command palette |
 | `⌘\` | Split vertical |
 | `⌘-` | Split horizontal |
 | `⌘T` | New tab |
 | `⌘W` | Close tab |
+
+The **command palette** (`⌘K`, or `Ctrl/⌘+Shift+P`) is a fuzzy launcher for every action — splitting, new terminal/browser tabs, switching tabs and panes, broadcast input, theme switching, and settings. Type to filter, arrow keys to move, `Enter` to run.
 
 Double-click (or double-tap) inside a terminal to send `Tab` for autocomplete.
 

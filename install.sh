@@ -125,7 +125,7 @@ else
   echo ""
   echo "   meowtrix"
   echo ""
-  echo "Then open http://localhost:3000 in your browser."
+  echo "Then open http://localhost:9123 in your browser."
   echo ""
   echo "Tip: to install as an auto-starting service, re-run with --service:"
   echo "   curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service"

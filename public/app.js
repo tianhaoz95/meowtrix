@@ -270,6 +270,26 @@ function applyTheme(theme) {
   }));
 }
 
+// Apply a theme and persist it to the host. Shared by the toolbar cycle button,
+// the settings dropdown, and the command palette's "Theme: …" entries.
+function setTheme(id) {
+  applyTheme(id);
+  fetch('/api/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ theme: id }),
+  });
+}
+
+// Close the active pane (after closing all its tabs). Shared by the toolbar's
+// Close button and the command palette. No-op if it's the only pane left.
+function closeActivePane() {
+  if (!activePane || getAllPanes().length <= 1) return;
+  const pane = activePane;
+  [...pane.tabs].forEach(t => closeTab(pane, t.id));
+  collapseEmptyPane(pane);
+  saveSessionState();
+}
+
 // Run a Cmd/Ctrl app shortcut by its key. Shared by the keyboard handler and
 // the mobile key bar's Cmd modifier. Returns true if the key was handled.
 function runAppShortcut(key) {
@@ -344,15 +364,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply saved theme immediately (server settings loaded async in settings.js)
   applyTheme(localStorage.getItem('theme') || 'dark');
 
-  document.getElementById('btn-theme').addEventListener('click', async () => {
+  document.getElementById('btn-theme').addEventListener('click', () => {
     const cur = document.documentElement.dataset.theme || 'dark';
     const idx = THEMES.findIndex(t => t.id === cur);
-    const next = THEMES[(idx + 1) % THEMES.length].id;
-    applyTheme(next);
-    await fetch('/api/settings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme: next }),
-    });
+    setTheme(THEMES[(idx + 1) % THEMES.length].id);
   });
 
   // ── Toolbar ──
@@ -371,13 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadFiles(uploadInput.files);
     uploadInput.value = ''; // allow re-selecting the same file
   });
-  document.getElementById('btn-close-pane').addEventListener('click', () => {
-    if (!activePane || getAllPanes().length <= 1) return;
-    const pane = activePane;
-    [...pane.tabs].forEach(t => closeTab(pane, t.id));
-    collapseEmptyPane(pane);
-    saveSessionState();
-  });
+  document.getElementById('btn-close-pane').addEventListener('click', closeActivePane);
 
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
