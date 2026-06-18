@@ -195,10 +195,19 @@ function collapseEmptyPane(pane) {
   }
 }
 
+// Derive the xterm theme from the active theme's CSS variables so every
+// theme (current and future) colors its terminals without extra wiring.
 function getTermTheme() {
-  return document.documentElement.classList.contains('light')
-    ? { background: '#ffffff', foreground: '#1a1a1a', cursor: '#7c3aed', selectionBackground: 'rgba(124,58,237,0.2)', cursorAccent: '#fff' }
-    : { background: '#0a0a0e', foreground: '#ededf2', cursor: '#8b5cf6', selectionBackground: 'rgba(139,92,246,0.3)', cursorAccent: '#0a0a0e' };
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (cs.getPropertyValue(name).trim() || fallback);
+  const bg = v('--term-bg', '#0a0a0e');
+  return {
+    background: bg,
+    foreground: v('--term-fg', '#ededf2'),
+    cursor: v('--accent', '#8b5cf6'),
+    cursorAccent: bg,
+    selectionBackground: v('--accent2', 'rgba(139,92,246,0.3)'),
+  };
 }
 
 function createPane() {

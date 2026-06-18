@@ -52,7 +52,7 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html.light {
+html[data-theme="light"] {
   color-scheme: light;
   --bg:        #f4f4f7;
   --bg2:       #ffffff;
@@ -85,6 +85,223 @@ html.light {
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ── Ocean — deep navy with a cyan glow (calm, focused) ── */
+html[data-theme="ocean"] {
+  color-scheme: dark;
+  --bg:        #0a1119;
+  --bg2:       #0d1623;
+  --bg3:       #13202f;
+  --bg4:       #1a2a3c;
+  --bg5:       #25384e;
+  --border:    rgba(120,180,255,0.09);
+  --border2:   rgba(120,180,255,0.06);
+  --border3:   rgba(120,180,255,0.16);
+  --text:      #e3f0fb;
+  --text2:     #93b3cf;
+  --text3:     #5e7d99;
+  --text4:     #34495e;
+  --accent:    #22d3ee;
+  --accent-hi: #67e8f9;
+  --accent2:   rgba(34,211,238,0.30);
+  --accent-soft: rgba(34,211,238,0.13);
+  --tab-bg:    #1a2a3c;
+  --term-bg:   #0a1119;
+  --term-fg:   #e3f0fb;
+  --glass:        rgba(13,22,35,0.66);
+  --glass-strong: rgba(10,17,25,0.82);
+}
+
+/* ── Matrix — near-black with neon green (hacker terminal) ── */
+html[data-theme="matrix"] {
+  color-scheme: dark;
+  --bg:        #050805;
+  --bg2:       #070b07;
+  --bg3:       #0c120c;
+  --bg4:       #111a11;
+  --bg5:       #1b291b;
+  --border:    rgba(80,255,120,0.10);
+  --border2:   rgba(80,255,120,0.06);
+  --border3:   rgba(80,255,120,0.18);
+  --text:      #c9ffd2;
+  --text2:     #6fce85;
+  --text3:     #3f8a53;
+  --text4:     #244d30;
+  --accent:    #2bd96b;
+  --accent-hi: #5ef58f;
+  --accent2:   rgba(43,217,107,0.30);
+  --accent-soft: rgba(43,217,107,0.13);
+  --tab-bg:    #111a11;
+  --term-bg:   #050805;
+  --term-fg:   #c9ffd2;
+  --glass:        rgba(7,11,7,0.66);
+  --glass-strong: rgba(5,8,5,0.84);
+}
+
+/* ── Ember — warm charcoal with amber (cozy, low-light) ── */
+html[data-theme="ember"] {
+  color-scheme: dark;
+  --bg:        #120f0d;
+  --bg2:       #181310;
+  --bg3:       #211a15;
+  --bg4:       #2b211a;
+  --bg5:       #3a2c22;
+  --border:    rgba(255,180,120,0.09);
+  --border2:   rgba(255,180,120,0.06);
+  --border3:   rgba(255,180,120,0.16);
+  --text:      #f8ece0;
+  --text2:     #c9a98f;
+  --text3:     #927560;
+  --text4:     #5a4636;
+  --accent:    #f97316;
+  --accent-hi: #fb923c;
+  --accent2:   rgba(249,115,22,0.30);
+  --accent-soft: rgba(249,115,22,0.13);
+  --tab-bg:    #2b211a;
+  --term-bg:   #120f0d;
+  --term-fg:   #f8ece0;
+  --glass:        rgba(24,19,16,0.66);
+  --glass-strong: rgba(18,15,13,0.83);
+}
+
+/* ── Sakura — soft light with rose (bright, gentle) ── */
+html[data-theme="sakura"] {
+  color-scheme: light;
+  --bg:        #fdf2f5;
+  --bg2:       #ffffff;
+  --bg3:       #fbe9ee;
+  --bg4:       #ffffff;
+  --bg5:       #f4d4dd;
+  --border:    rgba(190,80,120,0.12);
+  --border2:   rgba(190,80,120,0.08);
+  --border3:   rgba(190,80,120,0.18);
+  --text:      #3d2630;
+  --text2:     #7a5560;
+  --text3:     #a98591;
+  --text4:     #d4afba;
+  --accent:    #e0467e;
+  --accent-hi: #f06ba0;
+  --accent2:   rgba(224,70,126,0.22);
+  --accent-soft: rgba(224,70,126,0.10);
+  --tab-bg:    #ffffff;
+  --term-bg:   #fff7fa;
+  --term-fg:   #3d2630;
+  --glass:        rgba(255,248,251,0.72);
+  --glass-strong: rgba(255,250,252,0.88);
+  --shadow:    0 1px 2px rgba(61,38,48,0.07);
+  --shadow-md: 0 10px 30px -8px rgba(61,38,48,0.16);
+  --shadow-lg: 0 28px 70px -16px rgba(61,38,48,0.22);
+}
+
+/* ── Bubblegum — candy pastels, soft and cute ── */
+html[data-theme="bubblegum"] {
+  color-scheme: light;
+  --bg:        #fef0f7;
+  --bg2:       #ffffff;
+  --bg3:       #fde4f1;
+  --bg4:       #ffffff;
+  --bg5:       #f8cfe6;
+  --border:    rgba(214,99,170,0.12);
+  --border2:   rgba(214,99,170,0.08);
+  --border3:   rgba(214,99,170,0.20);
+  --text:      #5b2a4a;
+  --text2:     #97597e;
+  --text3:     #c08aaa;
+  --text4:     #e3bcd3;
+  --accent:    #ff6fb5;
+  --accent-hi: #8ad2ff;
+  --accent2:   rgba(255,111,181,0.24);
+  --accent-soft: rgba(255,111,181,0.12);
+  --tab-bg:    #ffffff;
+  --term-bg:   #fff5fb;
+  --term-fg:   #5b2a4a;
+  --glass:        rgba(255,245,251,0.74);
+  --glass-strong: rgba(255,248,252,0.90);
+  --shadow:    0 1px 2px rgba(91,42,74,0.07);
+  --shadow-md: 0 10px 30px -8px rgba(91,42,74,0.16);
+  --shadow-lg: 0 28px 70px -16px rgba(91,42,74,0.22);
+}
+
+/* ── Catppuccin — the beloved soft-mocha pastel palette (Mocha flavor) ── */
+html[data-theme="catppuccin"] {
+  color-scheme: dark;
+  --bg:        #11111b;
+  --bg2:       #181825;
+  --bg3:       #1e1e2e;
+  --bg4:       #28283c;
+  --bg5:       #313244;
+  --border:    rgba(203,166,247,0.10);
+  --border2:   rgba(203,166,247,0.06);
+  --border3:   rgba(203,166,247,0.18);
+  --text:      #cdd6f4;
+  --text2:     #a6adc8;
+  --text3:     #6c7086;
+  --text4:     #45475a;
+  --accent:    #cba6f7;
+  --accent-hi: #f5c2e7;
+  --accent2:   rgba(203,166,247,0.30);
+  --accent-soft: rgba(203,166,247,0.14);
+  --tab-bg:    #1e1e2e;
+  --term-bg:   #1e1e2e;
+  --term-fg:   #cdd6f4;
+  --glass:        rgba(24,24,37,0.66);
+  --glass-strong: rgba(17,17,27,0.84);
+}
+
+/* ── Cappuccino — warm creamy coffee tones, cozy ── */
+html[data-theme="cappuccino"] {
+  color-scheme: light;
+  --bg:        #efe6db;
+  --bg2:       #f7f1ea;
+  --bg3:       #e8dccd;
+  --bg4:       #fbf7f1;
+  --bg5:       #ddccb8;
+  --border:    rgba(120,85,55,0.14);
+  --border2:   rgba(120,85,55,0.09);
+  --border3:   rgba(120,85,55,0.22);
+  --text:      #4a3728;
+  --text2:     #7a6450;
+  --text3:     #a8927c;
+  --text4:     #cdbba6;
+  --accent:    #a9744a;
+  --accent-hi: #c89368;
+  --accent2:   rgba(169,116,74,0.26);
+  --accent-soft: rgba(169,116,74,0.12);
+  --tab-bg:    #fbf7f1;
+  --term-bg:   #f7f1ea;
+  --term-fg:   #4a3728;
+  --glass:        rgba(247,241,234,0.74);
+  --glass-strong: rgba(250,245,239,0.90);
+  --shadow:    0 1px 2px rgba(74,55,40,0.08);
+  --shadow-md: 0 10px 30px -8px rgba(74,55,40,0.18);
+  --shadow-lg: 0 28px 70px -16px rgba(74,55,40,0.24);
+}
+
+/* ── Synthwave — retro neon, magenta→cyan on deep purple ── */
+html[data-theme="synthwave"] {
+  color-scheme: dark;
+  --bg:        #0f0420;
+  --bg2:       #170730;
+  --bg3:       #1f0b40;
+  --bg4:       #2a1152;
+  --bg5:       #3a1b6b;
+  --border:    rgba(255,90,200,0.12);
+  --border2:   rgba(255,90,200,0.07);
+  --border3:   rgba(255,90,200,0.20);
+  --text:      #f5e6ff;
+  --text2:     #c79de8;
+  --text3:     #8a63b5;
+  --text4:     #4f3a73;
+  --accent:    #ff4dd2;
+  --accent-hi: #34e7e4;
+  --accent2:   rgba(255,77,210,0.32);
+  --accent-soft: rgba(255,77,210,0.14);
+  --tab-bg:    #2a1152;
+  --term-bg:   #0f0420;
+  --term-fg:   #f5e6ff;
+  --glass:        rgba(23,7,48,0.66);
+  --glass-strong: rgba(15,4,32,0.84);
+}
+
 body, html {
   width: 100%; height: 100%;
   background: var(--bg); color: var(--text);
@@ -98,7 +315,7 @@ body::before {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
     radial-gradient(1100px 520px at 78% -8%, var(--accent-soft), transparent 60%),
-    radial-gradient(900px 460px at 8% 108%, rgba(99,102,241,0.06), transparent 60%);
+    radial-gradient(900px 460px at 8% 108%, var(--accent-soft), transparent 60%);
 }
 
 /* dvh tracks the mobile browser's collapsing URL bar so the app never gets
@@ -129,7 +346,7 @@ button:focus-visible { border-radius: 8px; }
 }
 #logo-icon {
   font-size: 17px; line-height: 1;
-  filter: drop-shadow(0 0 8px rgba(139,92,246,0.45));
+  filter: drop-shadow(0 0 8px var(--accent2));
 }
 #logo-text {
   font-size: 16px; font-weight: 800; letter-spacing: -0.4px;
@@ -183,7 +400,10 @@ body.broadcasting #workspace {
   box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 40px -10px var(--accent2);
 }
 #toolbar button.btn-danger:hover { background: #3b1a1a; color: #f87171; border-color: #7f1d1d; }
-html.light #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+html[data-theme="light"] #toolbar button.btn-danger:hover,
+html[data-theme="sakura"] #toolbar button.btn-danger:hover,
+html[data-theme="bubblegum"] #toolbar button.btn-danger:hover,
+html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
 #btn-theme, #btn-settings { width: 32px; padding: 0; font-size: 14px; }
 
 /* ── Workspace ── */

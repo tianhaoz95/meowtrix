@@ -41,7 +41,13 @@ function closeSettings() {
 
 // ── Populate + wire controls ─────────────────────────────────────────────────
 function populateControls(s) {
-  document.getElementById('s-theme').value = s.theme;
+  const themeSel = document.getElementById('s-theme');
+  // Build options once from the shared THEMES list (defined in app.js).
+  if (!themeSel.dataset.built && typeof THEMES !== 'undefined') {
+    themeSel.innerHTML = THEMES.map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+    themeSel.dataset.built = '1';
+  }
+  themeSel.value = s.theme;
   document.getElementById('s-font-size').value = s.termFontSize;
   document.getElementById('s-font-size-val').textContent = s.termFontSize;
   // Select closest matching font option

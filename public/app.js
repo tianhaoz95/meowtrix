@@ -233,14 +233,37 @@ function showTabTypePicker(e, pane) {
   });
 }
 
+// Single source of truth for available themes — drives both the settings
+// dropdown (settings.js) and the cycling toolbar button below. Each `id`
+// matches a `html[data-theme="…"]` block in style.css (except 'dark', which
+// is the :root default). `icon` shows on the toolbar button for the theme.
+const THEMES = [
+  { id: 'dark',   label: 'Midnight', icon: '🌙' },
+  { id: 'light',  label: 'Daylight', icon: '☀️' },
+  { id: 'ocean',  label: 'Ocean',    icon: '🌊' },
+  { id: 'matrix', label: 'Matrix',   icon: '🟢' },
+  { id: 'ember',  label: 'Ember',    icon: '🔥' },
+  { id: 'sakura', label: 'Sakura',   icon: '🌸' },
+  { id: 'bubblegum',  label: 'Bubblegum',  icon: '🍬' },
+  { id: 'catppuccin', label: 'Catppuccin', icon: '🐱' },
+  { id: 'cappuccino', label: 'Cappuccino', icon: '☕' },
+  { id: 'synthwave',  label: 'Synthwave',  icon: '🌆' },
+];
+
 // Exposed globally so settings.js can call it
 function applyTheme(theme) {
+  const meta = THEMES.find(t => t.id === theme) || THEMES[0];
+  document.documentElement.dataset.theme = meta.id;
   const themeBtn = document.getElementById('btn-theme');
-  document.documentElement.classList.toggle('light', theme === 'light');
-  if (themeBtn) themeBtn.textContent = theme === 'light' ? '🌙' : '☀';
-  localStorage.setItem('theme', theme);
+  if (themeBtn) {
+    themeBtn.textContent = meta.icon;
+    themeBtn.title = `Theme: ${meta.label} — click to cycle`;
+  }
+  localStorage.setItem('theme', meta.id);
   const sel = document.getElementById('s-theme');
-  if (sel) sel.value = theme;
+  if (sel) sel.value = meta.id;
+  // Terminal colors are derived from the active theme's CSS variables, so
+  // every theme themes its terminals for free.
   const newTheme = getTermTheme();
   getAllPanes().forEach(p => p.tabs.forEach(t => {
     if (t.term) t.term.options.theme = newTheme;
@@ -272,7 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(localStorage.getItem('theme') || 'dark');
 
   document.getElementById('btn-theme').addEventListener('click', async () => {
-    const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
+    const cur = document.documentElement.dataset.theme || 'dark';
+    const idx = THEMES.findIndex(t => t.id === cur);
+    const next = THEMES[(idx + 1) % THEMES.length].id;
     applyTheme(next);
     await fetch('/api/settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
