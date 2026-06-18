@@ -364,7 +364,24 @@ function initWorkspace() {
   addTab(initialPane, 'terminal');
 }
 
+// Log whether Chrome's on-device model (Gemini Nano via the Prompt API) is usable.
+async function checkOnDeviceModel() {
+  if (!('LanguageModel' in self)) {
+    console.log('[on-device model] Prompt API not available in this browser.');
+    return;
+  }
+  try {
+    const availability = await LanguageModel.availability();
+    // 'unavailable' | 'downloadable' | 'downloading' | 'available'
+    console.log('[on-device model] availability:', availability);
+  } catch (err) {
+    console.log('[on-device model] availability check failed:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  checkOnDeviceModel();
+
   // Apply saved theme immediately (server settings loaded async in settings.js)
   applyTheme(localStorage.getItem('theme') || 'dark');
 

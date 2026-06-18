@@ -67,6 +67,42 @@ function populateControls(s) {
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
+  document.getElementById('s-pet').checked = !!s.petEnabled;
+  refreshPetAvailability();
+}
+
+// Enable/disable the pet toggle based on whether Chrome's on-device model is
+// usable, and show setup instructions when it isn't.
+async function refreshPetAvailability() {
+  const toggle = document.getElementById('s-pet');
+  const note = document.getElementById('s-pet-note');
+  const availability = (typeof petModelAvailability === 'function')
+    ? await petModelAvailability()
+    : 'unavailable';
+
+  if (availability === 'unavailable') {
+    toggle.checked = false;
+    toggle.disabled = true;
+    note.hidden = false;
+    note.innerHTML =
+      'On-device model not available. The pet needs Chrome’s built-in AI ' +
+      '(Gemini Nano). In Chrome 138+, enable <code>chrome://flags/' +
+      '#prompt-api-for-gemini-nano</code> and <code>chrome://flags/' +
+      '#optimization-guide-on-device-model</code> (set to “Enabled ' +
+      'BypassPerfRequirement”), then restart Chrome.';
+    // If it was on but the model vanished, make sure the pet is hidden.
+    if (typeof setPetEnabled === 'function') setPetEnabled(false);
+  } else {
+    toggle.disabled = false;
+    if (availability === 'downloadable' || availability === 'downloading') {
+      note.hidden = false;
+      note.textContent =
+        'The model will download (~a few GB) the first time you chat with the pet.';
+    } else {
+      note.hidden = true;
+      note.textContent = '';
+    }
+  }
 }
 
 function wireControls() {
@@ -105,6 +141,11 @@ function wireControls() {
     await saveSetting('comboFx', e.target.checked);
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(e.target.checked);
   });
+
+  document.getElementById('s-pet').addEventListener('change', async (e) => {
+    await saveSetting('petEnabled', e.target.checked);
+    if (typeof setPetEnabled === 'function') setPetEnabled(e.target.checked);
+  });
 }
 
 function onSettingChanged(key) {
@@ -131,5 +172,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTheme(s.theme);
     applyTermSettings();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
+    if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
   });
 });
