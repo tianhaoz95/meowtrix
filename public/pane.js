@@ -15,6 +15,61 @@ let dropIndicator = null;    // shared insertion marker, moved between tab bars
 
 function clearDropIndicator() { dropIndicator?.remove(); }
 
+// ── Touch tab dragging ───────────────────────────────────────────────────────
+// HTML5 drag events never fire for touch input, so reproduce the same reorder/
+// move behaviour with Pointer Events. Reuses computeDropRef / moveTab / the
+// shared dropIndicator so touch and mouse dragging stay in lockstep.
+let touchDrag = null;            // { tab, pointerId, startX, startY, active }
+let suppressTabClickUntil = 0;   // ignore the click synthesized after a drag
+
+function paneUnderPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const paneEl = el?.closest?.('.pane');
+  return paneEl ? paneRegistry.get(paneEl) : null;
+}
+
+function onTabPointerDown(e, tab) {
+  // Mouse/pen keep using native HTML5 DnD; only hijack touch.
+  if (e.pointerType !== 'touch') return;
+  if (e.target.closest('.tab-close')) return; // let close taps through
+  touchDrag = { tab, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, active: false };
+}
+
+function onTouchDragMove(e) {
+  if (!touchDrag || e.pointerId !== touchDrag.pointerId) return;
+  if (!touchDrag.active) {
+    if (Math.hypot(e.clientX - touchDrag.startX, e.clientY - touchDrag.startY) < 8) return;
+    touchDrag.active = true;
+    dragState = { tab: touchDrag.tab, srcPane: paneOfTab(touchDrag.tab.tabEl) };
+    touchDrag.tab.tabEl.classList.add('dragging');
+    document.body.classList.add('dragging-tab');
+  }
+  e.preventDefault(); // suppress scrolling once we're dragging
+  const pane = paneUnderPoint(e.clientX, e.clientY);
+  if (pane) {
+    if (!dropIndicator) { dropIndicator = document.createElement('div'); dropIndicator.className = 'tab-drop-indicator'; }
+    pane.tabBar.insertBefore(dropIndicator, computeDropRef(pane, e));
+  } else clearDropIndicator();
+}
+
+function endTouchDrag(e, drop) {
+  if (!touchDrag || e.pointerId !== touchDrag.pointerId) return;
+  const { tab, active } = touchDrag;
+  touchDrag = null;
+  if (!active) return; // it was a tap → let the click handler activate the tab
+  tab.tabEl.classList.remove('dragging');
+  document.body.classList.remove('dragging-tab');
+  const pane = drop ? paneUnderPoint(e.clientX, e.clientY) : null;
+  clearDropIndicator();
+  if (pane && dragState) moveTab(dragState.srcPane, tab.id, pane, computeDropRef(pane, e));
+  dragState = null;
+  suppressTabClickUntil = Date.now() + 400;
+}
+
+document.addEventListener('pointermove', onTouchDragMove, { passive: false });
+document.addEventListener('pointerup', (e) => endTouchDrag(e, true));
+document.addEventListener('pointercancel', (e) => endTouchDrag(e, false));
+
 // Element in `pane`'s tab bar to insert before (a .tab or the .tab-add button).
 function computeDropRef(pane, e) {
   const addBtn = pane.tabBar.querySelector('.tab-add');
@@ -164,7 +219,11 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl) {
   // after the tab is dragged into a different pane.
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); });
   tabEl.append(icon, label, closeBtn);
-  tabEl.addEventListener('click', () => { const p = paneOfTab(tabEl); if (p) activateTab(p, id); });
+  tabEl.addEventListener('click', () => {
+    if (Date.now() < suppressTabClickUntil) return; // ignore click synthesized after a touch drag
+    const p = paneOfTab(tabEl); if (p) activateTab(p, id);
+  });
+  tabEl.addEventListener('pointerdown', (e) => onTabPointerDown(e, tab));
   tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); } });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 

@@ -25,8 +25,11 @@ function splitPane(pane, dir) {
 }
 
 function makeDraggable(divider, container, dir) {
-  divider.addEventListener('mousedown', (startE) => {
+  // Pointer Events cover mouse, touch and pen with one code path.
+  divider.style.touchAction = 'none'; // stop the browser scrolling while resizing
+  divider.addEventListener('pointerdown', (startE) => {
     startE.preventDefault();
+    divider.setPointerCapture(startE.pointerId);
     divider.classList.add('dragging');
     const isVert = dir === 'vertical';
     const startPos = isVert ? startE.clientX : startE.clientY;
@@ -35,6 +38,7 @@ function makeDraggable(divider, container, dir) {
     const totalSize = isVert ? container.offsetWidth : container.offsetHeight;
 
     const onMove = (e) => {
+      if (e.pointerId !== startE.pointerId) return;
       const delta = (isVert ? e.clientX : e.clientY) - startPos;
       const newSize = Math.max(80, Math.min(totalSize - 84, startSize + delta));
       children[0].style.flex = `0 0 ${newSize}px`;
@@ -45,13 +49,18 @@ function makeDraggable(divider, container, dir) {
       });
     };
 
-    const onUp = () => {
+    const onUp = (e) => {
+      if (e.pointerId !== startE.pointerId) return;
       divider.classList.remove('dragging');
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      divider.releasePointerCapture?.(startE.pointerId);
+      divider.removeEventListener('pointermove', onMove);
+      divider.removeEventListener('pointerup', onUp);
+      divider.removeEventListener('pointercancel', onUp);
     };
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    // With pointer capture, move/up events retarget to the divider itself.
+    divider.addEventListener('pointermove', onMove);
+    divider.addEventListener('pointerup', onUp);
+    divider.addEventListener('pointercancel', onUp);
   });
 }
