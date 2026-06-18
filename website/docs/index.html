@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Guide — Meowtrix</title>
+  <meta name="description" content="Learn how to install and use Meowtrix: panes, tabs, terminals, the embedded browser, settings, multi-device sessions, and mobile.">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cascadia+Code&display=swap">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-logo" href="../"><span class="paw">🐾</span> Meow<span class="trix">trix</span></a>
+    <div class="nav-links">
+      <a href="../">Home</a>
+      <a href="../dev/">Developers</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+      <a class="cta" href="../demo/?demo">Live demo →</a>
+    </div>
+  </nav>
+
+  <div class="docs-wrap">
+    <aside class="sidebar">
+      <div class="group">
+        <div class="group-title">Getting started</div>
+        <a href="#overview">Overview</a>
+        <a href="#install">Installation</a>
+        <a href="#running">Running it</a>
+        <a href="#remote">Reaching it remotely</a>
+      </div>
+      <div class="group">
+        <div class="group-title">Using Meowtrix</div>
+        <a href="#panes">Panes &amp; tabs</a>
+        <a href="#terminals">Terminals</a>
+        <a href="#browser">Browser panes</a>
+        <a href="#broadcast">Broadcast input</a>
+        <a href="#settings">Settings &amp; themes</a>
+        <a href="#sessions">Sessions &amp; devices</a>
+        <a href="#mobile">On mobile</a>
+        <a href="#shortcuts">Keyboard shortcuts</a>
+      </div>
+      <div class="group">
+        <div class="group-title">More</div>
+        <a href="#demo">Trying the demo</a>
+        <a href="../dev/">Developer docs →</a>
+      </div>
+    </aside>
+
+    <main class="docs-main">
+      <h1>User Guide</h1>
+      <p class="lead">Everything you need to install Meowtrix and get productive in the workspace.</p>
+
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>
+          <strong>Meowtrix</strong> is a browser-based remote workspace. The UI is a
+          tiling pane layout: each pane holds tabs, and each tab is either a
+          <strong>terminal</strong> (a real PTY-backed shell, rendered with xterm.js) or
+          an <strong>embedded browser</strong>. A single small Node server hosts the
+          frontend and multiplexes the terminal sessions over a WebSocket.
+        </p>
+        <p>
+          You run it on a host machine (your laptop, a home server, a VPS) and reach it
+          from any browser on the network — or from anywhere via a tunnel. Because the
+          shells live on the server, you can close the tab, switch from laptop to phone,
+          or ride out a dropped connection without losing your running processes.
+        </p>
+        <div class="callout">
+          <span class="ico">💡</span>
+          <p>Want to poke around first? The <a href="../demo/?demo">live demo</a> runs entirely in your browser — no install required (terminals become a JavaScript REPL there). See <a href="#demo">Trying the demo</a>.</p>
+        </div>
+      </section>
+
+      <section id="install">
+        <h2>Installation</h2>
+        <p>The fastest path is the one-line installer, which clones Meowtrix into <code>~/.meowtrix/app</code>, installs dependencies, and adds a <code>meowtrix</code> launcher to your <code>PATH</code>:</p>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash</code></pre>
+        <h3>Install as a background service</h3>
+        <p>Add <code>--service</code> to auto-start Meowtrix on login and restart it if it crashes (launchd on macOS, systemd on Linux):</p>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service</code></pre>
+        <h3>From source</h3>
+        <pre><code>git clone https://github.com/tianhaoz95/meowtrix.git
+cd meowtrix
+npm install      # node-pty compiles natively
+npm start</code></pre>
+        <div class="callout">
+          <span class="ico">📦</span>
+          <p><strong>Updating</strong> is the same one-line installer — re-run it and it pulls the latest into <code>~/.meowtrix/app</code>.</p>
+        </div>
+      </section>
+
+      <section id="running">
+        <h2>Running it</h2>
+        <p>Start the server (defaults to port <code>3000</code>, override with the <code>PORT</code> env var):</p>
+        <pre><code>meowtrix            # if installed via the installer
+# or, from source:
+npm start
+PORT=8080 npm start</code></pre>
+        <p>Then open <code>http://localhost:3000</code> in your browser. You'll land in a single pane with one terminal, ready to type.</p>
+      </section>
+
+      <section id="remote">
+        <h2>Reaching it remotely</h2>
+        <p>On the same network, open <code>http://&lt;host-ip&gt;:3000</code> from any device. To reach it over the internet, run it on a server or front it with a tunnel:</p>
+        <pre><code># Example with ngrok
+ngrok http 3000</code></pre>
+        <div class="callout">
+          <span class="ico">🔐</span>
+          <p>Meowtrix gives whoever can reach it a real shell on the host. Only expose it over trusted networks or behind authentication (e.g. your tunnel provider's access controls).</p>
+        </div>
+      </section>
+
+      <section id="panes">
+        <h2>Panes &amp; tabs</h2>
+        <p>The workspace is a tree of <strong>panes</strong>. Each pane has a tab strip; open as many tabs as you like inside a pane.</p>
+        <ul>
+          <li><strong>Split</strong> a pane with the toolbar's <em>Split V</em> (side by side) or <em>Split H</em> (top/bottom) buttons.</li>
+          <li><strong>Resize</strong> by dragging the divider between panes. Sizes are proportional, so they hold up when you resize the window or move between screens.</li>
+          <li><strong>Add a tab</strong> with the <strong>+</strong> on the tab strip, then pick Terminal or Browser.</li>
+          <li><strong>Reorder / move tabs</strong> by dragging them — within a pane or across panes (works with mouse and touch).</li>
+          <li><strong>Close</strong> a tab with its ✕, or close the whole pane with the toolbar's <em>Close</em> button.</li>
+        </ul>
+        <p>Splitting again in the same direction adds an equal sibling rather than nesting deeper, so layouts stay flat and predictable.</p>
+      </section>
+
+      <section id="terminals">
+        <h2>Terminals</h2>
+        <p>A terminal tab is a full PTY-backed shell — your real shell, with colors, TUIs, and job control. The key property is that <strong>the shell lives on the server, not in the browser tab</strong>:</p>
+        <ul>
+          <li>Refresh the page, and the terminal reattaches to the same running shell with its recent output replayed.</li>
+          <li>Close the browser, walk away, come back on another device — the process kept running.</li>
+          <li>A dropped connection auto-reconnects (about once a second) and resumes the live stream.</li>
+        </ul>
+        <p>Double-click (or double-tap) anywhere in a terminal to send <kbd>Tab</kbd> — handy for autocomplete without reaching for the key.</p>
+        <div class="callout">
+          <span class="ico">⚠️</span>
+          <p>Terminals are in-memory on the server. <strong>Restarting the Meowtrix server kills all shells</strong> — but your layout is saved and will be rebuilt.</p>
+        </div>
+      </section>
+
+      <section id="browser">
+        <h2>Browser panes</h2>
+        <p>A browser tab is an embedded mini-browser with an address bar, back/forward, reload, and an "open in a new window" (<strong>↗</strong>) button. Pages are fetched through a built-in server-side proxy that strips frame-blocking headers, so many sites that normally refuse to be embedded will render right in the pane.</p>
+        <p>Some sites — Google, sign-in flows, heavily bot-protected pages — still won't embed. Use <strong>↗</strong> to open those in a real browser window. You can set a default homepage for new browser tabs in <a href="#settings">Settings</a>.</p>
+      </section>
+
+      <section id="broadcast">
+        <h2>Broadcast input</h2>
+        <p>Toggle the toolbar's <strong>📡 Broadcast</strong> button to mirror your keystrokes to every visible terminal at once — like iTerm2 broadcast or tmux <code>synchronize-panes</code>. Great for running the same command across several hosts side by side. Toggle it off to return to typing into just the focused terminal.</p>
+      </section>
+
+      <section id="settings">
+        <h2>Settings &amp; themes</h2>
+        <p>Open the <strong>⚙</strong> settings panel to adjust:</p>
+        <table>
+          <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>Theme</td><td>Ten color themes (Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Bubblegum, Catppuccin, Cappuccino, Synthwave). Terminals are themed to match.</td></tr>
+            <tr><td>Terminal font &amp; size</td><td>Font family and size for all terminals.</td></tr>
+            <tr><td>Scrollback</td><td>How many lines of history each terminal keeps.</td></tr>
+            <tr><td>Shell</td><td>Which shell to spawn for new terminals (e.g. <code>/bin/zsh</code>).</td></tr>
+            <tr><td>Default homepage</td><td>URL new browser tabs open to (blank shows a start page).</td></tr>
+          </tbody>
+        </table>
+        <p>The <strong>☀ / 🌙</strong> toolbar button cycles themes quickly. Settings are saved on the host under <code>~/.meowtrix/settings.json</code>.</p>
+      </section>
+
+      <section id="sessions">
+        <h2>Sessions &amp; multiple devices</h2>
+        <p>Only one client is the <strong>active session</strong> at a time. If you open Meowtrix in a second browser or on another device, the newest one takes over and the others show a <em>"Session active elsewhere"</em> overlay with a <strong>Move session here</strong> button.</p>
+        <p>This is coordinated by the server (not just within one browser), so it works across different browsers and devices. When you move the session, your layout follows — the workspace is rebuilt and reconnects to the still-running shells.</p>
+      </section>
+
+      <section id="mobile">
+        <h2>On mobile</h2>
+        <p>Meowtrix is built to be usable from a phone:</p>
+        <ul>
+          <li>An on-screen <strong>key bar</strong> sits above the soft keyboard with the keys terminals need most (Esc, Tab, arrows, and modifiers).</li>
+          <li><strong>Ctrl / Alt / Cmd are "sticky"</strong> — tap one, then tap a key to combine them (e.g. Ctrl + C), since mobile keyboards don't emit reliable key events.</li>
+          <li><strong>Double-tap</strong> the terminal to trigger autocomplete (Tab).</li>
+        </ul>
+      </section>
+
+      <section id="shortcuts">
+        <h2>Keyboard shortcuts</h2>
+        <p>Use <kbd>Cmd</kbd> on macOS or <kbd>Ctrl</kbd> elsewhere:</p>
+        <table>
+          <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>\</kbd></td><td>Split the active pane vertically</td></tr>
+            <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>-</kbd></td><td>Split the active pane horizontally</td></tr>
+            <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>t</kbd></td><td>New tab in the active pane</td></tr>
+            <tr><td><kbd>Cmd/Ctrl</kbd> + <kbd>w</kbd></td><td>Close the active tab</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="demo">
+        <h2>Trying the demo</h2>
+        <p>The <a href="../demo/?demo">live demo</a> is the full Meowtrix UI running with <strong>no server</strong>. Because there's no host machine, terminals are replaced by an in-browser <strong>JavaScript REPL</strong>, and your layout and settings persist to the browser's local storage.</p>
+        <p>It's the quickest way to feel the panes-and-tabs workflow. Note that the embedded browser there loads pages directly (no proxy), so only sites that allow embedding will appear. For real terminals and the full proxy, <a href="#install">install Meowtrix</a>.</p>
+        <div class="callout">
+          <span class="ico">🧑‍💻</span>
+          <p>Curious how the serverless demo is wired up? It's covered in the <a href="../dev/#demo">developer docs</a>.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="../">Home</a>
+      <a href="../dev/">Developer Docs</a>
+      <a href="../demo/?demo">Live Demo</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <p>🐾 Meowtrix — a browser-based remote vibe engineering tool.</p>
+  </footer>
+</body>
+</html>

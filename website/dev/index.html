@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developer Docs — Meowtrix</title>
+  <meta name="description" content="How Meowtrix is structured: the single Node server, PTY lifecycle, server-coordinated sessions, the embedding proxy, the frontend module map, and the serverless demo.">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cascadia+Code&display=swap">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-logo" href="../"><span class="paw">🐾</span> Meow<span class="trix">trix</span></a>
+    <div class="nav-links">
+      <a href="../">Home</a>
+      <a href="../docs/">Docs</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+      <a class="cta" href="../demo/?demo">Live demo →</a>
+    </div>
+  </nav>
+
+  <div class="docs-wrap">
+    <aside class="sidebar">
+      <div class="group">
+        <div class="group-title">Orientation</div>
+        <a href="#overview">Overview</a>
+        <a href="#layout">Repository layout</a>
+        <a href="#commands">Dev commands</a>
+      </div>
+      <div class="group">
+        <div class="group-title">The server</div>
+        <a href="#server">Single server, two jobs</a>
+        <a href="#ptys">PTY lifecycle</a>
+        <a href="#session">Session coordination</a>
+        <a href="#workspace">Workspace state</a>
+        <a href="#proxy">Embedding proxy</a>
+      </div>
+      <div class="group">
+        <div class="group-title">The frontend</div>
+        <a href="#modules">Module map</a>
+        <a href="#persist">Persisted state</a>
+        <a href="#demo">Serverless demo</a>
+      </div>
+      <div class="group">
+        <div class="group-title">Shipping</div>
+        <a href="#dist">Distribution</a>
+        <a href="#site">Project site &amp; deploy</a>
+        <a href="../docs/">User docs →</a>
+      </div>
+    </aside>
+
+    <main class="docs-main">
+      <h1>Developer Documentation</h1>
+      <p class="lead">How the project is put together — start here before changing anything.</p>
+
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>
+          Meowtrix is deliberately small and dependency-light. The frontend is
+          <strong>plain ES scripts served directly from <code>public/</code></strong> —
+          no bundler, no modules, no build step. Files share state through the global
+          scope and are loaded with ordered <code>&lt;script&gt;</code> tags. The backend
+          is a single <code>server.js</code> with two responsibilities.
+        </p>
+        <p>There is no test suite, linter, or build step. After editing frontend code, reload the page (or use <code>./start.sh</code> for auto-reload).</p>
+        <div class="callout">
+          <span class="ico">📐</span>
+          <p>The canonical architecture notes live in <code>CLAUDE.md</code> at the repo root. This page mirrors them in a browsable form.</p>
+        </div>
+      </section>
+
+      <section id="layout">
+        <h2>Repository layout</h2>
+        <pre><code>meowtrix/
+├── server.js              # the entire backend (HTTP + WebSocket + proxy)
+├── public/                # the frontend, served as-is
+│   ├── index.html         # script load order lives here
+│   ├── ws.js              # the single WebSocket + PTY callback map
+│   ├── pane.js            # pane/tab model, DnD, broadcast
+│   ├── layout.js          # splitting & draggable dividers
+│   ├── app.js             # session bootstrap, serialize/restore, shortcuts
+│   ├── mobile.js          # on-screen key bar, sticky modifiers
+│   ├── settings.js        # settings panel + live application
+│   ├── demo.js            # serverless demo backend (JS REPL + API shim)
+│   └── style.css          # themes & layout
+├── website/               # this project site (landing + docs + dev docs)
+├── start.sh               # dev: nodemon + hot reload
+├── demo.sh                # serverless static demo runner
+└── install.sh             # installer + service setup</code></pre>
+      </section>
+
+      <section id="commands">
+        <h2>Dev commands</h2>
+        <pre><code>npm install        # install deps (node-pty compiles natively)
+npm start          # run the server on PORT (default 3000)
+./start.sh         # dev mode: nodemon + browser hot-reload (HOTRELOAD=1)
+./demo.sh          # serve public/ statically in serverless demo mode</code></pre>
+      </section>
+
+      <section id="server">
+        <h2>Single server, two jobs</h2>
+        <p>Everything backend is in <code>server.js</code>:</p>
+        <ul>
+          <li><strong>HTTP</strong> — serves <code>public/</code>, the settings/session REST API, and the embedding proxy.</li>
+          <li><strong>WebSocket</strong> — PTY lifecycle (<code>pty:create/input/resize/destroy</code>) plus the active-session coordination messages.</li>
+        </ul>
+      </section>
+
+      <section id="ptys">
+        <h2>PTY lifecycle &amp; persistence</h2>
+        <p><strong>PTYs outlive WebSocket connections.</strong> The <code>ptys</code> Map keys each PTY by id and keeps a rolling ~200&nbsp;KB output buffer. On reconnect, a <code>pty:create</code> for an <em>existing</em> id replays that buffer and reattaches the live stream instead of spawning a fresh shell — this is what makes refreshes and network blips non-destructive.</p>
+        <p>Closing a browser tab or dropping the WebSocket only detaches listeners; the shell keeps running. PTY state is in-memory only, so restarting the server kills every shell.</p>
+      </section>
+
+      <section id="session">
+        <h2>Single-session coordination</h2>
+        <p>Only one client is the <strong>active</strong> session; every other connected client (across browsers and devices) sees the inactive overlay. The flow lives in <code>server.js</code> + <code>public/app.js</code>:</p>
+        <ul>
+          <li>The newest client to send <code>session:claim</code> wins.</li>
+          <li>Others receive a <code>session:state</code> broadcast and drop to the overlay until they press <em>Move session here</em>.</li>
+          <li>When the active socket drops, the server hands off to the most-recently-connected remaining client.</li>
+        </ul>
+        <p>This is intentionally <em>not</em> done via <code>BroadcastChannel</code>/<code>localStorage</code> — server coordination is what makes it work cross-device, not just across tabs in one browser.</p>
+      </section>
+
+      <section id="workspace">
+        <h2>Workspace state</h2>
+        <p>The <strong>layout</strong> is serialized to the server, not the PTYs. <code>captureWorkspaceState</code> / <code>restoreWorkspaceState</code> (<code>public/app.js</code>) persist the pane/split/tab tree — including flex ratios and PTY ids — to <code>~/.meowtrix/session.json</code> via <code>/api/session</code>.</p>
+        <p>Restoring rebuilds the DOM and reconnects each terminal to its still-alive PTY by id. Only the active session may write (an inactive tab holds a stale layout); saves are debounced and a <code>beforeunload</code> beacon flushes the final state.</p>
+      </section>
+
+      <section id="proxy">
+        <h2>Embedding proxy</h2>
+        <p>The <code>/proxy</code> route fetches pages server-side, strips <code>X-Frame-Options</code> / CSP frame directives, and rewrites <code>href</code>/<code>src</code>/<code>action</code> URLs to route back through the proxy — letting otherwise un-embeddable sites render in a browser pane.</p>
+        <p>Two route shapes exist for a reason:</p>
+        <ul>
+          <li><code>/proxy?url=</code> — initial loads.</li>
+          <li><code>/proxy/&lt;encoded&gt;</code> — target in the path, so GET-form submissions don't wipe the target when the browser replaces the query string with form fields.</li>
+        </ul>
+        <p>Google, sign-in flows, and heavily bot-protected sites still won't embed.</p>
+      </section>
+
+      <section id="modules">
+        <h2>Frontend module map</h2>
+        <p>All files are global-scope and <strong>load order matters</strong>. In <code>index.html</code>: <code>demo.js</code> → <code>ws.js</code> → <code>pane.js</code> → <code>layout.js</code> → <code>app.js</code> → <code>mobile.js</code> → <code>settings.js</code>. Cross-file calls are plain function references (e.g. <code>wsSend</code>, <code>getAllPanes</code>, <code>applyStickyMods</code>), not imports.</p>
+        <table>
+          <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td><code>demo.js</code></td><td>Sets <code>window.DEMO_MODE</code> and, when on, provides the serverless backend (JS REPL + <code>localStorage</code> API shim). Loaded first so the flag exists before <code>ws.js</code> runs.</td></tr>
+            <tr><td><code>ws.js</code></td><td>The single WebSocket, 1s auto-reconnect, and the <code>ptyCallbacks</code> map (ptyId → xterm Terminal). Queues <code>pty:create</code> calls made before the socket opens.</td></tr>
+            <tr><td><code>pane.js</code></td><td>Pane/tab model and registry, tab creation for terminals and browsers, drag-and-drop (HTML5 DnD for mouse + a Pointer-Events path for touch), and broadcast fan-out.</td></tr>
+            <tr><td><code>layout.js</code></td><td>Splitting panes and the draggable dividers. Splits are <em>flat</em>; sizes are unitless flex-grow ratios so they survive resizes.</td></tr>
+            <tr><td><code>app.js</code></td><td>Session bootstrap/claim/handoff, workspace serialize/restore, keyboard shortcuts, double-click → autocomplete.</td></tr>
+            <tr><td><code>mobile.js</code></td><td>On-screen key bar. Ctrl/Alt/Cmd are <em>sticky</em> modifiers applied at the PTY-input layer (<code>applyStickyMods</code>), not via synthetic key events.</td></tr>
+            <tr><td><code>settings.js</code></td><td>Settings panel and live application of font/scrollback/theme.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="persist">
+        <h2>Persisted state (host machine)</h2>
+        <table>
+          <thead><tr><th>File</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code>~/.meowtrix/settings.json</code></td><td>Theme, terminal font/size/scrollback, shell, browser homepage. Server merges over <code>DEFAULT_SETTINGS</code>.</td></tr>
+            <tr><td><code>~/.meowtrix/session.json</code></td><td>Serialized workspace layout (panes, splits, tabs, PTY ids).</td></tr>
+          </tbody>
+        </table>
+        <p>PTY state itself is in-memory only — restarting the server kills all shells.</p>
+      </section>
+
+      <section id="demo">
+        <h2>Serverless demo</h2>
+        <p>Because the frontend is bundler-free static files, it can run with no backend at all. <code>public/demo.js</code> activates when the URL has <code>?demo</code> and stands in for the server:</p>
+        <ul>
+          <li><strong>Terminals → JS REPL.</strong> <code>demoBackend</code> speaks the exact same <code>pty:*</code> / <code>session:*</code> message shapes <code>ws.js</code> expects; each "PTY" is an in-browser JavaScript REPL with its own line editor, history, and <code>eval()</code>-based evaluation.</li>
+          <li><strong>REST → localStorage.</strong> A <code>fetch</code> shim intercepts <code>/api/settings</code> and <code>/api/session</code> and backs them with <code>localStorage</code>, so <code>app.js</code> and <code>settings.js</code> are untouched.</li>
+          <li><strong>Browser panes</strong> load URLs directly (no proxy), so only embeddable sites render — with an on-screen hint to that effect.</li>
+        </ul>
+        <p>The seams are narrow: <code>ws.js</code> branches on <code>window.DEMO_MODE</code> for the socket, and <code>fetch</code> is shimmed for the API. Everything else — <code>pane.js</code>, <code>layout.js</code>, <code>app.js</code>, <code>settings.js</code>, <code>mobile.js</code> — is shared verbatim between the real and demo paths. Run it locally with <code>./demo.sh</code>.</p>
+      </section>
+
+      <section id="dist">
+        <h2>Distribution</h2>
+        <p><code>install.sh</code> clones/updates into <code>~/.meowtrix/app</code>, installs production dependencies, and writes a <code>meowtrix</code> launcher to <code>~/.local/bin</code>. With <code>--service</code> it installs a launchd agent (macOS) or systemd user service (Linux) that auto-starts on login and restarts on crash. The README's install commands curl this script from GitHub.</p>
+      </section>
+
+      <section id="site">
+        <h2>Project site &amp; deploy</h2>
+        <p>This site lives in <code>website/</code> (landing page + these docs) and is deployed to GitHub Pages by <code>.github/workflows/deploy-pages.yml</code> on every push to <code>main</code>.</p>
+        <p>The workflow assembles a deploy artifact rather than publishing a branch: it copies <code>website/*</code> to the site root and the app's <code>public/*</code> into <code>/demo/</code>, then publishes via <code>actions/deploy-pages</code>. That's why the live demo at <code>/demo/?demo</code> is the same code as the app — it's literally <code>public/</code> served statically.</p>
+        <div class="callout">
+          <span class="ico">🚀</span>
+          <p>Pages source is set to <strong>GitHub Actions</strong> (not "deploy from a branch"). All links in the site are relative so it works under the <code>/meowtrix/</code> project-pages base path.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="../">Home</a>
+      <a href="../docs/">User Docs</a>
+      <a href="../demo/?demo">Live Demo</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <p>🐾 Meowtrix — a browser-based remote vibe engineering tool.</p>
+  </footer>
+</body>
+</html>

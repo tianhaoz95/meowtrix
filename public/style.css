@@ -528,6 +528,15 @@ body.dragging-tab .pane-content { pointer-events: none; }
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* Demo-mode notice that direct-embedded sites may be blocked (see pane.js). */
+.browser-hint {
+  display: none; flex-shrink: 0;
+  padding: 5px 12px; font-size: 11.5px; line-height: 1.4;
+  color: var(--text2); background: var(--accent-soft);
+  border-bottom: 1px solid var(--border2);
+}
+.browser-hint.visible { display: block; }
+
 .browser-loading {
   height: 2px; background: linear-gradient(90deg, transparent, var(--accent), var(--accent-hi), transparent);
   flex-shrink: 0; display: none;

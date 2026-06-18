@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meowtrix — a browser-based remote vibe engineering workspace</title>
+  <meta name="description" content="Meowtrix is a browser-based remote workspace: tiling panes of PTY-backed terminals and embedded browsers, reachable from anywhere over the network.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cascadia+Code&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-logo" href="./"><span class="paw">🐾</span> Meow<span class="trix">trix</span></a>
+    <div class="nav-links">
+      <a href="docs/">Docs</a>
+      <a href="dev/">Developers</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+      <a class="cta" href="demo/?demo">Live demo →</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <span class="hero-badge"><span class="dot"></span> Runs on your machine, reached from any browser</span>
+    <h1>Your terminal and browser,<br><span class="grad">tiled in one tab.</span></h1>
+    <p class="sub">
+      Meowtrix is a browser-based remote workspace. Split panes into PTY-backed
+      terminals and embedded browsers, then reach them from your laptop, phone, or
+      a tunnel — sessions survive refreshes and network blips.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="demo/?demo">▶ Try the live demo</a>
+      <a class="btn btn-ghost" href="docs/">Read the docs</a>
+    </div>
+
+    <div class="hero-mock" aria-hidden="true">
+      <div class="hero-mock-bar">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="title">🐾 meowtrix — ~/projects</span>
+      </div>
+<pre><span class="c"># split panes, each a terminal or a browser</span>
+<span class="p">~/projects $</span> <span class="o">npm start</span>
+<span class="g">✓</span> server listening on :3000
+<span class="g">✓</span> PTYs persist across reconnects
+<span class="p">~/projects $</span> <span class="o">git push origin main</span>
+<span class="c"># reattach from your phone — the shell kept running</span>
+<span class="p">~/projects $</span> <span class="o">▏</span></pre>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="section-head">
+        <h2>Where do you want to go?</h2>
+        <p>Four ways into the project.</p>
+      </div>
+      <div class="cards">
+        <a class="card" href="docs/">
+          <div class="ico">📘</div>
+          <h3>User Documentation</h3>
+          <p>Install Meowtrix, learn the panes-and-tabs workflow, terminals, the browser, settings, and mobile use.</p>
+          <span class="go">Learn the product →</span>
+        </a>
+        <a class="card" href="dev/">
+          <div class="ico">🛠️</div>
+          <h3>Developer Docs</h3>
+          <p>How the project is structured: the single server, PTY lifecycle, session coordination, the proxy, and the frontend module map.</p>
+          <span class="go">Understand the code →</span>
+        </a>
+        <a class="card" href="demo/?demo">
+          <div class="ico">🧪</div>
+          <h3>Live Demo</h3>
+          <p>A serverless build running entirely in your browser — terminals become a JavaScript REPL. No install, nothing to set up.</p>
+          <span class="go">Open the demo →</span>
+        </a>
+        <a class="card" href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">
+          <div class="ico">⭐</div>
+          <h3>Source on GitHub</h3>
+          <p>Read the code, file issues, and grab the one-line installer. MIT-friendly, no build step, plain ES scripts.</p>
+          <span class="go">View repository →</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="section-head">
+        <h2>What makes it tick</h2>
+        <p>Small, sharp, and built to survive a flaky connection.</p>
+      </div>
+      <div class="features">
+        <div class="feature"><div class="ico">🪟</div><h3>Tiling panes &amp; tabs</h3><p>Split vertically or horizontally; drag dividers to resize. Each pane holds tabs — a terminal or an embedded browser.</p></div>
+        <div class="feature"><div class="ico">⚡</div><h3>Persistent PTYs</h3><p>Shells outlive the WebSocket. Refresh, switch devices, or hit a network blip — the server replays the buffer and reattaches.</p></div>
+        <div class="feature"><div class="ico">📱</div><h3>Mobile-ready</h3><p>An on-screen key bar with sticky Ctrl/Alt/Cmd modifiers, double-tap autocomplete, and a layout that reflows for touch.</p></div>
+        <div class="feature"><div class="ico">🌐</div><h3>Embedded browser</h3><p>A server-side proxy strips frame-blocking headers so otherwise un-embeddable pages render right inside a pane.</p></div>
+        <div class="feature"><div class="ico">🔒</div><h3>Single active session</h3><p>Server-coordinated handoff across devices: the newest client claims the workspace; others see a "move session here" overlay.</p></div>
+        <div class="feature"><div class="ico">🎨</div><h3>Ten themes</h3><p>Midnight, Daylight, Ocean, Matrix, Ember, Sakura, and more — terminals are themed from the same CSS variables for free.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="docs/">Documentation</a>
+      <a href="dev/">Developer Docs</a>
+      <a href="demo/?demo">Live Demo</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <p>🐾 Meowtrix — a browser-based remote vibe engineering tool.</p>
+  </footer>
+</body>
+</html>

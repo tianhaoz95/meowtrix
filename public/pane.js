@@ -403,12 +403,25 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
       <h2>Browser</h2>
       <p>Type a URL in the address bar above, then press <kbd>Enter</kbd>.</p>
       <ul>
-        <li>Pages are fetched through a built-in proxy so they can be embedded here.</li>
-        <li>Some sites (Google, sign-in pages, heavily bot-protected sites) can’t be embedded — use <strong>↗</strong> to open them in a real window.</li>
+        ${window.DEMO_MODE
+          ? `<li>Demo mode: pages load directly (no server proxy), so only sites that allow embedding will appear.</li>
+             <li>Many sites (Google, GitHub, sign-in pages) block embedding and show blank — use <strong>↗</strong> to open them in a real window.</li>`
+          : `<li>Pages are fetched through a built-in proxy so they can be embedded here.</li>
+             <li>Some sites (Google, sign-in pages, heavily bot-protected sites) can’t be embedded — use <strong>↗</strong> to open them in a real window.</li>`}
       </ul>
     </div>`;
 
-  viewEl.append(bar, loadingBar, frame, startEl);
+  // Demo mode has no server proxy: load URLs straight into the iframe. This only
+  // works for sites that permit embedding (no X-Frame-Options / CSP frame
+  // blocking) — the hint below sets expectations.
+  let hintEl = null;
+  if (window.DEMO_MODE) {
+    hintEl = document.createElement('div');
+    hintEl.className = 'browser-hint';
+    hintEl.textContent = 'Demo: some sites block embedding and show blank — use ↗ to open in a new window.';
+  }
+
+  viewEl.append(bar, ...(hintEl ? [hintEl] : []), loadingBar, frame, startEl);
 
   const navigate = (url) => {
     url = url.trim();
@@ -417,7 +430,9 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     startEl.classList.remove('visible');
     frame.style.display = '';
     tab.currentUrl = url;
-    frame.src = '/proxy/' + encodeURIComponent(url);
+    // Serverless demo embeds directly; otherwise route through the proxy.
+    frame.src = window.DEMO_MODE ? url : '/proxy/' + encodeURIComponent(url);
+    if (hintEl) hintEl.classList.add('visible');
     urlInput.value = url;
     try { label.textContent = new URL(url).hostname.replace('www.', ''); }
     catch { label.textContent = 'Browser'; }
@@ -430,6 +445,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     frame.removeAttribute('src');
     frame.style.display = 'none';
     startEl.classList.add('visible');
+    if (hintEl) hintEl.classList.remove('visible');
     loadingBar.classList.remove('active');
     urlInput.value = '';
     label.textContent = 'New Tab';
