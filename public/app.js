@@ -98,6 +98,7 @@ function claimSession(state) {
 function releaseSession() {
   isOwner = false;
   clearInterval(heartbeatTimer);
+  localStorage.removeItem(SESSION_KEY);
 }
 
 function initSession() {
@@ -231,4 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   initSession();
+
+  window.addEventListener('beforeunload', () => {
+    if (isOwner) releaseSession();
+  });
 });
