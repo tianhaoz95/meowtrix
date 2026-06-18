@@ -14,10 +14,11 @@ let everActive = false;       // have we ever been the active session?
 // Serialize current workspace state for transfer
 function captureWorkspaceState() {
   function serializeEl(el) {
+    let node;
     if (el.classList.contains('pane')) {
       const pane = paneRegistry.get(el);
       if (!pane) return null;
-      return {
+      node = {
         type: 'pane',
         activeTabId: pane.activeTab?.id,
         tabs: pane.tabs.map(t => ({
@@ -28,13 +29,16 @@ function captureWorkspaceState() {
           label: t.label?.textContent || null,
         })),
       };
-    }
-    if (el.classList.contains('split-container')) {
+    } else if (el.classList.contains('split-container')) {
       const dir = el.classList.contains('vertical') ? 'vertical' : 'horizontal';
       const panes = [...el.children].filter(c => !c.classList.contains('split-divider'));
-      return { type: 'split', dir, children: panes.map(serializeEl).filter(Boolean) };
+      node = { type: 'split', dir, children: panes.map(serializeEl).filter(Boolean) };
+    } else {
+      return null;
     }
-    return null;
+    // Persist the flex ratio so restored layouts keep their proportions.
+    node.flex = el.style.flex || '';
+    return node;
   }
   const workspace = document.getElementById('workspace');
   const root = workspace.children[0];
@@ -48,6 +52,7 @@ function restoreWorkspaceState(state) {
   paneRegistry.clear();
 
   function buildEl(node) {
+    let el;
     if (node.type === 'pane') {
       const pane = createPane();
       node.tabs.forEach(tabState => {
@@ -55,22 +60,26 @@ function restoreWorkspaceState(state) {
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
       });
       if (node.activeTabId) activateTab(pane, node.activeTabId);
-      return pane.el;
-    }
-    if (node.type === 'split') {
+      el = pane.el;
+    } else if (node.type === 'split') {
       const container = document.createElement('div');
       container.className = `split-container ${node.dir}`;
-      const divider = document.createElement('div');
-      divider.className = 'split-divider';
-      const children = node.children.map(buildEl);
-      container.appendChild(children[0]);
-      container.appendChild(divider);
-      container.appendChild(children[1]);
-      children[0].style.flex = '1';
-      children[1].style.flex = '1';
-      makeDraggable(divider, container, node.dir);
-      return container;
+      // Flat: any number of children, with a draggable divider between each.
+      node.children.forEach((childNode, i) => {
+        if (i > 0) {
+          const divider = document.createElement('div');
+          divider.className = 'split-divider';
+          container.appendChild(divider);
+          makeDraggable(divider, container, node.dir);
+        }
+        container.appendChild(buildEl(childNode));
+      });
+      el = container;
+    } else {
+      return null;
     }
+    el.style.flex = node.flex || '1 1 0';
+    return el;
   }
 
   if (state) {

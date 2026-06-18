@@ -139,9 +139,23 @@ function collapseEmptyPane(pane) {
   const parent = paneEl.parentElement;
   paneRegistry.delete(paneEl);
   if (parent.classList.contains('split-container')) {
-    const sibling = [...parent.children].find(c => c !== paneEl && !c.classList.contains('split-divider'));
-    sibling.style.flex = '';
-    parent.parentElement.replaceChild(sibling, parent);
+    const panes = [...parent.children].filter(c => !c.classList.contains('split-divider'));
+    if (panes.length > 2) {
+      // Flat container with 3+ children: drop just this pane and one adjacent
+      // divider, then redistribute the rest equally.
+      const divider = paneEl.nextElementSibling?.classList.contains('split-divider')
+        ? paneEl.nextElementSibling
+        : paneEl.previousElementSibling;
+      paneEl.remove();
+      divider?.remove();
+      equalizeChildren(parent);
+    } else {
+      // Only one child would remain: collapse the container and promote the
+      // surviving sibling into the container's slot (inheriting its flex).
+      const sibling = panes.find(c => c !== paneEl);
+      sibling.style.flex = parent.style.flex || '1 1 0';
+      parent.parentElement.replaceChild(sibling, parent);
+    }
   } else {
     paneEl.remove();
   }
