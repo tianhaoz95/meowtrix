@@ -14,6 +14,7 @@ function connectWs() {
       const args = pendingPtys.shift();
       _sendCreate(...args);
     }
+    if (typeof onWsConnected === 'function') onWsConnected();
   });
 
   ws.addEventListener('message', (e) => {
@@ -24,6 +25,8 @@ function connectWs() {
     } else if (msg.type === 'pty:exit') {
       const term = ptyCallbacks.get(msg.id);
       if (term) term.write('\r\n\x1b[31m[process exited]\x1b[0m\r\n');
+    } else if (msg.type === 'session:state') {
+      if (typeof onSessionState === 'function') onSessionState(msg.activeTabId);
     }
   });
 
@@ -60,9 +63,12 @@ function destroyPty(id) {
   wsSend({ type: 'pty:destroy', id });
 }
 
-// Called when this tab takes over the session: reconnect all existing PTYs
+// Called when this tab (re)takes the active session: re-grab every PTY stream.
+// Reset each terminal first so the server's replayed scrollback paints cleanly
+// instead of stacking on top of stale/frozen content.
 function reconnectAllPtys() {
   ptyCallbacks.forEach((term, id) => {
+    term.reset();
     if (wsReady) {
       _sendCreate(id, term.cols, term.rows);
     } else {

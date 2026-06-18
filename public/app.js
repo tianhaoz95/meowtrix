@@ -1,11 +1,14 @@
-// ── Single-session enforcement ───────────────────────────────────────────────
-const SESSION_KEY = 'meowtrix_session_owner';
-const HEARTBEAT_MS = 1000;
-const DEAD_MS = 3000;
+// ── Single-session enforcement (server-coordinated) ──────────────────────────
+// The server tracks which client is the "active" session and tells everyone
+// else to show the inactive overlay. Coordinating this server-side (instead of
+// via BroadcastChannel/localStorage) means it works across different browsers
+// and devices — not just tabs in one browser. The newest client to claim wins;
+// the others drop to the overlay until they press "Move session here".
 const myTabId = Math.random().toString(36).slice(2);
-let sessionChannel = null;
-let heartbeatTimer = null;
-let isOwner = false;
+let isActiveSession = false;  // are we the active session right now?
+let hasClaimed = false;       // have we sent our first claim yet?
+let bootstrapped = false;     // workspace built and ready to claim?
+let streamsLost = false;      // another session took over our PTY streams
 
 // Serialize current workspace state for transfer
 function captureWorkspaceState() {
@@ -100,75 +103,64 @@ function fitAllTerminals() {
   if (document.fonts?.ready) document.fonts.ready.then(fit);
 }
 
-function claimSession(state) {
-  isOwner = true;
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ id: myTabId, ts: Date.now() }));
-  sessionChannel.postMessage({ type: 'claimed', id: myTabId });
-  document.getElementById('inactive-overlay').hidden = true;
+// Build the workspace from the server-saved session (or a fresh one), then
+// claim the active session. Runs once per page load.
+async function bootstrapSession() {
+  try {
+    const saved = await fetch('/api/session').then(r => r.json());
+    if (saved) restoreWorkspaceState(saved);
+    else initWorkspace();
+  } catch {
+    initWorkspace();
+  }
+  workspaceReady = true;
+  bootstrapped = true;
+  fitAllTerminals();
+  // Newest client wins: claim as soon as the socket is up. If the WS isn't open
+  // yet, onWsConnected() will claim for us once it connects.
+  if (wsReady) claimActiveSession();
+}
 
-  const startHeartbeat = () => {
-    heartbeatTimer = setInterval(() => {
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ id: myTabId, ts: Date.now() }));
-    }, HEARTBEAT_MS);
-  };
+// Tell the server we want to be the active session (also used by the takeover
+// button). The server replies with a session:state broadcast → onSessionState.
+function claimActiveSession() {
+  hasClaimed = true;
+  wsSend({ type: 'session:claim', tabId: myTabId });
+}
 
-  if (state) {
-    restoreWorkspaceState(state);
-    workspaceReady = true;
-    fitAllTerminals();
-    startHeartbeat();
+// Called by ws.js each time the socket (re)connects.
+function onWsConnected() {
+  if (!bootstrapped) return;            // bootstrapSession() will claim
+  if (!hasClaimed) { claimActiveSession(); return; }
+  if (isActiveSession) {
+    // We reconnected and still believe we're active: the server dropped our PTY
+    // listeners on disconnect, so re-claim and re-grab the streams.
+    streamsLost = true;
+    claimActiveSession();
   } else {
-    fetch('/api/session').then(r => r.json()).then(saved => {
-      if (saved) restoreWorkspaceState(saved);
-      else initWorkspace();
-      workspaceReady = true;
-      fitAllTerminals();
-    }).catch(() => { initWorkspace(); workspaceReady = true; })
-      .finally(startHeartbeat);
+    // Inactive tab reconnecting: just resync, don't steal the session.
+    wsSend({ type: 'session:sync', tabId: myTabId });
   }
 }
 
-function releaseSession() {
-  isOwner = false;
-  clearInterval(heartbeatTimer);
-  localStorage.removeItem(SESSION_KEY);
+// Called by ws.js when a session:state message arrives.
+function onSessionState(activeTabId) {
+  const active = activeTabId === myTabId;
+  isActiveSession = active;
+  document.getElementById('inactive-overlay').hidden = active;
+  if (active) {
+    // If our streams were taken over while we were idle, pull them back.
+    if (streamsLost && workspaceReady) { reconnectAllPtys(); }
+    streamsLost = false;
+  } else {
+    // An active session elsewhere now owns the live PTY streams.
+    streamsLost = true;
+  }
 }
 
 function initSession() {
-  sessionChannel = new BroadcastChannel('meowtrix_session');
-
-  sessionChannel.addEventListener('message', (e) => {
-    if (e.data.type === 'claimed' && e.data.id !== myTabId) {
-      if (isOwner) releaseSession();
-      document.getElementById('inactive-overlay').hidden = false;
-    }
-    // Owner responds to state request with current workspace
-    if (e.data.type === 'request_state' && isOwner) {
-      sessionChannel.postMessage({ type: 'state_response', state: captureWorkspaceState() });
-    }
-    // Takeover tab receives state and proceeds
-    if (e.data.type === 'state_response' && !isOwner) {
-      claimSession(e.data.state);
-    }
-  });
-
-  document.getElementById('btn-takeover').addEventListener('click', () => {
-    // Ask current owner for its state, then claim in the response handler
-    sessionChannel.postMessage({ type: 'request_state' });
-    // Fallback: if no response in 500ms, claim without state
-    setTimeout(() => { if (!isOwner) claimSession(null); }, 500);
-  });
-
-  const stored = (() => {
-    try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
-  })();
-  const ownerAlive = stored && (Date.now() - stored.ts) < DEAD_MS;
-
-  if (ownerAlive) {
-    document.getElementById('inactive-overlay').hidden = false;
-  } else {
-    claimSession(null);
-  }
+  document.getElementById('btn-takeover').addEventListener('click', claimActiveSession);
+  bootstrapSession();
 }
 
 let activePicker = null;
@@ -293,6 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const state = captureWorkspaceState();
       if (state) navigator.sendBeacon('/api/session', new Blob([JSON.stringify(state)], { type: 'application/json' }));
     }
-    if (isOwner) releaseSession();
+    // The server notices our WS closing and hands the active session off.
   });
 });

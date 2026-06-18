@@ -155,6 +155,20 @@ const ptys = new Map();
 // page refresh) can be re-hydrated with the existing terminal content.
 const PTY_BUFFER_MAX = 200000;
 
+// ── Active-session coordination ──────────────────────────────────────────────
+// Only one client (the most recent to claim) is the "active" session; everyone
+// else is told to show the inactive overlay. Tracked here so it holds across
+// browsers and devices, not just tabs in a single browser.
+const sessionClients = new Set(); // every connected control socket
+let activeTabId = null;
+
+function broadcastSession() {
+  const payload = JSON.stringify({ type: 'session:state', activeTabId });
+  for (const c of sessionClients) {
+    if (c.readyState === c.OPEN) c.send(payload);
+  }
+}
+
 function attachPtyToWs(id, ptyEntry, ws) {
   const listener = (data) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:data', id, data }));
@@ -167,12 +181,28 @@ function attachPtyToWs(id, ptyEntry, ws) {
 wss.on('connection', (ws) => {
   // Map of ptyId -> cleanup fn for this WS connection
   const attached = new Map();
+  sessionClients.add(ws);
 
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
 
     switch (msg.type) {
+      case 'session:claim': {
+        // This client becomes the active session; tell everyone the new state.
+        ws.tabId = msg.tabId;
+        activeTabId = msg.tabId;
+        broadcastSession();
+        break;
+      }
+      case 'session:sync': {
+        // A (re)connecting client that doesn't want to steal — just learn state.
+        ws.tabId = msg.tabId;
+        if (ws.readyState === ws.OPEN) {
+          ws.send(JSON.stringify({ type: 'session:state', activeTabId }));
+        }
+        break;
+      }
       case 'pty:create': {
         const id = msg.id || uuidv4();
         if (ptys.has(id)) {
@@ -242,6 +272,14 @@ wss.on('connection', (ws) => {
     // Detach data listeners but keep PTY processes alive
     attached.forEach(cleanup => cleanup());
     attached.clear();
+    sessionClients.delete(ws);
+    // If the active session's socket dropped, hand off to the most recently
+    // connected remaining client so the others aren't stranded on the overlay.
+    if (ws.tabId && ws.tabId === activeTabId) {
+      const heir = [...sessionClients].reverse().find(c => c.tabId);
+      activeTabId = heir ? heir.tabId : null;
+      broadcastSession();
+    }
   });
 });
 
