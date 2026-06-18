@@ -1,0 +1,39 @@
+#!/bin/sh
+# mtx — download a host file to your Meowtrix browser session.
+#
+# Usage: mtx <file>
+#
+# It resolves <file> to an absolute path and emits a private OSC escape
+# sequence (ESC ] 5379 ; <abs-path> BEL). The Meowtrix client reads that
+# sequence out of the terminal stream and triggers a browser download of the
+# file via the server's /api/download endpoint. This script is placed on PATH
+# for every spawned shell, which also gives `mtx ` filename tab-completion for
+# free (shells default to filename completion for a command's arguments).
+
+if [ $# -lt 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+  printf 'usage: mtx <file>   download a host file to your browser\n' >&2
+  exit 1
+fi
+
+target=$1
+case "$target" in
+  /*) abs=$target ;;
+  *)  abs=$PWD/$target ;;
+esac
+
+# Normalize to a real absolute path when the directory exists (collapses
+# ./ and ../ segments) without relying on `realpath` being installed.
+dir=$(dirname "$abs")
+base=$(basename "$abs")
+if [ -d "$dir" ]; then
+  abs=$(cd "$dir" 2>/dev/null && pwd)/$base
+fi
+
+if [ ! -f "$abs" ]; then
+  printf 'mtx: %s: no such file\n' "$target" >&2
+  exit 1
+fi
+
+# Private OSC sequence picked up by the client (pane.js OSC handler 5379).
+printf '\033]5379;%s\007' "$abs"
+printf '\342\206\223 downloading %s \342\200\246\n' "$base"

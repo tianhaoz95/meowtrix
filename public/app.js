@@ -282,6 +282,56 @@ function runAppShortcut(key) {
   }
 }
 
+// ── File transfer (client ↔ host) ────────────────────────────────────────────
+// Brief status toast, reused for upload progress and errors.
+let _toastTimer = null;
+function showToast(msg) {
+  let el = document.getElementById('mtx-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mtx-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('visible'), 3200);
+}
+
+// Download a host file to the browser. Called from the OSC 5379 handler
+// (pane.js) when the user runs `mtx <file>` in a terminal.
+function triggerDownload(filePath) {
+  if (!filePath) return;
+  const a = document.createElement('a');
+  a.href = '/api/download?path=' + encodeURIComponent(filePath);
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// Upload the chosen files to ~/meowtrix on the host, one request per file.
+async function uploadFiles(fileList) {
+  const files = [...fileList];
+  if (!files.length) return;
+  showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`);
+  let ok = 0;
+  for (const file of files) {
+    try {
+      const res = await fetch('/api/upload?name=' + encodeURIComponent(file.name), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file,
+      });
+      if (res.ok) ok++;
+    } catch {}
+  }
+  showToast(ok === files.length
+    ? `Uploaded ${ok} file${ok > 1 ? 's' : ''} to ~/meowtrix`
+    : `Uploaded ${ok}/${files.length} to ~/meowtrix — some failed`);
+}
+
 function initWorkspace() {
   const workspace = document.getElementById('workspace');
   const initialPane = createPane();
@@ -314,6 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-broadcast').addEventListener('click', () => {
     setBroadcastInput(!broadcastInput);
+  });
+  const uploadInput = document.getElementById('upload-input');
+  document.getElementById('btn-upload').addEventListener('click', () => uploadInput.click());
+  uploadInput.addEventListener('change', () => {
+    uploadFiles(uploadInput.files);
+    uploadInput.value = ''; // allow re-selecting the same file
   });
   document.getElementById('btn-close-pane').addEventListener('click', () => {
     if (!activePane || getAllPanes().length <= 1) return;

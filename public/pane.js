@@ -356,6 +356,14 @@ function initTerminalTab(tab, existingPtyId) {
     if (tab.viewEl.classList.contains('active')) fitAddon.fit();
   });
 
+  // The `mtx` command prints OSC 5379 with an absolute path; intercept it here
+  // and trigger a browser download instead of rendering it. Returning true
+  // marks the sequence handled so xterm consumes it (nothing is displayed).
+  term.parser.registerOscHandler(5379, (filePath) => {
+    if (typeof triggerDownload === 'function') triggerDownload(filePath);
+    return true;
+  });
+
   term.onData(data => {
     // Apply any armed mobile sticky modifiers (Ctrl/Alt/Cmd) to typed input.
     const out = (typeof applyStickyMods === 'function') ? applyStickyMods(data) : data;

@@ -94,6 +94,41 @@ app.post('/api/session', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── File transfer: upload (client → host) and download (host → client) ───────
+// Uploads land in ~/meowtrix on the host; downloads can target any file the
+// host user can read (this is a personal remote workspace — the same user
+// already has full shell access here, so we don't sandbox the path).
+const UPLOAD_DIR = path.join(os.homedir(), 'meowtrix');
+
+// Raw-body upload: the client POSTs one file per request with its name in the
+// ?name= query and the bytes as the request body (Content-Type:
+// application/octet-stream, so express.json leaves the stream untouched). This
+// avoids a multipart dependency. path.basename strips any directory traversal.
+app.post('/api/upload', (req, res) => {
+  const name = path.basename(req.query.name || '').trim();
+  if (!name || name === '.' || name === '..') return res.status(400).json({ error: 'Invalid name' });
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const dest = path.join(UPLOAD_DIR, name);
+  const out = fs.createWriteStream(dest);
+  out.on('error', err => { if (!res.headersSent) res.status(500).json({ error: err.message }); });
+  out.on('finish', () => res.json({ ok: true, path: dest }));
+  req.on('error', () => out.destroy());
+  req.pipe(out);
+});
+
+// Download: stream the requested host file to the browser as an attachment.
+// Triggered by the `mtx` command, which prints an OSC sequence the client turns
+// into a GET here (see public/pane.js).
+app.get('/api/download', (req, res) => {
+  const p = req.query.path;
+  if (!p) return res.status(400).send('Missing path');
+  const resolved = path.resolve(p);
+  fs.stat(resolved, (err, st) => {
+    if (err || !st.isFile()) return res.status(404).send('Not found');
+    res.download(resolved, path.basename(resolved));
+  });
+});
+
 // ── Proxy: fetch server-side, strip X-Frame-Options / CSP frame directives ──
 const STRIP_HEADERS = new Set([
   'x-frame-options',
@@ -181,6 +216,10 @@ const ptys = new Map();
 // page refresh) can be re-hydrated with the existing terminal content.
 const PTY_BUFFER_MAX = 200000;
 
+// The private OSC sequence `mtx` emits to trigger a browser download
+// (ESC ] 5379 ; <path> BEL|ST). Stripped from the replay buffer below.
+const DOWNLOAD_OSC_RE = /\x1b\]5379;[^\x07\x1b]*(?:\x07|\x1b\\)/g;
+
 // ── Active-session coordination ──────────────────────────────────────────────
 // Only one client (the most recent to claim) is the "active" session; everyone
 // else is told to show the inactive overlay. Tracked here so it holds across
@@ -254,6 +293,8 @@ wss.on('connection', (ws) => {
         const shell = readSettings().shell || process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
         const ptyEnv = { ...process.env };
         delete ptyEnv.npm_config_prefix;
+        // Expose the bundled `mtx` download command on PATH for every shell.
+        ptyEnv.PATH = path.join(__dirname, 'bin') + path.delimiter + (ptyEnv.PATH || '');
         const proc = pty.spawn(shell, [], {
           name: 'xterm-256color',
           cols: msg.cols || 80,
@@ -266,7 +307,9 @@ wss.on('connection', (ws) => {
         // Persistently buffer output (independent of any connected WS) so it can
         // be replayed on reconnect. Capped to the most recent PTY_BUFFER_MAX bytes.
         proc.onData((data) => {
-          entry.buffer += data;
+          // Keep the download-trigger OSC out of the replay buffer so a
+          // reconnect (which replays the buffer) doesn't re-fire the download.
+          entry.buffer += data.replace(DOWNLOAD_OSC_RE, '');
           if (entry.buffer.length > PTY_BUFFER_MAX) {
             entry.buffer = entry.buffer.slice(-PTY_BUFFER_MAX);
           }

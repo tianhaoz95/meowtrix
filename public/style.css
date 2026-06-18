@@ -386,6 +386,20 @@ button:focus-visible { border-radius: 8px; }
   box-shadow: 0 2px 14px var(--accent2);
 }
 
+/* Transient status toast (file upload progress, etc.) */
+#mtx-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px);
+  z-index: 1000; max-width: min(420px, 90vw);
+  padding: 10px 16px; border-radius: 10px;
+  background: var(--bg4); color: var(--text);
+  border: 1px solid var(--border3); box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+#mtx-toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
 /* Visually separate the icon-only utility buttons from the action group */
 #btn-theme {
   margin-left: 5px; position: relative;
