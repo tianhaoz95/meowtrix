@@ -94,8 +94,24 @@ const STRIP_HEADERS = new Set([
   'content-security-policy-report-only',
 ]);
 
-app.get('/proxy', (req, res) => {
-  const target = req.query.url;
+// Resolve the proxied target from either /proxy?url=<enc> (initial loads) or
+// /proxy/<enc>[?formquery] (rewritten links & GET-form submissions). The path
+// form is essential because a GET <form> replaces its action's query string
+// with the form fields — which would wipe a ?url= param — but it leaves the
+// path intact, so we keep the target in the path and re-attach the form query.
+function resolveProxyTarget(req) {
+  if (req.params.enc != null) {
+    const base = req.params.enc; // Express has already percent-decoded this
+    const qIdx = req.originalUrl.indexOf('?');
+    const qs = qIdx >= 0 ? req.originalUrl.slice(qIdx + 1) : '';
+    if (!qs) return base;
+    return base.includes('?') ? `${base}&${qs}` : `${base}?${qs}`;
+  }
+  return req.query.url;
+}
+
+function proxyHandler(req, res) {
+  const target = resolveProxyTarget(req);
   if (!target) return res.status(400).send('Missing ?url=');
   let parsed;
   try { parsed = new URL(target); } catch { return res.status(400).send('Invalid URL'); }
@@ -116,7 +132,7 @@ app.get('/proxy', (req, res) => {
   const proxyReq = lib.get(opts, (proxyRes) => {
     if ([301, 302, 303, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
       const next = new URL(proxyRes.headers.location, target).href;
-      return res.redirect(`/proxy?url=${encodeURIComponent(next)}`);
+      return res.redirect(`/proxy/${encodeURIComponent(next)}`);
     }
 
     Object.entries(proxyRes.headers).forEach(([k, v]) => {
@@ -135,7 +151,7 @@ app.get('/proxy', (req, res) => {
         // Rewrite root-relative and absolute URLs through proxy
         body = body.replace(/(href|src|action)=(["'])(\/[^"']*|https?:\/\/[^"']+)\2/gi, (_, attr, q, url) => {
           const abs = url.startsWith('/') ? base + url : url;
-          return `${attr}=${q}/proxy?url=${encodeURIComponent(abs)}${q}`;
+          return `${attr}=${q}/proxy/${encodeURIComponent(abs)}${q}`;
         });
         res.send(body);
       });
@@ -145,7 +161,10 @@ app.get('/proxy', (req, res) => {
   });
 
   proxyReq.on('error', err => res.status(502).send(`Proxy error: ${err.message}`));
-});
+}
+
+app.get('/proxy', proxyHandler);        // /proxy?url=<enc>  (initial loads, legacy)
+app.get('/proxy/:enc', proxyHandler);   // /proxy/<enc>      (rewritten links, GET forms)
 
 // ── PTY / WebSocket ──────────────────────────────────────────────────────────
 // ptys: id -> { proc, dataListeners: Set, buffer: string }

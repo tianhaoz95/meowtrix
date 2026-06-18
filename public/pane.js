@@ -395,7 +395,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
         : 'https://www.google.com/search?q=' + encodeURIComponent(url);
     }
     tab.currentUrl = url;
-    frame.src = '/proxy?url=' + encodeURIComponent(url);
+    frame.src = '/proxy/' + encodeURIComponent(url);
     urlInput.value = url;
     try { label.textContent = new URL(url).hostname.replace('www.', ''); }
     catch { label.textContent = 'Browser'; }
