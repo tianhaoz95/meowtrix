@@ -303,7 +303,11 @@ function initTerminalTab(tab, existingPtyId) {
     if (tab.viewEl.classList.contains('active')) fitAddon.fit();
   });
 
-  term.onData(data => wsSend({ type: 'pty:input', id: ptyId, data }));
+  term.onData(data => {
+    // Apply any armed mobile sticky modifiers (Ctrl/Alt/Cmd) to typed input.
+    const out = (typeof applyStickyMods === 'function') ? applyStickyMods(data) : data;
+    if (out) wsSend({ type: 'pty:input', id: ptyId, data: out });
+  });
   term.onResize(({ cols, rows }) => wsSend({ type: 'pty:resize', id: ptyId, cols, rows }));
   term.onTitleChange(title => { if (title) tab.label.textContent = title; });
 

@@ -353,6 +353,33 @@ body.dragging-tab .pane-content { pointer-events: none; }
 
 #btn-takeover:hover { opacity: 0.85; }
 
+/* ── Mobile on-screen key bar ───────────────────────────────────────────────
+   Floats above the soft keyboard (positioned via JS) and gives touch keyboards
+   the Esc/Tab/Ctrl/Alt/Cmd/arrow keys they lack. */
+#mobile-keybar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+  display: flex; gap: 6px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: var(--bg2); border-top: 1px solid var(--border);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  will-change: transform;
+}
+#mobile-keybar[hidden] { display: none; }
+#mobile-keybar::-webkit-scrollbar { display: none; }
+
+.keybar-btn {
+  flex: 0 0 auto; min-width: 46px; height: 40px; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg3); color: var(--text); border: 1px solid var(--border3);
+  border-radius: 8px; font-size: 15px; line-height: 1; cursor: pointer;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.keybar-btn:active { background: var(--bg5); }
+.keybar-mod.armed {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+
 /* ── Touch devices (no hover) ───────────────────────────────────────────────
    Hover-revealed affordances must be permanently visible, and hit targets
    need to be finger-sized. Keyed off pointer capability, not screen width, so

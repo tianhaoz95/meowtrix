@@ -202,6 +202,18 @@ function applyTheme(theme) {
   }));
 }
 
+// Run a Cmd/Ctrl app shortcut by its key. Shared by the keyboard handler and
+// the mobile key bar's Cmd modifier. Returns true if the key was handled.
+function runAppShortcut(key) {
+  switch (key) {
+    case '\\': if (activePane) splitPane(activePane, 'vertical'); return true;
+    case '-':  if (activePane) splitPane(activePane, 'horizontal'); return true;
+    case 't':  if (activePane) showTabTypePicker({ clientX: 60, clientY: 40 }, activePane); return true;
+    case 'w':  if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); return true;
+    default:   return false;
+  }
+}
+
 function initWorkspace() {
   const workspace = document.getElementById('workspace');
   const initialPane = createPane();
@@ -240,25 +252,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
-    const mod = e.metaKey || e.ctrlKey;
-    if (!mod) return;
-    if (e.key === '\\') { e.preventDefault(); if (activePane) splitPane(activePane, 'vertical'); }
-    if (e.key === '-')  { e.preventDefault(); if (activePane) splitPane(activePane, 'horizontal'); }
-    if (e.key === 't')  { e.preventDefault(); if (activePane) showTabTypePicker({ clientX: 60, clientY: 40 }, activePane); }
-    if (e.key === 'w')  { e.preventDefault(); if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); }
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (runAppShortcut(e.key)) e.preventDefault();
   });
 
   // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal.
   // Send the Tab straight to the PTY (same message xterm's onData emits) so the
   // shell sees a real Tab keypress — bypassing xterm's word-selection on
   // double-click and any bracketed-paste wrapping that paste() would add.
+  // Don't fire autocomplete when double-tapping UI controls (buttons, the key
+  // bar, tab strip, browser chrome) — only over actual terminal/content area.
+  function autocompleteAllowed(e) {
+    return !e.target?.closest?.('button, input, select, #mobile-keybar, #toolbar, .pane-tabs, .browser-bar');
+  }
   function triggerAutocomplete() {
     const tab = activePane?.activeTab;
     if (tab?.type !== 'terminal' || !tab.ptyId) return;
     wsSend({ type: 'pty:input', id: tab.ptyId, data: '\t' });
   }
 
-  document.addEventListener('dblclick', triggerAutocomplete);
+  document.addEventListener('dblclick', (e) => { if (autocompleteAllowed(e)) triggerAutocomplete(); });
 
   // Touch double-tap: browsers don't reliably synthesize `dblclick` for taps
   // (and often suppress it pending zoom gestures), so detect it ourselves.
@@ -268,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const t = e.changedTouches[0];
     const now = Date.now();
     const near = Math.abs(t.clientX - lastTapX) < 30 && Math.abs(t.clientY - lastTapY) < 30;
-    if (now - lastTap < 300 && near) {
+    if (now - lastTap < 300 && near && autocompleteAllowed(e)) {
       // Suppress the synthetic dblclick some browsers fire so we tab once, not twice.
       e.preventDefault();
       lastTap = 0;
