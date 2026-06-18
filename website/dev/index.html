@@ -11,8 +11,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cascadia+Code&display=swap">
   <link rel="stylesheet" href="../assets/site.css">
   <script>
-    /* Apply the stored/system theme before first paint to avoid a flash. */
-    (function(){try{var t=localStorage.getItem('meowtrix-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+    /* Resolve the theme (mode may be system/light/dark; default system) before first paint to avoid a flash. */
+    (function(){try{var m=localStorage.getItem('meowtrix-theme');var t=(m==='light'||m==='dark')?m:((window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
   </script>
 </head>
 <body>
@@ -23,7 +23,7 @@
       <a href="../docs/">Docs</a>
       <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
       <a class="cta" href="../demo/?demo">Live demo →</a>
-      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme"><span class="ico-sun">☀️</span><span class="ico-moon">🌙</span></button>
+      <button class="theme-toggle" id="theme-toggle" type="button" data-mode="system" aria-label="Toggle theme" title="Toggle theme"><span class="ico ico-system">🌗</span><span class="ico ico-light">☀️</span><span class="ico ico-moon">🌙</span></button>
     </div>
   </nav>
 

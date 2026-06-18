@@ -114,11 +114,11 @@ code, pre, kbd {
   transition: all 0.12s var(--ease);
 }
 .theme-toggle:hover { background: var(--bg4); color: var(--text); transform: translateY(-1px); }
-.theme-toggle .ico-sun, .theme-toggle .ico-moon { display: none; }
-/* Show the icon for the theme you'd switch TO. */
-:root .theme-toggle .ico-sun { display: inline; }                 /* dark active → offer light */
-:root[data-theme="light"] .theme-toggle .ico-sun { display: none; }
-:root[data-theme="light"] .theme-toggle .ico-moon { display: inline; }
+/* Show the icon for the current mode (set by theme.js on the button). */
+.theme-toggle .ico { display: none; }
+.theme-toggle[data-mode="system"] .ico-system,
+.theme-toggle[data-mode="light"]  .ico-light,
+.theme-toggle[data-mode="dark"]   .ico-moon { display: inline; }
 
 /* ── Landing: hero ──────────────────────────────────────────────────────────── */
 .hero {

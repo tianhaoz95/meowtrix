@@ -1,54 +1,65 @@
-/* Meowtrix project site — light/dark theme switcher.
-   The chosen theme is stored in localStorage and applied as a `data-theme`
-   attribute on <html>. The early inline snippet in each page's <head> applies
-   the stored/system theme before first paint (avoiding a flash); this file just
-   wires up the toggle button and keeps things in sync with the OS preference. */
+/* Meowtrix project site — light/dark/system theme switcher.
+   A "mode" (light | dark | system) is stored in localStorage; the default is
+   "system", which auto-detects and live-tracks the OS color-scheme. The mode is
+   resolved to a concrete theme and applied as a `data-theme` attribute on
+   <html>. The early inline snippet in each page's <head> applies it before first
+   paint (avoiding a flash); this file wires up the toggle, which cycles
+   system → light → dark → system. */
 (function () {
   var KEY = 'meowtrix-theme';
+  var MODES = ['system', 'light', 'dark'];
 
   function systemTheme() {
     return window.matchMedia &&
       window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   }
 
-  function currentTheme() {
-    try { return localStorage.getItem(KEY) || systemTheme(); }
-    catch (e) { return systemTheme(); }
+  function currentMode() {
+    try {
+      var m = localStorage.getItem(KEY);
+      return MODES.indexOf(m) !== -1 ? m : 'system';
+    } catch (e) { return 'system'; }
   }
 
-  function apply(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+  function resolve(mode) {
+    return mode === 'system' ? systemTheme() : mode;
+  }
+
+  function apply(mode) {
+    document.documentElement.setAttribute('data-theme', resolve(mode));
     var btn = document.getElementById('theme-toggle');
     if (btn) {
-      btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
-      btn.title = theme === 'light'
-        ? 'Switch to dark theme' : 'Switch to light theme';
+      btn.setAttribute('data-mode', mode);
+      var label = mode === 'system'
+        ? 'Theme: system (matches your OS) — click for light'
+        : mode === 'light'
+          ? 'Theme: light — click for dark'
+          : 'Theme: dark — click for system';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
     }
   }
 
-  function setTheme(theme) {
-    try { localStorage.setItem(KEY, theme); } catch (e) {}
-    apply(theme);
+  function setMode(mode) {
+    try { localStorage.setItem(KEY, mode); } catch (e) {}
+    apply(mode);
   }
 
-  // Reflect the current state on load and bind the toggle.
   function init() {
-    apply(currentTheme());
+    apply(currentMode());
     var btn = document.getElementById('theme-toggle');
     if (btn) {
       btn.addEventListener('click', function () {
-        var next = document.documentElement.getAttribute('data-theme') === 'light'
-          ? 'dark' : 'light';
-        setTheme(next);
+        var next = MODES[(MODES.indexOf(currentMode()) + 1) % MODES.length];
+        setMode(next);
       });
     }
   }
 
-  // Follow OS changes only while the user hasn't made an explicit choice.
+  // Live-track the OS preference while in (or defaulting to) system mode.
   if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function (e) {
-      try { if (localStorage.getItem(KEY)) return; } catch (err) {}
-      apply(e.matches ? 'light' : 'dark');
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () {
+      if (currentMode() === 'system') apply('system');
     });
   }
 
