@@ -256,10 +256,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'w')  { e.preventDefault(); if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); }
   });
 
-  // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal
-  document.addEventListener('dblclick', () => {
-    if (activePane?.activeTab?.term) activePane.activeTab.term.input('\t');
-  });
+  // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal.
+  // Send the Tab straight to the PTY (same message xterm's onData emits) so the
+  // shell sees a real Tab keypress — bypassing xterm's word-selection on
+  // double-click and any bracketed-paste wrapping that paste() would add.
+  function triggerAutocomplete() {
+    const tab = activePane?.activeTab;
+    if (tab?.type !== 'terminal' || !tab.ptyId) return;
+    wsSend({ type: 'pty:input', id: tab.ptyId, data: '\t' });
+  }
+
+  document.addEventListener('dblclick', triggerAutocomplete);
+
+  // Touch double-tap: browsers don't reliably synthesize `dblclick` for taps
+  // (and often suppress it pending zoom gestures), so detect it ourselves.
+  let lastTap = 0, lastTapX = 0, lastTapY = 0;
+  document.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length !== 1) return;
+    const t = e.changedTouches[0];
+    const now = Date.now();
+    const near = Math.abs(t.clientX - lastTapX) < 30 && Math.abs(t.clientY - lastTapY) < 30;
+    if (now - lastTap < 300 && near) {
+      // Suppress the synthetic dblclick some browsers fire so we tab once, not twice.
+      e.preventDefault();
+      lastTap = 0;
+      triggerAutocomplete();
+    } else {
+      lastTap = now; lastTapX = t.clientX; lastTapY = t.clientY;
+    }
+  }, { passive: false });
 
   initSession();
 
