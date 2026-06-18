@@ -6,12 +6,35 @@
 // when the on-device model isn't available (see settings.js / petModelAvailability).
 
 (function () {
-  const FACE = '🐱';
+  // Selectable looks. `id` is what's persisted in settings (`petFace`).
+  const PET_FACES = [
+    { id: 'cat',     emoji: '🐱', label: 'Cat' },
+    { id: 'dog',     emoji: '🐶', label: 'Dog' },
+    { id: 'fox',     emoji: '🦊', label: 'Fox' },
+    { id: 'bunny',   emoji: '🐰', label: 'Bunny' },
+    { id: 'panda',   emoji: '🐼', label: 'Panda' },
+    { id: 'penguin', emoji: '🐧', label: 'Penguin' },
+    { id: 'frog',    emoji: '🐸', label: 'Frog' },
+    { id: 'chick',   emoji: '🐥', label: 'Chick' },
+    { id: 'ghost',   emoji: '👻', label: 'Ghost' },
+    { id: 'robot',   emoji: '🤖', label: 'Robot' },
+    { id: 'dragon',  emoji: '🐲', label: 'Dragon' },
+    { id: 'unicorn', emoji: '🦄', label: 'Unicorn' },
+  ];
+  window.PET_FACES = PET_FACES;
+  const DEFAULT_FACE = 'cat';
+
+  function faceEmoji(id) {
+    const f = PET_FACES.find((x) => x.id === id);
+    return (f || PET_FACES[0]).emoji;
+  }
+
+  let faceId = DEFAULT_FACE;
   const SYSTEM_PROMPT =
-    "You are Mochi, a tiny, cheerful cat companion living inside a developer's " +
+    "You are Mochi, a tiny, cheerful animal companion living inside a developer's " +
     "terminal workspace called Meowtrix. Keep replies short, warm, and playful " +
-    "(1-3 sentences). You can be a little silly and use the occasional 'meow' or " +
-    "cat pun, but stay genuinely helpful when asked a real question.";
+    "(1-3 sentences). You can be a little silly, but stay genuinely helpful when " +
+    "asked a real question.";
 
   let enabled = false;
   let booted = false;
@@ -43,7 +66,7 @@
     pet.id = 'pet';
     pet.setAttribute('role', 'button');
     pet.setAttribute('aria-label', 'Chat with Mochi the pet');
-    pet.innerHTML = `<span class="pet-face">${FACE}</span>`;
+    pet.innerHTML = `<span class="pet-face">${faceEmoji(faceId)}</span>`;
     pet.addEventListener('click', toggleChat);
 
     chat = document.createElement('div');
@@ -51,7 +74,7 @@
     chat.hidden = true;
     chat.innerHTML = `
       <div id="pet-chat-head">
-        <span class="pet-face-sm">${FACE}</span>
+        <span class="pet-face-sm">${faceEmoji(faceId)}</span>
         <span id="pet-chat-name">Mochi</span>
         <button id="pet-chat-close" aria-label="Close chat">✕</button>
       </div>
@@ -126,7 +149,7 @@
     // Anchor the chat panel near the pet.
     positionChat();
     if (!log.childElementCount) {
-      addMsg('pet', 'Meow! I’m Mochi 🐱 Ask me anything.');
+      addMsg('pet', `Hi! I’m Mochi ${faceEmoji(faceId)} Ask me anything.`);
     }
     setTimeout(() => input.focus(), 50);
   }
@@ -236,6 +259,19 @@
   }
   window.setPetEnabled = setPetEnabled;
 
+  // Change the pet's look (id from PET_FACES). Updates the live DOM if built.
+  function setPetFace(id) {
+    if (!PET_FACES.some((f) => f.id === id)) id = DEFAULT_FACE;
+    faceId = id;
+    if (booted) {
+      const big = pet.querySelector('.pet-face');
+      const sm = chat.querySelector('.pet-face-sm');
+      if (big) big.textContent = faceEmoji(faceId);
+      if (sm) sm.textContent = faceEmoji(faceId);
+    }
+  }
+  window.setPetFace = setPetFace;
+
   // Reposition things on resize so nothing gets stranded off-screen.
   window.addEventListener('resize', () => {
     if (!booted) return;
@@ -248,6 +284,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     const sync = () => {
       const s = (typeof getSettings === 'function') ? getSettings() : null;
+      if (s && s.petFace) setPetFace(s.petFace);
       if (s && 'petEnabled' in s) setPetEnabled(s.petEnabled);
     };
     setTimeout(sync, 0);

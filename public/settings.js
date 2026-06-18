@@ -68,6 +68,12 @@ function populateControls(s) {
   document.getElementById('s-homepage').value = s.browserHomepage;
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
   document.getElementById('s-pet').checked = !!s.petEnabled;
+  const faceSel = document.getElementById('s-pet-face');
+  if (!faceSel.dataset.built && typeof PET_FACES !== 'undefined') {
+    faceSel.innerHTML = PET_FACES.map(f => `<option value="${f.id}">${f.emoji} ${f.label}</option>`).join('');
+    faceSel.dataset.built = '1';
+  }
+  faceSel.value = s.petFace || 'cat';
   refreshPetAvailability();
 }
 
@@ -146,6 +152,11 @@ function wireControls() {
     await saveSetting('petEnabled', e.target.checked);
     if (typeof setPetEnabled === 'function') setPetEnabled(e.target.checked);
   });
+
+  document.getElementById('s-pet-face').addEventListener('change', async (e) => {
+    await saveSetting('petFace', e.target.value);
+    if (typeof setPetFace === 'function') setPetFace(e.target.value);
+  });
 }
 
 function onSettingChanged(key) {
@@ -172,6 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTheme(s.theme);
     applyTermSettings();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
+    if (typeof setPetFace === 'function') setPetFace(s.petFace || 'cat');
     if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
   });
 });

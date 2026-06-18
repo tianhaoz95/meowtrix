@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS = {
   browserHomepage: '', // blank → new browser tabs show the local start page
   comboFx: true, // keystroke-streak visual effects (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
+  petFace: 'cat', // pet appearance id (see PET_FACES in public/pet.js)
 };
 
 function readSettings() {
