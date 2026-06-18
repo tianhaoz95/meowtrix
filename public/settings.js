@@ -18,6 +18,13 @@ async function saveSetting(key, value) {
 
 function getSettings() { return currentSettings; }
 
+// Paint the filled portion of a range slider to match its value.
+function updateRangeFill(el) {
+  const min = Number(el.min || 0), max = Number(el.max || 100);
+  const pct = ((Number(el.value) - min) / (max - min)) * 100;
+  el.style.backgroundSize = pct + '% 100%';
+}
+
 // ── Apply settings live ──────────────────────────────────────────────────────
 function applyTermSettings() {
   getAllPanes().forEach(p => p.tabs.forEach(t => {
@@ -48,8 +55,10 @@ function populateControls(s) {
     themeSel.dataset.built = '1';
   }
   themeSel.value = s.theme;
-  document.getElementById('s-font-size').value = s.termFontSize;
+  const fontSize = document.getElementById('s-font-size');
+  fontSize.value = s.termFontSize;
   document.getElementById('s-font-size-val').textContent = s.termFontSize;
+  updateRangeFill(fontSize);
   // Select closest matching font option
   const fontSel = document.getElementById('s-font-family');
   const match = [...fontSel.options].find(o => s.termFontFamily.startsWith(o.value.split(',')[0]));
@@ -78,6 +87,7 @@ function wireControls() {
   document.getElementById('s-font-size').addEventListener('input', async (e) => {
     const val = Number(e.target.value);
     document.getElementById('s-font-size-val').textContent = val;
+    updateRangeFill(e.target);
     await saveSetting('termFontSize', val);
     applyTermSettings();
   });
