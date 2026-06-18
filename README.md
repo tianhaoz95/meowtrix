@@ -15,6 +15,18 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **10 themes** — Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Bubblegum, Catppuccin, Cappuccino, Synthwave; terminals are themed to match
 - **No build step** — plain ES scripts served directly; settings & layout persist to `~/.meowtrix/`
 
+## Prerequisites
+
+Meowtrix runs on the **host machine** (macOS or Linux) — you only need a browser on the devices you connect from. On the host you'll need:
+
+- **Node.js 18+** and **npm** — runs the server
+- **git** — the installer clones the repo
+- **A C/C++ build toolchain** — `node-pty` compiles natively on install:
+  - **macOS:** Xcode Command Line Tools (`xcode-select --install`)
+  - **Linux:** `build-essential` (or `gcc`/`make`) and `python3`
+
+> The `--service` auto-start mode is supported on macOS (launchd) and Linux (systemd) only. Windows is not supported by the installer.
+
 ## Install
 
 ```bash

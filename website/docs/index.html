@@ -76,6 +76,22 @@
 
       <section id="install">
         <h2>Installation</h2>
+        <h3>Prerequisites</h3>
+        <p>Meowtrix runs on the <strong>host machine</strong> (macOS or Linux) — the devices you connect from only need a browser. On the host you'll need:</p>
+        <ul>
+          <li><strong>Node.js 18+</strong> and <strong>npm</strong> — runs the server</li>
+          <li><strong>git</strong> — the installer clones the repo</li>
+          <li><strong>A C/C++ build toolchain</strong> — <code>node-pty</code> compiles natively on install:
+            <ul>
+              <li><strong>macOS:</strong> Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
+              <li><strong>Linux:</strong> <code>build-essential</code> (or <code>gcc</code>/<code>make</code>) and <code>python3</code></li>
+            </ul>
+          </li>
+        </ul>
+        <div class="callout">
+          <span class="ico">🪟</span>
+          <p>The one-line installer and the <code>--service</code> auto-start mode support macOS and Linux only — Windows is not supported.</p>
+        </div>
         <p>The fastest path is the one-line installer, which clones Meowtrix into <code>~/.meowtrix/app</code>, installs dependencies, and adds a <code>meowtrix</code> launcher to your <code>PATH</code>:</p>
         <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash</code></pre>
         <h3>Install as a background service</h3>
