@@ -144,6 +144,17 @@ html.light #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc262
 }
 .tab-add:hover { color: var(--accent); }
 
+/* ── Tab drag-and-drop ── */
+.tab.dragging { opacity: 0.4; }
+.tab-drop-indicator {
+  flex: 0 0 auto; width: 2px; align-self: stretch;
+  margin: 4px 1px; background: var(--accent); border-radius: 1px;
+  pointer-events: none;
+}
+/* While dragging, let drag events fall through pane content (iframes/terminals
+   otherwise swallow dragover) so the pane drop zone keeps receiving them. */
+body.dragging-tab .pane-content { pointer-events: none; }
+
 /* ── Pane content ── */
 .pane-content { flex: 1; overflow: hidden; position: relative; background: var(--term-bg); }
 .pane-view { position: absolute; inset: 0; display: none; }

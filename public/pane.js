@@ -4,6 +4,99 @@ const paneRegistry = new Map();
 
 function uid() { return 'id-' + (++tabCounter) + '-' + Math.random().toString(36).slice(2, 7); }
 
+function paneOfTab(tabEl) {
+  const paneEl = tabEl.closest('.pane');
+  return paneEl ? paneRegistry.get(paneEl) : null;
+}
+
+// ── Tab drag-and-drop ────────────────────────────────────────────────────────
+let dragState = null;        // { tab, srcPane }
+let dropIndicator = null;    // shared insertion marker, moved between tab bars
+
+function clearDropIndicator() { dropIndicator?.remove(); }
+
+// Element in `pane`'s tab bar to insert before (a .tab or the .tab-add button).
+function computeDropRef(pane, e) {
+  const addBtn = pane.tabBar.querySelector('.tab-add');
+  // Pointer below the tab bar (over the pane body) → drop at the end.
+  if (e.clientY > pane.tabBar.getBoundingClientRect().bottom) return addBtn;
+  const tabEls = [...pane.tabBar.querySelectorAll('.tab')];
+  for (const el of tabEls) {
+    const r = el.getBoundingClientRect();
+    if (e.clientX < r.left + r.width / 2) return el;
+  }
+  return addBtn;
+}
+
+function onPaneDragOver(e, pane) {
+  if (!dragState) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (!dropIndicator) {
+    dropIndicator = document.createElement('div');
+    dropIndicator.className = 'tab-drop-indicator';
+  }
+  pane.tabBar.insertBefore(dropIndicator, computeDropRef(pane, e));
+}
+
+function onPaneDrop(e, pane) {
+  if (!dragState) return;
+  e.preventDefault();
+  clearDropIndicator();
+  const ref = computeDropRef(pane, e);
+  moveTab(dragState.srcPane, dragState.tab.id, pane, ref);
+}
+
+// Move a tab to `destPane`, inserting its tab element before `refEl`.
+function moveTab(srcPane, tabId, destPane, refEl) {
+  const idx = srcPane.tabs.findIndex(t => t.id === tabId);
+  if (idx === -1) return;
+  const tab = srcPane.tabs[idx];
+
+  // Dropping onto its own current slot → nothing to do.
+  if (srcPane === destPane && (refEl === tab.tabEl || refEl === tab.tabEl.nextSibling)) return;
+
+  srcPane.tabs.splice(idx, 1);
+  destPane.tabBar.insertBefore(tab.tabEl, refEl);
+  if (tab.viewEl.parentElement !== destPane.contentEl) destPane.contentEl.appendChild(tab.viewEl);
+
+  // Mirror the resulting tab-bar order into the model.
+  const order = [...destPane.tabBar.querySelectorAll('.tab')];
+  destPane.tabs.splice(order.indexOf(tab.tabEl), 0, tab);
+
+  if (srcPane !== destPane) {
+    if (srcPane.tabs.length) activateTab(srcPane, srcPane.tabs[Math.max(0, idx - 1)].id);
+    else { srcPane.activeTab = null; collapseEmptyPane(srcPane); }
+  }
+  setActivePane(destPane);
+  activateTab(destPane, tabId);
+  // Reparenting can drop the xterm's rendered rows; refit + repaint.
+  if (tab.type === 'terminal' && tab.term) {
+    requestAnimationFrame(() => { tab.fitAddon?.fit(); tab.term.refresh(0, tab.term.rows - 1); });
+  }
+  saveSessionState();
+}
+
+// Remove an emptied pane and collapse its split, keeping at least one pane.
+function collapseEmptyPane(pane) {
+  if (getAllPanes().length <= 1) return;
+  const paneEl = pane.el;
+  const parent = paneEl.parentElement;
+  paneRegistry.delete(paneEl);
+  if (parent.classList.contains('split-container')) {
+    const sibling = [...parent.children].find(c => c !== paneEl && !c.classList.contains('split-divider'));
+    sibling.style.flex = '';
+    parent.parentElement.replaceChild(sibling, parent);
+  } else {
+    paneEl.remove();
+  }
+  if (activePane === pane) {
+    const remaining = getAllPanes();
+    activePane = null;
+    if (remaining.length) setActivePane(remaining[0]);
+  }
+}
+
 function getTermTheme() {
   return document.documentElement.classList.contains('light')
     ? { background: '#ffffff', foreground: '#1a1a1a', cursor: '#7c3aed', selectionBackground: 'rgba(124,58,237,0.2)', cursorAccent: '#fff' }
@@ -33,6 +126,12 @@ function createPane() {
 
   addBtn.addEventListener('click', (e) => { e.stopPropagation(); showTabTypePicker(e, pane); });
   el.addEventListener('mousedown', () => setActivePane(pane));
+
+  // Tab drag-and-drop drop zone (reorder within / move across panes).
+  el.addEventListener('dragover', (e) => onPaneDragOver(e, pane));
+  el.addEventListener('drop', (e) => onPaneDrop(e, pane));
+  el.addEventListener('dragleave', (e) => { if (!el.contains(e.relatedTarget)) clearDropIndicator(); });
+
   return pane;
 }
 
@@ -61,14 +160,31 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl) {
   closeBtn.className = 'tab-close';
   closeBtn.textContent = '✕';
   closeBtn.title = 'Close tab';
-  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeTab(pane, id); });
+  // Handlers resolve the pane from the DOM at event time, so they keep working
+  // after the tab is dragged into a different pane.
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); });
   tabEl.append(icon, label, closeBtn);
-  tabEl.addEventListener('click', () => activateTab(pane, id));
-  tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); closeTab(pane, id); } });
+  tabEl.addEventListener('click', () => { const p = paneOfTab(tabEl); if (p) activateTab(p, id); });
+  tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); } });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 
   const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null };
   pane.tabs.push(tab);
+
+  tabEl.draggable = true;
+  tabEl.addEventListener('dragstart', (e) => {
+    dragState = { tab, srcPane: paneOfTab(tabEl) };
+    tabEl.classList.add('dragging');
+    document.body.classList.add('dragging-tab');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', id); } catch {}
+  });
+  tabEl.addEventListener('dragend', () => {
+    tabEl.classList.remove('dragging');
+    document.body.classList.remove('dragging-tab');
+    clearDropIndicator();
+    dragState = null;
+  });
 
   if (type === 'terminal') initTerminalTab(tab, existingPtyId);
   else initBrowserTab(tab, viewEl, label, existingUrl);

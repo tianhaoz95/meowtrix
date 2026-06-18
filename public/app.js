@@ -240,18 +240,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-close-pane').addEventListener('click', () => {
     if (!activePane || getAllPanes().length <= 1) return;
-    const paneEl = activePane.el;
-    const parent = paneEl.parentElement;
-    [...activePane.tabs].forEach(t => closeTab(activePane, t.id));
-    paneRegistry.delete(paneEl);
-    if (parent.classList.contains('split-container')) {
-      const sibling = [...parent.children].find(c => c !== paneEl && !c.classList.contains('split-divider'));
-      sibling.style.flex = '';
-      parent.parentElement.replaceChild(sibling, parent);
-      const remaining = getAllPanes();
-      if (remaining.length) setActivePane(remaining[0]);
-      else activePane = null;
-    }
+    const pane = activePane;
+    [...pane.tabs].forEach(t => closeTab(pane, t.id));
+    collapseEmptyPane(pane);
     saveSessionState();
   });
 
