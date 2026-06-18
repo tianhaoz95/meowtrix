@@ -1245,3 +1245,28 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 #pet-chat-send:hover { background: var(--accent-hi); }
 #pet-chat-send:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Markdown inside pet replies ── */
+.pet-msg-pet p { margin: 0 0 6px; }
+.pet-msg-pet p:last-child { margin-bottom: 0; }
+.pet-msg-pet h1, .pet-msg-pet h2, .pet-msg-pet h3,
+.pet-msg-pet h4, .pet-msg-pet h5, .pet-msg-pet h6 {
+  margin: 4px 0; font-size: 13px; font-weight: 700;
+}
+.pet-msg-pet ul, .pet-msg-pet ol { margin: 4px 0; padding-left: 18px; }
+.pet-msg-pet li { margin: 2px 0; }
+.pet-msg-pet a { color: var(--accent-hi); text-decoration: underline; }
+.pet-msg-pet code {
+  font-family: var(--term-font, monospace); font-size: 11px;
+  background: var(--bg5); border-radius: 5px; padding: 1px 4px;
+}
+.pet-msg-pet pre.pet-code {
+  margin: 6px 0; padding: 8px 10px; border-radius: 9px;
+  background: var(--bg5); overflow-x: auto;
+}
+.pet-msg-pet pre.pet-code code {
+  background: none; padding: 0; font-size: 11px; line-height: 1.5;
+  white-space: pre; display: block;
+}
+.pet-msg-pet strong { font-weight: 700; }
+.pet-msg-pet em { font-style: italic; }

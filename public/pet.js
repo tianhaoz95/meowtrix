@@ -183,6 +183,69 @@
     return el;
   }
 
+  // ── Minimal, safe markdown → HTML (for pet replies) ──────────────────────────
+  // Everything is HTML-escaped first, so model output can never inject markup.
+  // Supports: fenced + inline code, bold, italic, links, headings, lists.
+  function escapeHtml(s) {
+    return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
+  function renderMarkdown(src) {
+    const blocks = [];   // fenced code blocks (already escaped)
+    const inline = [];   // inline code spans (already escaped)
+
+    // Pull out fenced code, then inline code, leaving NUL-delimited placeholders.
+    let text = src.replace(/```[^\n]*\n?([\s\S]*?)```/g, (_m, code) => {
+      blocks.push('<pre class="pet-code"><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>');
+      return ' B' + (blocks.length - 1) + ' ';
+    });
+    text = text.replace(/`([^`\n]+)`/g, (_m, code) => {
+      inline.push('<code>' + escapeHtml(code) + '</code>');
+      return ' I' + (inline.length - 1) + ' ';
+    });
+
+    text = escapeHtml(text); // placeholders use NUL, untouched by escaping
+
+    const fmt = (s) => s
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, t, url) => {
+        const safe = /^https?:\/\//i.test(url) ? url : '#';
+        return '<a href="' + safe + '" target="_blank" rel="noopener noreferrer">' + t + '</a>';
+      })
+      .replace(/ I(\d+) /g, (_m, i) => inline[Number(i)]);
+
+    let html = '', list = null, para = [];
+    const flushP = () => { if (para.length) { html += '<p>' + fmt(para.join(' ')) + '</p>'; para = []; } };
+    const closeL = () => { if (list) { html += '</' + list + '>'; list = null; } };
+
+    for (const line of text.split('\n')) {
+      let m;
+      if (/^\s*$/.test(line)) { flushP(); closeL(); }
+      else if (/^ B\d+ $/.test(line.trim())) { flushP(); closeL(); html += line.trim(); }
+      else if ((m = /^(#{1,6})\s+(.*)$/.exec(line))) {
+        flushP(); closeL();
+        const lvl = m[1].length;
+        html += '<h' + lvl + '>' + fmt(m[2]) + '</h' + lvl + '>';
+      } else if ((m = /^\s*[-*+]\s+(.*)$/.exec(line))) {
+        flushP(); if (list !== 'ul') { closeL(); html += '<ul>'; list = 'ul'; }
+        html += '<li>' + fmt(m[1]) + '</li>';
+      } else if ((m = /^\s*\d+\.\s+(.*)$/.exec(line))) {
+        flushP(); if (list !== 'ol') { closeL(); html += '<ol>'; list = 'ol'; }
+        html += '<li>' + fmt(m[1]) + '</li>';
+      } else { para.push(line); }
+    }
+    flushP(); closeL();
+
+    return html.replace(/ B(\d+) /g, (_m, i) => blocks[Number(i)]);
+  }
+
+  function setMsgMarkdown(el, raw) {
+    el.innerHTML = renderMarkdown(raw);
+  }
+
   async function getSession() {
     if (session) return session;
     if (creating) return creating;
@@ -218,16 +281,19 @@
       typingEl.classList.remove('pet-typing');
       typingEl.textContent = '';
       // Stream tokens in for a lively feel; fall back to a single shot.
+      let reply = '';
       if (typeof s.promptStreaming === 'function') {
         const stream = s.promptStreaming(text);
         for await (const chunk of stream) {
-          typingEl.textContent += chunk;
+          reply += chunk;
+          setMsgMarkdown(typingEl, reply);
           log.scrollTop = log.scrollHeight;
         }
       } else {
-        typingEl.textContent = await s.prompt(text);
+        reply = await s.prompt(text);
+        setMsgMarkdown(typingEl, reply);
       }
-      if (!typingEl.textContent) typingEl.textContent = '*purrs quietly*';
+      if (!reply.trim()) typingEl.textContent = '*purrs quietly*';
     } catch (err) {
       typingEl.classList.remove('pet-typing');
       typingEl.textContent = 'Mrrp… I couldn’t think of a reply. ' +
