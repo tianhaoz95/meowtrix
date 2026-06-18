@@ -95,6 +95,9 @@ function saveSessionState() {
 function fitAllTerminals() {
   const fit = () => getAllPanes().forEach(p => p.tabs.forEach(t => { if (t.fitAddon) t.fitAddon.fit(); }));
   requestAnimationFrame(() => { fit(); setTimeout(fit, 150); });
+  // Re-fit once the terminal web font has loaded: fitting with fallback-font
+  // metrics picks the wrong row count and clips the bottom line.
+  if (document.fonts?.ready) document.fonts.ready.then(fit);
 }
 
 function claimSession(state) {

@@ -122,6 +122,11 @@ function initTerminalTab(tab, existingPtyId) {
   const initPty = () => { fitAddon.fit(); createPty(ptyId, term, term.cols, term.rows); };
   // Small rAF delay ensures the terminal is sized before createPty
   requestAnimationFrame(initPty);
+  // Web fonts load async; fitting with fallback metrics clips the bottom row,
+  // so re-fit (which resizes the PTY too) once the real font is ready.
+  if (document.fonts?.ready) document.fonts.ready.then(() => {
+    if (tab.viewEl.classList.contains('active')) fitAddon.fit();
+  });
 
   term.onData(data => wsSend({ type: 'pty:input', id: ptyId, data }));
   term.onResize(({ cols, rows }) => wsSend({ type: 'pty:resize', id: ptyId, cols, rows }));

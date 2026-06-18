@@ -186,12 +186,12 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'pty:created', id }));
           // Full-screen TUIs (vim, htop, …) only repaint on SIGWINCH, so the
           // replayed buffer alone leaves them blank until the user resizes.
-          // Force a redraw by jiggling the PTY size to its target dimensions.
-          const cols = msg.cols || entry.proc.cols || 80;
-          const rows = msg.rows || entry.proc.rows || 24;
+          // Force a redraw by briefly jiggling the PTY size. Restore to the
+          // entry's *current* size when the timer fires (the client may send a
+          // corrected fit in the meantime) so we don't clip the bottom line.
           try {
-            entry.proc.resize(cols, Math.max(1, rows - 1));
-            setTimeout(() => { try { entry.proc.resize(cols, rows); } catch {} }, 50);
+            entry.proc.resize(entry.cols, Math.max(1, entry.rows - 1));
+            setTimeout(() => { try { entry.proc.resize(entry.cols, entry.rows); } catch {} }, 50);
           } catch {}
           break;
         }
@@ -205,7 +205,7 @@ wss.on('connection', (ws) => {
           cwd: process.env.HOME || process.cwd(),
           env: ptyEnv,
         });
-        const entry = { proc, dataListeners: new Set(), buffer: '' };
+        const entry = { proc, dataListeners: new Set(), buffer: '', cols: msg.cols || 80, rows: msg.rows || 24 };
         ptys.set(id, entry);
         // Persistently buffer output (independent of any connected WS) so it can
         // be replayed on reconnect. Capped to the most recent PTY_BUFFER_MAX bytes.
@@ -224,7 +224,11 @@ wss.on('connection', (ws) => {
         break;
       }
       case 'pty:input': { const e = ptys.get(msg.id); if (e) e.proc.write(msg.data); break; }
-      case 'pty:resize': { const e = ptys.get(msg.id); if (e) e.proc.resize(msg.cols, msg.rows); break; }
+      case 'pty:resize': {
+        const e = ptys.get(msg.id);
+        if (e) { e.cols = msg.cols; e.rows = msg.rows; e.proc.resize(msg.cols, msg.rows); }
+        break;
+      }
       case 'pty:destroy': {
         const e = ptys.get(msg.id);
         if (e) { e.proc.kill(); ptys.delete(msg.id); }
