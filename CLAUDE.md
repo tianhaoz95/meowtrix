@@ -20,11 +20,13 @@ There is no test suite, linter, or build step — the frontend is plain ES scrip
 
 **Single server, two responsibilities** (`server.js`):
 - **HTTP**: serves `public/`, the settings/session REST API, and the embedding proxy.
-- **WebSocket**: PTY lifecycle (`pty:create/input/resize/destroy`) plus active-session coordination messages.
+- **WebSocket**: PTY lifecycle (`pty:create/input/resize/destroy`), active-session coordination, and scheduled-Enter timers (`schedule:create/cancel`, broadcast back as `schedule:state`/`schedule:fired`).
 
 **Network binding defaults to loopback.** `resolveHost()` (`server.js`) picks the listen address: `--network`/`-n` → `0.0.0.0`, `--host <addr>` or the `HOST` env var → that address, otherwise `127.0.0.1`. Since reaching the server means getting a shell and there is *no* built-in auth, the safe default is localhost-only (use over an SSH tunnel); LAN/remote exposure is an explicit opt-in. The startup log prints the chosen mode plus a tunnel hint or a warning accordingly.
 
 **PTYs outlive WebSocket connections.** The `ptys` Map keys each PTY by id and keeps a rolling ~200KB output buffer. On reconnect, `pty:create` with an existing id replays the buffer and reattaches the live stream instead of spawning a new shell — this is what makes refreshes and network blips non-destructive. Closing a browser tab/WS only detaches listeners; the shell keeps running.
+
+**Scheduled Enter presses are server-side timers** (`server.js`, the `schedules` map keyed by PTY id). A client sends `schedule:create {ptyId, fireAt}`; the server arms a `setTimeout` that writes a lone `\r` to that PTY when it fires, then broadcasts the change. Living server-side (next to the PTYs) is what lets a schedule survive page refreshes, reconnects, and device handoffs — clients are stateless renderers that reconcile their lock overlays from `schedule:state` broadcasts (sent on every change and to each client on connect). In-memory only: a server restart kills the PTYs, so there's nothing left to fire into. See `public/schedule.js`.
 
 **Single-session enforcement is server-coordinated** (`server.js` + `public/app.js`). Only one client is the "active" session; every other connected client (across browsers and devices, not just tabs) sees the inactive overlay. The newest client to send `session:claim` wins; others get a `session:state` broadcast and drop to the overlay until they press "Move session here". When the active socket drops, the server hands off to the most-recently-connected remaining client. This is deliberately *not* done via BroadcastChannel/localStorage so it works cross-device.
 
@@ -34,7 +36,7 @@ There is no test suite, linter, or build step — the frontend is plain ES scrip
 
 ## Frontend module map (`public/`, all global-scope, load order matters)
 
-Load order in `index.html`: `ws.js` → `pane.js` → `layout.js` → `app.js` → `mobile.js` → `settings.js` → `palette.js`. Functions are shared via the global scope (e.g. `wsSend`, `getAllPanes`, `applyStickyMods`, `runAppShortcut`), so cross-file calls are plain function references, not imports.
+Load order in `index.html`: `ws.js` → `pane.js` → `layout.js` → `app.js` → `mobile.js` → `settings.js` → `palette.js` → `schedule.js`. Functions are shared via the global scope (e.g. `wsSend`, `getAllPanes`, `applyStickyMods`, `runAppShortcut`), so cross-file calls are plain function references, not imports.
 
 - **`ws.js`** — the single WebSocket, auto-reconnect (1s), and the `ptyCallbacks` map (ptyId → xterm Terminal). Queues `pty:create` calls made before the socket opens.
 - **`pane.js`** — pane/tab model and registry, tab creation for terminals and browsers, tab drag-and-drop (HTML5 DnD for mouse + a parallel Pointer-Events path for touch), and broadcast-input fan-out.
@@ -42,7 +44,8 @@ Load order in `index.html`: `ws.js` → `pane.js` → `layout.js` → `app.js` �
 - **`app.js`** — session bootstrap/claim/handoff logic, workspace serialize/restore, keyboard shortcuts, and double-click/double-tap → autocomplete (Tab) in the active terminal.
 - **`mobile.js`** — on-screen key bar above the soft keyboard. Ctrl/Alt/Cmd are *sticky* modifiers applied at the PTY-input layer (`applyStickyMods`, called from xterm `onData`) rather than via synthetic keyboard events, because mobile keyboards don't emit reliable keydowns.
 - **`settings.js`** — settings panel, live application of terminal font/scrollback/theme.
-- **`palette.js`** — the `⌘K` / `Ctrl·⌘+Shift+P` command palette: a fuzzy launcher whose commands are rebuilt on each open and call the same shared action functions as the toolbar (`splitPane`, `addTab`, `closeActivePane`, `setBroadcastInput`, `setTheme`, `openSettings`, plus `cycleTab`/`cyclePane`). The open shortcut deliberately avoids `Ctrl+K`/`Ctrl+P` so it doesn't collide with terminal readline bindings.
+- **`palette.js`** — the `⌘K` / `Ctrl·⌘+Shift+P` command palette: a fuzzy launcher whose commands are rebuilt on each open and call the same shared action functions as the toolbar (`splitPane`, `addTab`, `closeActivePane`, `setBroadcastInput`, `setTheme`, `openSettings`, `openScheduleDialog`, plus `cycleTab`/`cyclePane`). The open shortcut deliberately avoids `Ctrl+K`/`Ctrl+P` so it doesn't collide with terminal readline bindings.
+- **`schedule.js`** — the "schedule an Enter key press" feature (toolbar ⏰ / palette). For agents gated behind a rolling usage quota: type the next command, then queue an `Enter` for later (a relative delay or a clock time). The **timer lives server-side** (see below), so this file only sends `schedule:create`/`schedule:cancel` and *renders* the server's reported schedule state (`onScheduleState`/`reconcileSchedules`): a scheduled terminal tab is locked behind a blurred overlay — its input is swallowed via a `tab.schedule` guard in `pane.js`'s `onData` — until the server fires it or the user cancels. Because the client is stateless here, a refresh just re-receives the state and re-draws the lock.
 
 ## Persisted state (host machine)
 

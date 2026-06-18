@@ -800,6 +800,135 @@ body.dragging-tab .pane-content { pointer-events: none; }
 #btn-takeover:hover { filter: brightness(1.08); box-shadow: 0 8px 26px var(--accent2); transform: translateY(-1px); }
 #btn-takeover:active { transform: translateY(0); }
 
+/* ── Scheduled Enter: dialog ────────────────────────────────────────────────*/
+#schedule-modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 12vh; background: rgba(0,0,0,0.45);
+}
+#schedule-modal-overlay[hidden] { display: none; }
+#schedule-modal {
+  width: min(440px, 92vw);
+  display: flex; flex-direction: column; gap: 14px; padding: 22px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border3); border-radius: 16px;
+  box-shadow: var(--shadow-lg); animation: picker-in 0.2s var(--ease);
+}
+.sched-head {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 16px; font-weight: 700; letter-spacing: -0.2px; color: var(--text);
+}
+.sched-head-ico { font-size: 19px; filter: drop-shadow(0 0 8px var(--accent2)); }
+.sched-desc { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text2); }
+.sched-desc kbd {
+  font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 5px;
+  background: var(--bg3); border: 1px solid var(--border3); color: var(--text);
+}
+.sched-tabs { display: flex; gap: 6px; }
+.sched-tabs button {
+  flex: 1; padding: 8px 0; border-radius: 9px; cursor: pointer;
+  background: var(--bg3); color: var(--text2);
+  border: 1px solid var(--border); font: inherit; font-size: 12.5px; font-weight: 500;
+  transition: all 0.13s var(--ease);
+}
+.sched-tabs button:hover { background: var(--bg5); color: var(--text); }
+.sched-tabs button.active {
+  background: var(--accent-soft); color: var(--text);
+  border-color: var(--accent); font-weight: 600;
+}
+.sched-presets { display: flex; gap: 6px; margin-bottom: 10px; }
+.sched-presets button {
+  flex: 1; padding: 6px 0; border-radius: 8px; cursor: pointer;
+  background: var(--bg3); color: var(--text2);
+  border: 1px solid var(--border); font: inherit; font-size: 12px;
+  transition: all 0.13s var(--ease);
+}
+.sched-presets button:hover { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
+.sched-duration { display: flex; align-items: center; gap: 8px; }
+.sched-duration span { font-size: 13px; color: var(--text2); margin-right: 6px; }
+.sched-duration input, #sched-time {
+  background: var(--bg3); border: 1px solid var(--border3); color: var(--text);
+  border-radius: 8px; font: inherit; font-size: 14px; padding: 8px 10px; outline: none;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.sched-duration input { width: 64px; }
+#sched-time { width: 140px; }
+.sched-duration input:focus, #sched-time:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.sched-at-hint { margin-top: 8px; font-size: 11.5px; color: var(--text3); line-height: 1.4; }
+.sched-preview {
+  font-size: 12.5px; color: var(--text2); line-height: 1.5;
+  padding: 10px 12px; border-radius: 9px;
+  background: var(--accent-soft); border: 1px solid var(--border);
+}
+.sched-preview strong { color: var(--text); }
+.sched-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.sched-actions button {
+  padding: 9px 18px; border-radius: 9px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--text2);
+  transition: all 0.13s var(--ease);
+}
+.sched-actions button:hover { background: var(--bg5); color: var(--text); }
+.sched-actions button.primary {
+  border: none; color: #fff;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  box-shadow: 0 3px 14px var(--accent2);
+}
+.sched-actions button.primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.sched-actions button.primary:disabled {
+  filter: none; transform: none; cursor: not-allowed; opacity: 0.5; box-shadow: none;
+}
+
+/* ── Scheduled Enter: per-tab lock overlay ──────────────────────────────────*/
+/* .pane-view is already position:absolute, so the overlay anchors to it. */
+.schedule-overlay {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.4);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+}
+.schedule-card {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  padding: 32px 38px; max-width: 320px; text-align: center;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border3); border-radius: 16px;
+  box-shadow: var(--shadow-lg); animation: picker-in 0.2s var(--ease);
+}
+.schedule-ico { font-size: 40px; line-height: 1; filter: drop-shadow(0 0 14px var(--accent2)); animation: sched-pulse 2s var(--ease) infinite; }
+.schedule-title { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; color: var(--text); }
+.schedule-when { font-size: 13px; color: var(--text2); }
+.schedule-when strong { color: var(--text); }
+.schedule-countdown {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.schedule-cancel {
+  margin-top: 8px; padding: 9px 22px; border-radius: 10px; cursor: pointer;
+  border: none; color: #fff; font: inherit; font-size: 13px; font-weight: 600;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  box-shadow: 0 4px 16px var(--accent2);
+  transition: filter 0.15s var(--ease), transform 0.08s var(--ease);
+}
+.schedule-cancel:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+/* Pulsing dot on a tab with a pending scheduled Enter (visible when in back). */
+.tab.scheduled .tab-icon { position: relative; }
+.tab.scheduled .tab-icon::after {
+  content: ''; position: absolute; top: -2px; right: -3px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 6px var(--accent);
+  animation: sched-pulse 1.6s var(--ease) infinite;
+}
+
+@keyframes sched-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* ── Mobile on-screen key bar ───────────────────────────────────────────────
    Floats above the soft keyboard (positioned via JS) and gives touch keyboards
    the Esc/Tab/Ctrl/Alt/Cmd/arrow keys they lack. */

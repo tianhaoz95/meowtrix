@@ -15,6 +15,10 @@ function handleWsMessage(msg) {
     if (term) term.write('\r\n\x1b[31m[process exited]\x1b[0m\r\n');
   } else if (msg.type === 'session:state') {
     if (typeof onSessionState === 'function') onSessionState(msg.activeTabId);
+  } else if (msg.type === 'schedule:state') {
+    if (typeof onScheduleState === 'function') onScheduleState(msg.schedules);
+  } else if (msg.type === 'schedule:fired') {
+    if (typeof onScheduleFired === 'function') onScheduleFired(msg.ptyId);
   }
 }
 

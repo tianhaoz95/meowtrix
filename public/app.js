@@ -138,6 +138,8 @@ async function bootstrapSession() {
   workspaceReady = true;
   bootstrapped = true;
   fitAllTerminals();
+  // The server may have reported pending schedules before the tabs existed.
+  if (typeof reconcileSchedules === 'function') reconcileSchedules();
   // Newest client wins: claim as soon as the socket is up. If the WS isn't open
   // yet, onWsConnected() will claim for us once it connects.
   if (wsReady) claimActiveSession();
@@ -175,6 +177,8 @@ async function resyncWorkspace() {
     if (saved) restoreWorkspaceState(saved);
   } catch {}
   fitAllTerminals();
+  // Re-apply schedule lock overlays to the freshly rebuilt tabs.
+  if (typeof reconcileSchedules === 'function') reconcileSchedules();
 }
 
 // Called by ws.js when a session:state message arrives.

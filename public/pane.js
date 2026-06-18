@@ -319,6 +319,7 @@ function closeTab(pane, id) {
   const idx = pane.tabs.findIndex(t => t.id === id);
   if (idx === -1) return;
   const tab = pane.tabs[idx];
+  if (typeof teardownSchedule === 'function') teardownSchedule(tab); // stop any pending Enter timer
   if (tab.ptyId) destroyPty(tab.ptyId);
   if (tab.term) tab.term.dispose();
   tab.viewEl.remove();
@@ -365,6 +366,9 @@ function initTerminalTab(tab, existingPtyId) {
   });
 
   term.onData(data => {
+    // A scheduled tab is locked: swallow input until its Enter fires or is
+    // cancelled, so stray keystrokes can't disturb the queued command.
+    if (tab.schedule) return;
     // Apply any armed mobile sticky modifiers (Ctrl/Alt/Cmd) to typed input.
     const out = (typeof applyStickyMods === 'function') ? applyStickyMods(data) : data;
     if (out) sendTerminalInput(ptyId, out);

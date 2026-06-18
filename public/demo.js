@@ -204,6 +204,33 @@ if (window.DEMO_MODE) {
       return { input, banner };
     }
 
+    // Scheduled Enter key presses — the in-browser stand-in for server.js's
+    // schedule timers. No persistence (the demo has no server), so these last
+    // only for the current page session, but they exercise the same wire
+    // protocol so the feature works in the showcase.
+    const demoSchedules = new Map(); // ptyId -> { fireAt, timer }
+    const emitSchedules = () => emit({
+      type: 'schedule:state',
+      schedules: [...demoSchedules].map(([ptyId, s]) => ({ ptyId, fireAt: s.fireAt })),
+    });
+    function demoClearSchedule(id) {
+      const s = demoSchedules.get(id);
+      if (!s) return false;
+      clearTimeout(s.timer);
+      demoSchedules.delete(id);
+      return true;
+    }
+    function demoArmSchedule(id, fireAt) {
+      demoClearSchedule(id);
+      const timer = setTimeout(() => {
+        demoSchedules.delete(id);
+        sessions.get(id)?.input('\r'); // press Enter in the REPL
+        emit({ type: 'schedule:fired', ptyId: id });
+        emitSchedules();
+      }, Math.max(0, fireAt - Date.now()));
+      demoSchedules.set(id, { fireAt, timer });
+    }
+
     function send(obj) {
       switch (obj.type) {
         case 'pty:create': {
@@ -216,7 +243,9 @@ if (window.DEMO_MODE) {
         }
         case 'pty:input': sessions.get(obj.id)?.input(obj.data); break;
         case 'pty:resize': break; // REPL doesn't care about geometry
-        case 'pty:destroy': sessions.delete(obj.id); break;
+        case 'pty:destroy': sessions.delete(obj.id); if (demoClearSchedule(obj.id)) emitSchedules(); break;
+        case 'schedule:create': if (typeof obj.fireAt === 'number') { demoArmSchedule(obj.ptyId, obj.fireAt); emitSchedules(); } break;
+        case 'schedule:cancel': if (demoClearSchedule(obj.ptyId)) emitSchedules(); break;
         case 'session:claim': activeTabId = obj.tabId; emit({ type: 'session:state', activeTabId }); break;
         case 'session:sync': emit({ type: 'session:state', activeTabId }); break;
       }

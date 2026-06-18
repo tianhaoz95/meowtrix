@@ -234,6 +234,52 @@ function broadcastSession() {
   }
 }
 
+// ── Scheduled Enter key presses (server-side timers) ─────────────────────────
+// A coding agent gated behind a usage quota can have its next command typed in
+// and the Enter *queued* for when the quota resets. Keeping the timer here (next
+// to the PTYs) instead of in the browser means it survives page refreshes,
+// reconnects, and device handoffs — the client just renders whatever schedule
+// state the server reports. Keyed by PTY id; firing writes a lone CR to that PTY
+// exactly as if the user had pressed Return, then notifies every client.
+// In-memory only: a server restart kills the PTYs, so there'd be nothing to fire
+// into and nothing worth persisting.
+const schedules = new Map(); // ptyId -> { fireAt, timer }
+const SCHEDULE_MAX_DELAY = 7 * 24 * 3600 * 1000; // reject absurd far-future values
+
+function scheduleSnapshot() {
+  return [...schedules.entries()].map(([ptyId, s]) => ({ ptyId, fireAt: s.fireAt }));
+}
+
+function broadcastSchedules() {
+  const payload = JSON.stringify({ type: 'schedule:state', schedules: scheduleSnapshot() });
+  for (const c of sessionClients) {
+    if (c.readyState === c.OPEN) c.send(payload);
+  }
+}
+
+function clearSchedule(ptyId) {
+  const s = schedules.get(ptyId);
+  if (!s) return false;
+  clearTimeout(s.timer);
+  schedules.delete(ptyId);
+  return true;
+}
+
+function armSchedule(ptyId, fireAt) {
+  clearSchedule(ptyId); // replace any existing schedule on this PTY
+  const delay = fireAt - Date.now();
+  if (!Number.isFinite(delay) || delay > SCHEDULE_MAX_DELAY) return;
+  const timer = setTimeout(() => {
+    schedules.delete(ptyId);
+    const entry = ptys.get(ptyId);
+    if (entry) entry.proc.write('\r');
+    const fired = JSON.stringify({ type: 'schedule:fired', ptyId });
+    for (const c of sessionClients) if (c.readyState === c.OPEN) c.send(fired);
+    broadcastSchedules();
+  }, Math.max(0, delay));
+  schedules.set(ptyId, { fireAt, timer });
+}
+
 function attachPtyToWs(id, ptyEntry, ws) {
   const listener = (data) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:data', id, data }));
@@ -247,6 +293,11 @@ wss.on('connection', (ws) => {
   // Map of ptyId -> cleanup fn for this WS connection
   const attached = new Map();
   sessionClients.add(ws);
+  // Bring this (re)connecting client up to date on any pending schedules so a
+  // refreshed page re-renders its locked tabs.
+  if (ws.readyState === ws.OPEN) {
+    ws.send(JSON.stringify({ type: 'schedule:state', schedules: scheduleSnapshot() }));
+  }
 
   ws.on('message', (raw) => {
     let msg;
@@ -316,6 +367,7 @@ wss.on('connection', (ws) => {
         });
         proc.onExit(() => {
           ptys.delete(id);
+          if (clearSchedule(id)) broadcastSchedules(); // drop a schedule for a dead PTY
           if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:exit', id }));
         });
         attached.set(id, attachPtyToWs(id, entry, ws));
@@ -323,6 +375,18 @@ wss.on('connection', (ws) => {
         break;
       }
       case 'pty:input': { const e = ptys.get(msg.id); if (e) e.proc.write(msg.data); break; }
+      case 'schedule:create': {
+        // Arm a delayed Enter for a live PTY; echoes back via schedule:state.
+        if (msg.ptyId && ptys.has(msg.ptyId) && typeof msg.fireAt === 'number') {
+          armSchedule(msg.ptyId, msg.fireAt);
+          broadcastSchedules();
+        }
+        break;
+      }
+      case 'schedule:cancel': {
+        if (clearSchedule(msg.ptyId)) broadcastSchedules();
+        break;
+      }
       case 'pty:resize': {
         const e = ptys.get(msg.id);
         if (e) { e.cols = msg.cols; e.rows = msg.rows; e.proc.resize(msg.cols, msg.rows); }
@@ -332,6 +396,7 @@ wss.on('connection', (ws) => {
         const e = ptys.get(msg.id);
         if (e) { e.proc.kill(); ptys.delete(msg.id); }
         if (attached.has(msg.id)) { attached.get(msg.id)(); attached.delete(msg.id); }
+        if (clearSchedule(msg.id)) broadcastSchedules();
         break;
       }
     }
