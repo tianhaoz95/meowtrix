@@ -373,7 +373,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   const urlInput = document.createElement('input');
   urlInput.className = 'browser-url';
   urlInput.type = 'text';
-  urlInput.placeholder = 'Search or enter URL…';
+  urlInput.placeholder = 'Enter URL…';
   urlInput.spellcheck = false;
 
   bar.append(backBtn, fwdBtn, reloadBtn, extBtn, urlInput);
@@ -385,15 +385,28 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   frame.className = 'browser-frame';
   frame.sandbox = 'allow-scripts allow-forms allow-popups allow-modals allow-same-origin';
 
-  viewEl.append(bar, loadingBar, frame);
+  // Local start page shown when no URL is loaded (new tabs).
+  const startEl = document.createElement('div');
+  startEl.className = 'browser-start';
+  startEl.innerHTML = `
+    <div class="browser-start-card">
+      <div class="browser-start-icon">🌐</div>
+      <h2>Browser</h2>
+      <p>Type a URL in the address bar above, then press <kbd>Enter</kbd>.</p>
+      <ul>
+        <li>Pages are fetched through a built-in proxy so they can be embedded here.</li>
+        <li>Some sites (Google, sign-in pages, heavily bot-protected sites) can’t be embedded — use <strong>↗</strong> to open them in a real window.</li>
+      </ul>
+    </div>`;
+
+  viewEl.append(bar, loadingBar, frame, startEl);
 
   const navigate = (url) => {
     url = url.trim();
-    if (!/^https?:\/\//i.test(url)) {
-      url = /^[\w-]+(\.\w+)+(\/|$)/.test(url)
-        ? 'https://' + url
-        : 'https://www.google.com/search?q=' + encodeURIComponent(url);
-    }
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+    startEl.classList.remove('visible');
+    frame.style.display = '';
     tab.currentUrl = url;
     frame.src = '/proxy/' + encodeURIComponent(url);
     urlInput.value = url;
@@ -402,18 +415,33 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     loadingBar.classList.add('active');
   };
 
+  // Reset to the instructions start page (no site loaded).
+  const showStart = () => {
+    tab.currentUrl = null;
+    frame.removeAttribute('src');
+    frame.style.display = 'none';
+    startEl.classList.add('visible');
+    loadingBar.classList.remove('active');
+    urlInput.value = '';
+    label.textContent = 'New Tab';
+  };
+
   frame.addEventListener('load', () => loadingBar.classList.remove('active'));
-  navigate(initialUrl || getSettings().browserHomepage || 'https://google.com');
+
+  const homepage = (getSettings().browserHomepage || '').trim();
+  if (initialUrl) navigate(initialUrl);
+  else if (homepage) navigate(homepage);
+  else showStart();
 
   urlInput.addEventListener('focus', () => urlInput.select());
   urlInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { navigate(urlInput.value); urlInput.blur(); }
-    if (e.key === 'Escape') { urlInput.value = tab.currentUrl; urlInput.blur(); }
+    if (e.key === 'Escape') { urlInput.value = tab.currentUrl || ''; urlInput.blur(); }
   });
   backBtn.addEventListener('click', () => { try { frame.contentWindow.history.back(); } catch {} });
   fwdBtn.addEventListener('click', () => { try { frame.contentWindow.history.forward(); } catch {} });
-  reloadBtn.addEventListener('click', () => navigate(tab.currentUrl));
-  extBtn.addEventListener('click', () => window.open(tab.currentUrl, '_blank'));
+  reloadBtn.addEventListener('click', () => { if (tab.currentUrl) navigate(tab.currentUrl); });
+  extBtn.addEventListener('click', () => { if (tab.currentUrl) window.open(tab.currentUrl, '_blank'); });
 }
 
 function getAllPanes() {

@@ -51,12 +51,19 @@ const DEFAULT_SETTINGS = {
   termFontFamily: 'Cascadia Code, JetBrains Mono, Menlo, Monaco, monospace',
   termScrollback: 10000,
   shell: process.env.SHELL || '/bin/bash',
-  browserHomepage: 'https://google.com',
+  browserHomepage: '', // blank → new browser tabs show the local start page
 };
 
 function readSettings() {
-  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; }
+  let s;
+  try { s = { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; }
   catch { return { ...DEFAULT_SETTINGS }; }
+  // Migrate the old Google homepage default → new tabs now open a local start
+  // page (Google can't be proxied anyway), so clear the stale default.
+  if (/^https?:\/\/(www\.)?google\.com\/?$/i.test(s.browserHomepage || '')) {
+    s.browserHomepage = DEFAULT_SETTINGS.browserHomepage;
+  }
+  return s;
 }
 
 function writeSettings(data) {

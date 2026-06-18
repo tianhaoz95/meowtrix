@@ -4,8 +4,20 @@
    also makes the double-tap → terminal autocomplete gesture fire instantly. */
 html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 
+/* ── Themed scrollbars (default native ones look light/ugly in dark mode) ── */
+* { scrollbar-width: thin; scrollbar-color: var(--bg5) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--bg5); border-radius: 6px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border3); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 /* ── Themes ── */
 :root {
+  color-scheme: dark;
   --bg:        #141414;
   --bg2:       #0d0d0d;
   --bg3:       #1a1a1a;
@@ -26,6 +38,7 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 }
 
 html.light {
+  color-scheme: light;
   --bg:        #f5f5f5;
   --bg2:       #ececec;
   --bg3:       #fafafa;
@@ -218,6 +231,30 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 
 .browser-frame { flex: 1; border: none; background: #fff; display: block; }
+
+/* ── Browser start page (shown when no site is loaded) ── */
+.browser-start { flex: 1; display: none; overflow: auto; background: var(--bg); }
+.browser-start.visible { display: flex; align-items: center; justify-content: center; padding: 32px 24px; }
+.browser-start-card {
+  max-width: 460px; color: var(--text2);
+}
+.browser-start-icon { font-size: 40px; line-height: 1; margin-bottom: 12px; }
+.browser-start-card h2 {
+  font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 10px;
+}
+.browser-start-card p { font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+.browser-start-card ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.browser-start-card li {
+  font-size: 13px; line-height: 1.5; padding-left: 18px; position: relative;
+}
+.browser-start-card li::before {
+  content: '›'; position: absolute; left: 4px; color: var(--accent); font-weight: 700;
+}
+.browser-start-card strong { color: var(--text); font-weight: 600; }
+.browser-start-card kbd {
+  font-family: inherit; font-size: 12px; padding: 1px 6px;
+  background: var(--bg5); border: 1px solid var(--border3); border-radius: 4px; color: var(--text);
+}
 
 /* ── Tab type picker ── */
 .tab-type-picker {
