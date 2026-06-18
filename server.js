@@ -55,6 +55,7 @@ const DEFAULT_SETTINGS = {
   comboFx: true, // keystroke-streak visual effects (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
   petFace: 'cat', // pet appearance id (see PET_FACES in public/pet.js)
+  petSpeed: 3, // pet wander speed, 1 (lazy) … 10 (zoomies)
 };
 
 function readSettings() {

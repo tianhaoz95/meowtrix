@@ -40,6 +40,12 @@
   let booted = false;
   let pet, chat, log, input, sendBtn;
   let wanderTimer = null;
+  let speed = 3;             // 1 (lazy) … 10 (zoomies); see setPetSpeed
+
+  // Movement speed → travel time per hop and pause between hops. Low speeds are
+  // deliberately very slow (speed 1 ≈ an 18s amble with a long rest between).
+  function durationMs() { return Math.round(18000 / speed); }
+  function intervalMs() { return durationMs() + Math.round(2500 / speed) + 400; }
   let session = null;        // lazily created LanguageModel session
   let creating = null;       // in-flight session creation promise
   let busy = false;          // a prompt is currently being answered
@@ -95,6 +101,8 @@
       send();
     });
 
+    pet.style.transitionDuration = durationMs() + 'ms';
+
     // Place the pet somewhere sensible to start.
     const x = Math.max(20, window.innerWidth * 0.5);
     const y = Math.max(80, window.innerHeight - 140);
@@ -128,7 +136,7 @@
 
   function startWandering() {
     stopWandering();
-    wanderTimer = setInterval(step, 3200);
+    wanderTimer = setInterval(step, intervalMs());
     setTimeout(step, 400);
   }
   function stopWandering() {
@@ -338,6 +346,14 @@
   }
   window.setPetFace = setPetFace;
 
+  // Set wander speed (1 lazy … 10 zoomies). Applies live.
+  function setPetSpeed(val) {
+    speed = Math.min(10, Math.max(1, Number(val) || 3));
+    if (booted) pet.style.transitionDuration = durationMs() + 'ms';
+    if (wanderTimer) startWandering(); // restart with the new interval
+  }
+  window.setPetSpeed = setPetSpeed;
+
   // Reposition things on resize so nothing gets stranded off-screen.
   window.addEventListener('resize', () => {
     if (!booted) return;
@@ -351,6 +367,7 @@
     const sync = () => {
       const s = (typeof getSettings === 'function') ? getSettings() : null;
       if (s && s.petFace) setPetFace(s.petFace);
+      if (s && s.petSpeed != null) setPetSpeed(s.petSpeed);
       if (s && 'petEnabled' in s) setPetEnabled(s.petEnabled);
     };
     setTimeout(sync, 0);

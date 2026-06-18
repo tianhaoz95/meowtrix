@@ -74,6 +74,10 @@ function populateControls(s) {
     faceSel.dataset.built = '1';
   }
   faceSel.value = s.petFace || 'cat';
+  const petSpeed = document.getElementById('s-pet-speed');
+  petSpeed.value = s.petSpeed != null ? s.petSpeed : 3;
+  document.getElementById('s-pet-speed-val').textContent = petSpeed.value;
+  updateRangeFill(petSpeed);
   refreshPetAvailability();
 }
 
@@ -157,6 +161,14 @@ function wireControls() {
     await saveSetting('petFace', e.target.value);
     if (typeof setPetFace === 'function') setPetFace(e.target.value);
   });
+
+  document.getElementById('s-pet-speed').addEventListener('input', async (e) => {
+    const val = Number(e.target.value);
+    document.getElementById('s-pet-speed-val').textContent = val;
+    updateRangeFill(e.target);
+    if (typeof setPetSpeed === 'function') setPetSpeed(val);
+    await saveSetting('petSpeed', val);
+  });
 }
 
 function onSettingChanged(key) {
@@ -184,6 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTermSettings();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
     if (typeof setPetFace === 'function') setPetFace(s.petFace || 'cat');
+    if (typeof setPetSpeed === 'function') setPetSpeed(s.petSpeed != null ? s.petSpeed : 3);
     if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
   });
 });
