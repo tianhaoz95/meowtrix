@@ -51,6 +51,107 @@
   </header>
 
   <main>
+    <section class="section" style="padding-bottom:30px">
+      <div class="section-head">
+        <h2>See it in action</h2>
+        <p>One server on your host, a full workspace in any browser.</p>
+      </div>
+
+      <div class="showcase">
+        <!-- 1. Remote development -->
+        <div class="show-row">
+          <div class="show-text">
+            <div class="eyebrow">Remote development</div>
+            <h2>Run it on your host.<br>Reach it from anywhere.</h2>
+            <p>Start the server once on your machine; open the workspace from any browser on the network — or anywhere through a tunnel.</p>
+            <ul>
+              <li>Shells and layout live on the host, not the tab</li>
+              <li>Hop from laptop to phone — your session follows</li>
+              <li>Refreshes and dropped connections reattach automatically</li>
+            </ul>
+          </div>
+          <div class="panel netd" aria-hidden="true">
+            <div class="node host">
+              <div class="node-ico">🖥️</div>
+              <div class="node-name">Host machine</div>
+              <div class="node-sub">meowtrix · :3000</div>
+              <div class="node-tag">PTYs &amp; state live here</div>
+            </div>
+            <div class="wire-wrap">
+              <span class="wire-label">WebSocket over LAN or tunnel</span>
+              <div class="wire"></div>
+            </div>
+            <div class="devices">
+              <div class="dev-chip"><span>💻</span> Laptop</div>
+              <div class="dev-chip"><span>📱</span> Phone</div>
+              <div class="dev-chip"><span>🖥️</span> Another desktop</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Split panes -->
+        <div class="show-row reverse">
+          <div class="show-text">
+            <div class="eyebrow">Tiling layout</div>
+            <h2>Split into as many panes as you need.</h2>
+            <p>Split vertically or horizontally and drag the dividers to resize. Each pane holds tabs, and every tab is a terminal or a browser.</p>
+            <ul>
+              <li>Side-by-side or stacked — split with <code>⌘\</code> / <code>⌘-</code></li>
+              <li>Flat splits with proportional, resize-proof sizing</li>
+              <li>Drag tabs within a pane or across panes</li>
+            </ul>
+          </div>
+          <div class="win" aria-hidden="true">
+            <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-title">🐾 meowtrix — workspace</span></div>
+            <div class="ws">
+              <div class="ws-pane">
+                <div class="ws-tabs"><span class="ws-tab active">⬛ zsh</span><span class="ws-tab">⬛ build</span><span class="ws-plus">＋</span></div>
+                <div class="ws-body"><span class="p">~/app $</span> npm run dev<br><span class="g">✓</span> listening :3000<br><span class="c"># watching for changes</span><br><span class="p">~/app $</span> <span class="cur">▏</span></div>
+              </div>
+              <div class="ws-pane">
+                <div class="ws-tabs"><span class="ws-tab active">🌐 localhost:3000</span><span class="ws-plus">＋</span></div>
+                <div class="ws-body bp"><div class="mini-page"><div class="mp-h"></div><div class="mp-l w80"></div><div class="mp-l w60"></div><div class="mp-l w70"></div></div></div>
+              </div>
+              <div class="ws-pane span2">
+                <div class="ws-tabs"><span class="ws-tab active">⬛ server</span><span class="ws-tab">⬛ logs</span><span class="ws-tab">⬛ ssh</span><span class="ws-plus">＋</span></div>
+                <div class="ws-body"><span class="c">GET /api/session</span> <span class="g">200</span> · 3ms&nbsp;&nbsp;<span class="c">POST /api/settings</span> <span class="g">200</span><br><span class="c">[hmr]</span> updated public/app.js<br><span class="p">~ $</span> tail -f server.log <span class="cur">▏</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Embedded browser -->
+        <div class="show-row">
+          <div class="show-text">
+            <div class="eyebrow">Embedded browser</div>
+            <h2>A real browser, in a pane.</h2>
+            <p>Open a browser tab right next to your terminal. A server-side proxy strips frame-blocking headers, so pages that normally refuse to embed render anyway.</p>
+            <ul>
+              <li>Preview your dev server beside the shell building it</li>
+              <li>Address bar, back/forward, reload, and open-in-window</li>
+              <li><code>↗</code> opens anything the proxy can't embed in a real window</li>
+            </ul>
+          </div>
+          <div class="win" aria-hidden="true">
+            <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-title">🐾 meowtrix — browser</span></div>
+            <div class="bm-bar">
+              <span class="bm-btns">←&nbsp;→&nbsp;↺</span>
+              <span class="bm-url">🔒 localhost:3000/dashboard</span>
+              <span class="bm-ext">↗</span>
+            </div>
+            <div class="bm-page">
+              <div class="bm-hero"></div>
+              <div class="bm-h"></div>
+              <div class="bm-line w90"></div>
+              <div class="bm-line w70"></div>
+              <div class="bm-line w80"></div>
+              <div class="bm-pill"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section">
       <div class="section-head">
         <h2>Where do you want to go?</h2>
