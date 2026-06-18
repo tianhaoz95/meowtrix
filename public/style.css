@@ -273,3 +273,59 @@ html.light #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc262
 .settings-row input[type="range"] {
   width: 100px; accent-color: var(--accent);
 }
+
+/* ── Inactive session overlay ── */
+#inactive-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+#inactive-overlay[hidden] { display: none; }
+
+#inactive-box {
+  background: var(--bg3);
+  border: 1px solid var(--border3);
+  border-radius: 12px;
+  padding: 40px 48px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+}
+
+#inactive-icon { font-size: 48px; line-height: 1; }
+
+#inactive-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#inactive-desc {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+
+#btn-takeover {
+  margin-top: 8px;
+  padding: 10px 24px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+#btn-takeover:hover { opacity: 0.85; }

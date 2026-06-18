@@ -1,26 +1,72 @@
 // ── WebSocket / PTY connection ──────────────────────────────────────────────
-const ws = new WebSocket(`ws://${location.host}`);
+let ws = null;
+let wsReady = false;
 const ptyCallbacks = new Map(); // ptyId -> Terminal instance
+const pendingPtys = []; // queued pty:create calls before WS is open
 
-ws.addEventListener('message', (e) => {
-  const msg = JSON.parse(e.data);
-  if (msg.type === 'pty:data') {
-    const term = ptyCallbacks.get(msg.id);
-    if (term) term.write(msg.data);
-  } else if (msg.type === 'pty:exit') {
-    const term = ptyCallbacks.get(msg.id);
-    if (term) term.write('\r\n\x1b[31m[process exited]\x1b[0m\r\n');
+function connectWs() {
+  ws = new WebSocket(`ws://${location.host}`);
+
+  ws.addEventListener('open', () => {
+    wsReady = true;
+    // Flush queued creates (e.g. after reconnect)
+    while (pendingPtys.length) {
+      const args = pendingPtys.shift();
+      _sendCreate(...args);
+    }
+  });
+
+  ws.addEventListener('message', (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'pty:data') {
+      const term = ptyCallbacks.get(msg.id);
+      if (term) term.write(msg.data);
+    } else if (msg.type === 'pty:exit') {
+      const term = ptyCallbacks.get(msg.id);
+      if (term) term.write('\r\n\x1b[31m[process exited]\x1b[0m\r\n');
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    wsReady = false;
+    // Reconnect after 1s
+    setTimeout(connectWs, 1000);
+  });
+}
+
+connectWs();
+
+function wsSend(obj) {
+  if (wsReady) {
+    ws.send(JSON.stringify(obj));
   }
-});
+}
 
-function wsSend(obj) { ws.send(JSON.stringify(obj)); }
+function _sendCreate(id, cols, rows) {
+  ws.send(JSON.stringify({ type: 'pty:create', id, cols, rows }));
+}
 
 function createPty(id, term, cols, rows) {
   ptyCallbacks.set(id, term);
-  wsSend({ type: 'pty:create', id, cols, rows });
+  if (wsReady) {
+    _sendCreate(id, cols, rows);
+  } else {
+    pendingPtys.push([id, cols, rows]);
+  }
 }
 
 function destroyPty(id) {
   ptyCallbacks.delete(id);
   wsSend({ type: 'pty:destroy', id });
+}
+
+// Called when this tab takes over the session: reconnect all existing PTYs
+function reconnectAllPtys() {
+  ptyCallbacks.forEach((term, id) => {
+    if (wsReady) {
+      _sendCreate(id, term.cols, term.rows);
+    } else {
+      pendingPtys.push([id, term.cols, term.rows]);
+    }
+  });
 }

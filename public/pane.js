@@ -42,8 +42,8 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type) {
-  const id = uid();
+function addTab(pane, type, existingId, existingPtyId, existingUrl) {
+  const id = existingId || uid();
 
   const viewEl = document.createElement('div');
   viewEl.className = 'pane-view';
@@ -67,11 +67,11 @@ function addTab(pane, type) {
   tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); closeTab(pane, id); } });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 
-  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null };
+  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null };
   pane.tabs.push(tab);
 
-  if (type === 'terminal') initTerminalTab(tab);
-  else initBrowserTab(tab, viewEl, label);
+  if (type === 'terminal') initTerminalTab(tab, existingPtyId);
+  else initBrowserTab(tab, viewEl, label, existingUrl);
 
   activateTab(pane, id);
   return tab;
@@ -100,7 +100,7 @@ function closeTab(pane, id) {
   if (pane.tabs.length) activateTab(pane, pane.tabs[Math.max(0, idx - 1)].id);
 }
 
-function initTerminalTab(tab) {
+function initTerminalTab(tab, existingPtyId) {
   tab.viewEl.classList.add('terminal-view');
   const s = getSettings();
   const term = new Terminal({
@@ -116,12 +116,12 @@ function initTerminalTab(tab) {
   tab.term = term;
   tab.fitAddon = fitAddon;
 
-  const ptyId = uid();
+  const ptyId = existingPtyId || uid();
   tab.ptyId = ptyId;
 
   const initPty = () => { fitAddon.fit(); createPty(ptyId, term, term.cols, term.rows); };
-  if (ws.readyState === WebSocket.OPEN) initPty();
-  else ws.addEventListener('open', initPty, { once: true });
+  // Small rAF delay ensures the terminal is sized before createPty
+  requestAnimationFrame(initPty);
 
   term.onData(data => wsSend({ type: 'pty:input', id: ptyId, data }));
   term.onResize(({ cols, rows }) => wsSend({ type: 'pty:resize', id: ptyId, cols, rows }));
@@ -131,7 +131,7 @@ function initTerminalTab(tab) {
   ro.observe(tab.viewEl);
 }
 
-function initBrowserTab(tab, viewEl, label) {
+function initBrowserTab(tab, viewEl, label, initialUrl) {
   viewEl.classList.add('browser-view');
 
   const bar = document.createElement('div');
@@ -159,8 +159,6 @@ function initBrowserTab(tab, viewEl, label) {
 
   viewEl.append(bar, loadingBar, frame);
 
-  let currentUrl = getSettings().browserHomepage || 'https://google.com';
-
   const navigate = (url) => {
     url = url.trim();
     if (!/^https?:\/\//i.test(url)) {
@@ -168,7 +166,7 @@ function initBrowserTab(tab, viewEl, label) {
         ? 'https://' + url
         : 'https://www.google.com/search?q=' + encodeURIComponent(url);
     }
-    currentUrl = url;
+    tab.currentUrl = url;
     frame.src = '/proxy?url=' + encodeURIComponent(url);
     urlInput.value = url;
     try { label.textContent = new URL(url).hostname.replace('www.', ''); }
@@ -177,17 +175,17 @@ function initBrowserTab(tab, viewEl, label) {
   };
 
   frame.addEventListener('load', () => loadingBar.classList.remove('active'));
-  navigate(currentUrl);
+  navigate(initialUrl || getSettings().browserHomepage || 'https://google.com');
 
   urlInput.addEventListener('focus', () => urlInput.select());
   urlInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { navigate(urlInput.value); urlInput.blur(); }
-    if (e.key === 'Escape') { urlInput.value = currentUrl; urlInput.blur(); }
+    if (e.key === 'Escape') { urlInput.value = tab.currentUrl; urlInput.blur(); }
   });
   backBtn.addEventListener('click', () => { try { frame.contentWindow.history.back(); } catch {} });
   fwdBtn.addEventListener('click', () => { try { frame.contentWindow.history.forward(); } catch {} });
-  reloadBtn.addEventListener('click', () => navigate(currentUrl));
-  extBtn.addEventListener('click', () => window.open(currentUrl, '_blank'));
+  reloadBtn.addEventListener('click', () => navigate(tab.currentUrl));
+  extBtn.addEventListener('click', () => window.open(tab.currentUrl, '_blank'));
 }
 
 function getAllPanes() {

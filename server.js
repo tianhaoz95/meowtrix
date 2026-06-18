@@ -109,10 +109,21 @@ app.get('/proxy', (req, res) => {
 });
 
 // ── PTY / WebSocket ──────────────────────────────────────────────────────────
+// ptys: id -> { proc, dataListeners: Set }
 const ptys = new Map();
 
+function attachPtyToWs(id, ptyEntry, ws) {
+  const listener = (data) => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:data', id, data }));
+  };
+  ptyEntry.dataListeners.add(listener);
+  const unsub = ptyEntry.proc.onData(listener);
+  return () => { ptyEntry.dataListeners.delete(listener); unsub.dispose?.(); };
+}
+
 wss.on('connection', (ws) => {
-  const wsPtys = new Set();
+  // Map of ptyId -> cleanup fn for this WS connection
+  const attached = new Map();
 
   ws.on('message', (raw) => {
     let msg;
@@ -121,40 +132,49 @@ wss.on('connection', (ws) => {
     switch (msg.type) {
       case 'pty:create': {
         const id = msg.id || uuidv4();
+        if (ptys.has(id)) {
+          // Reconnect: reattach data stream
+          const entry = ptys.get(id);
+          if (attached.has(id)) { attached.get(id)(); }
+          attached.set(id, attachPtyToWs(id, entry, ws));
+          ws.send(JSON.stringify({ type: 'pty:created', id }));
+          break;
+        }
         const shell = readSettings().shell || process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
         const ptyEnv = { ...process.env };
         delete ptyEnv.npm_config_prefix;
-        const ptyProc = pty.spawn(shell, [], {
+        const proc = pty.spawn(shell, [], {
           name: 'xterm-256color',
           cols: msg.cols || 80,
           rows: msg.rows || 24,
           cwd: process.env.HOME || process.cwd(),
           env: ptyEnv,
         });
-        ptys.set(id, ptyProc);
-        wsPtys.add(id);
-        ptyProc.onData(data => {
-          if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:data', id, data }));
-        });
-        ptyProc.onExit(() => {
-          ptys.delete(id); wsPtys.delete(id);
+        const entry = { proc, dataListeners: new Set() };
+        ptys.set(id, entry);
+        proc.onExit(() => {
+          ptys.delete(id);
           if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:exit', id }));
         });
+        attached.set(id, attachPtyToWs(id, entry, ws));
         ws.send(JSON.stringify({ type: 'pty:created', id }));
         break;
       }
-      case 'pty:input': { const p = ptys.get(msg.id); if (p) p.write(msg.data); break; }
-      case 'pty:resize': { const p = ptys.get(msg.id); if (p) p.resize(msg.cols, msg.rows); break; }
+      case 'pty:input': { const e = ptys.get(msg.id); if (e) e.proc.write(msg.data); break; }
+      case 'pty:resize': { const e = ptys.get(msg.id); if (e) e.proc.resize(msg.cols, msg.rows); break; }
       case 'pty:destroy': {
-        const p = ptys.get(msg.id);
-        if (p) { p.kill(); ptys.delete(msg.id); wsPtys.delete(msg.id); }
+        const e = ptys.get(msg.id);
+        if (e) { e.proc.kill(); ptys.delete(msg.id); }
+        if (attached.has(msg.id)) { attached.get(msg.id)(); attached.delete(msg.id); }
         break;
       }
     }
   });
 
   ws.on('close', () => {
-    wsPtys.forEach(id => { const p = ptys.get(id); if (p) { p.kill(); ptys.delete(id); } });
+    // Detach data listeners but keep PTY processes alive
+    attached.forEach(cleanup => cleanup());
+    attached.clear();
   });
 });
 
