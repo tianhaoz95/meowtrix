@@ -1154,11 +1154,14 @@ body.dragging-tab .pane-content { pointer-events: none; }
   position: fixed; left: 0; top: 0; z-index: 8980;
   width: 56px; height: 56px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none;
+  cursor: pointer; user-select: none; touch-action: none;
   transition: transform 2.8s cubic-bezier(0.45, 0, 0.3, 1);
   will-change: transform;
 }
 #pet[hidden] { display: none; }
+#pet.pet-stay { cursor: grab; }
+#pet.pet-stay:active { cursor: grabbing; }
+#pet.pet-stay .pet-face { animation: none; }
 #pet .pet-face {
   font-size: 38px; line-height: 1;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45));

@@ -56,6 +56,9 @@ const DEFAULT_SETTINGS = {
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
   petFace: 'cat', // pet appearance id (see PET_FACES in public/pet.js)
   petSpeed: 3, // pet wander speed, 1 (lazy) … 10 (zoomies)
+  petStay: false, // true → pet stays put (no wandering); drag to position it
+  petX: null, // saved pet x position (px) when dragged
+  petY: null, // saved pet y position (px) when dragged
 };
 
 function readSettings() {

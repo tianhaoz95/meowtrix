@@ -74,8 +74,10 @@ function populateControls(s) {
     faceSel.dataset.built = '1';
   }
   faceSel.value = s.petFace || 'cat';
+  document.getElementById('s-pet-stay').checked = !!s.petStay;
   const petSpeed = document.getElementById('s-pet-speed');
   petSpeed.value = s.petSpeed != null ? s.petSpeed : 3;
+  petSpeed.disabled = !!s.petStay; // speed is moot when the pet stays put
   document.getElementById('s-pet-speed-val').textContent = petSpeed.value;
   updateRangeFill(petSpeed);
   refreshPetAvailability();
@@ -162,6 +164,12 @@ function wireControls() {
     if (typeof setPetFace === 'function') setPetFace(e.target.value);
   });
 
+  document.getElementById('s-pet-stay').addEventListener('change', async (e) => {
+    document.getElementById('s-pet-speed').disabled = e.target.checked;
+    if (typeof setPetStay === 'function') setPetStay(e.target.checked);
+    await saveSetting('petStay', e.target.checked);
+  });
+
   document.getElementById('s-pet-speed').addEventListener('input', async (e) => {
     const val = Number(e.target.value);
     document.getElementById('s-pet-speed-val').textContent = val;
@@ -197,6 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
     if (typeof setPetFace === 'function') setPetFace(s.petFace || 'cat');
     if (typeof setPetSpeed === 'function') setPetSpeed(s.petSpeed != null ? s.petSpeed : 3);
+    if (typeof setPetStay === 'function') setPetStay(!!s.petStay);
     if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
   });
 });

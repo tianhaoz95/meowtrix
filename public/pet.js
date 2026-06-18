@@ -41,6 +41,8 @@
   let pet, chat, log, input, sendBtn;
   let wanderTimer = null;
   let speed = 3;             // 1 (lazy) … 10 (zoomies); see setPetSpeed
+  let stay = false;          // true → don't wander; user drags to place it
+  let posX = null, posY = null; // saved fixed position (px), null = auto-place
 
   // Movement speed → travel time per hop and pause between hops. Low speeds are
   // deliberately very slow (speed 1 ≈ an 18s amble with a long rest between).
@@ -73,7 +75,11 @@
     pet.setAttribute('role', 'button');
     pet.setAttribute('aria-label', 'Chat with Mochi the pet');
     pet.innerHTML = `<span class="pet-face">${faceEmoji(faceId)}</span>`;
-    pet.addEventListener('click', toggleChat);
+    pet.addEventListener('click', () => {
+      if (justDragged) { justDragged = false; return; } // a drag, not a tap
+      toggleChat();
+    });
+    enableDrag();
 
     chat = document.createElement('div');
     chat.id = 'pet-chat';
@@ -102,11 +108,59 @@
     });
 
     pet.style.transitionDuration = durationMs() + 'ms';
+    pet.classList.toggle('pet-stay', stay);
 
-    // Place the pet somewhere sensible to start.
-    const x = Math.max(20, window.innerWidth * 0.5);
-    const y = Math.max(80, window.innerHeight - 140);
+    // Use the saved position if we have one, else a sensible default.
+    const x = posX != null ? posX : Math.max(20, window.innerWidth * 0.5);
+    const y = posY != null ? posY : Math.max(80, window.innerHeight - 140);
     pet.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  // ── Drag to reposition ───────────────────────────────────────────────────────
+  let justDragged = false;
+  function enableDrag() {
+    let dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+
+    pet.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      dragging = true; moved = false;
+      const p = currentPos(); ox = p.x; oy = p.y;
+      sx = e.clientX; sy = e.clientY;
+      pet.setPointerCapture(e.pointerId);
+      pet.style.transitionDuration = '0ms'; // follow the cursor 1:1
+      pet.classList.remove('pet-walking');
+      stopWandering();
+    });
+
+    pet.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      const size = petSize();
+      const nx = Math.min(Math.max(0, ox + dx), window.innerWidth - size);
+      const ny = Math.min(Math.max(56, oy + dy), window.innerHeight - size);
+      pet.style.transform = `translate(${nx}px, ${ny}px)`;
+    });
+
+    const end = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { pet.releasePointerCapture(e.pointerId); } catch {}
+      pet.style.transitionDuration = durationMs() + 'ms';
+      if (moved) {
+        justDragged = true; // swallow the click that follows
+        const p = currentPos();
+        posX = p.x; posY = p.y;
+        if (typeof saveSetting === 'function') {
+          saveSetting('petX', Math.round(posX));
+          saveSetting('petY', Math.round(posY));
+        }
+      }
+      // Resume wandering only if we're in roaming mode.
+      if (!stay && enabled && chat.hidden !== false) startWandering();
+    };
+    pet.addEventListener('pointerup', end);
+    pet.addEventListener('pointercancel', end);
   }
 
   // ── Wandering ──────────────────────────────────────────────────────────────
@@ -134,8 +188,29 @@
     return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
   }
 
+  // The live, mid-transition position (style.transform holds the *target*).
+  function renderedPos() {
+    const cs = getComputedStyle(pet).transform;
+    if (cs && cs !== 'none') {
+      try { const m = new DOMMatrixReadOnly(cs); return { x: m.m41, y: m.m42 }; } catch {}
+    }
+    return currentPos();
+  }
+
+  // Halt any in-flight wander hop right where the pet currently appears.
+  function freezeInPlace() {
+    const p = renderedPos();
+    pet.classList.remove('pet-walking');
+    pet.style.transitionDuration = '0ms';
+    pet.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    void pet.offsetWidth; // commit the snap before restoring the duration
+    pet.style.transitionDuration = durationMs() + 'ms';
+    posX = p.x; posY = p.y;
+  }
+
   function startWandering() {
     stopWandering();
+    if (stay) return; // stationary mode: sit where the user placed it
     wanderTimer = setInterval(step, intervalMs());
     setTimeout(step, 400);
   }
@@ -354,11 +429,24 @@
   }
   window.setPetSpeed = setPetSpeed;
 
+  // Toggle stationary mode (no wandering; drag to place). Applies live.
+  function setPetStay(on) {
+    stay = !!on;
+    if (booted) pet.classList.toggle('pet-stay', stay);
+    if (stay) {
+      stopWandering();
+      if (booted) freezeInPlace(); // stop any in-progress glide immediately
+    } else if (enabled && booted && chat.hidden !== false) {
+      startWandering();
+    }
+  }
+  window.setPetStay = setPetStay;
+
   // Reposition things on resize so nothing gets stranded off-screen.
   window.addEventListener('resize', () => {
     if (!booted) return;
     if (chat.hidden === false) positionChat();
-    else if (enabled) step();
+    else if (enabled && !stay) step();
   });
 
   // ── Boot from settings ───────────────────────────────────────────────────────
@@ -366,9 +454,13 @@
   document.addEventListener('DOMContentLoaded', () => {
     const sync = () => {
       const s = (typeof getSettings === 'function') ? getSettings() : null;
-      if (s && s.petFace) setPetFace(s.petFace);
-      if (s && s.petSpeed != null) setPetSpeed(s.petSpeed);
-      if (s && 'petEnabled' in s) setPetEnabled(s.petEnabled);
+      if (!s) return;
+      if (s.petX != null) posX = Number(s.petX);
+      if (s.petY != null) posY = Number(s.petY);
+      if (s.petFace) setPetFace(s.petFace);
+      if (s.petSpeed != null) setPetSpeed(s.petSpeed);
+      setPetStay(!!s.petStay);
+      if ('petEnabled' in s) setPetEnabled(s.petEnabled);
     };
     setTimeout(sync, 0);
     setTimeout(sync, 400);
