@@ -46,6 +46,13 @@ function buildCommands() {
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
+    { icon: '🔥', title: (typeof isComboFxEnabled === 'function' && isComboFxEnabled()) ? 'Turn off keystroke combo FX' : 'Turn on keystroke combo FX',
+      keywords: 'streak effect particles fire visual', run: () => {
+        const on = !(typeof isComboFxEnabled === 'function' && isComboFxEnabled());
+        if (typeof setComboFxEnabled === 'function') setComboFxEnabled(on);
+        if (typeof saveSetting === 'function') saveSetting('comboFx', on);
+        const cb = document.getElementById('s-combo-fx'); if (cb) cb.checked = on;
+      } },
   ];
   // One entry per theme.
   THEMES.forEach(t => cmds.push({

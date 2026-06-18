@@ -997,3 +997,63 @@ body.dragging-tab .pane-content { pointer-events: none; }
   /* Pickers and dialogs shouldn't crowd the edges */
   #inactive-box { padding: 34px 28px; margin: 16px; }
 }
+
+/* ── Keystroke combo FX (see combo.js) ───────────────────────────────────────
+   All three surfaces are fixed, non-interactive overlays. Hue/scale/glow are
+   set as inline custom properties per frame; the heat color sweeps cyan→red as
+   the streak intensifies. */
+#combo-canvas {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 9000;
+}
+
+/* Edge vignette that pulses brighter with intensity. */
+#combo-glow {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 8990;
+  opacity: 0;
+  box-shadow: inset 0 0 140px 24px hsl(var(--combo-hue, 205) 100% 50% / 0.55),
+              inset 0 0 50px 0 hsl(var(--combo-hue, 205) 100% 55% / 0.35);
+  transition: opacity 0.12s linear;
+}
+
+/* Combo readout, bottom-right. */
+#combo-hud {
+  position: fixed;
+  right: 26px; bottom: 22px;
+  z-index: 9010;
+  pointer-events: none;
+  text-align: right;
+  font-family: 'Inter', system-ui, sans-serif;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+#combo-hud.combo-show { opacity: 1; transform: scale(1); }
+
+#combo-count {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  font-size: calc(28px * var(--combo-scale, 1));
+  color: hsl(var(--combo-hue, 205) 100% 64%);
+  text-shadow: 0 0 var(--combo-glow, 6px) hsl(var(--combo-hue, 205) 100% 55%),
+               0 0 calc(var(--combo-glow, 6px) * 2) hsl(var(--combo-hue, 205) 100% 50% / 0.7);
+}
+#combo-tier {
+  margin-top: 4px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: calc(11px * (0.7 + var(--combo-scale, 1) * 0.3));
+  color: hsl(var(--combo-hue, 205) 95% 70%);
+  text-shadow: 0 0 calc(var(--combo-glow, 6px) * 0.6) hsl(var(--combo-hue, 205) 100% 55%);
+  text-transform: uppercase;
+  min-height: 12px;
+}
+
+/* Quick punch on each keystroke, layered over the steady intensity scale. */
+@keyframes combo-pop-kf {
+  0%   { transform: scale(calc(var(--combo-scale, 1) * 1.28)); }
+  100% { transform: scale(var(--combo-scale, 1)); }
+}
+#combo-hud.combo-pop #combo-count { animation: combo-pop-kf 0.16s ease-out; }

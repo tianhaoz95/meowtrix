@@ -52,6 +52,7 @@ const DEFAULT_SETTINGS = {
   termScrollback: 10000,
   shell: process.env.SHELL || '/bin/bash',
   browserHomepage: '', // blank → new browser tabs show the local start page
+  comboFx: true, // keystroke-streak visual effects (see public/combo.js)
 };
 
 function readSettings() {

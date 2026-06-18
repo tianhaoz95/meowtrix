@@ -57,6 +57,7 @@ function populateControls(s) {
   document.getElementById('s-scrollback').value = String(s.termScrollback);
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
+  document.getElementById('s-combo-fx').checked = s.comboFx !== false;
 }
 
 function wireControls() {
@@ -89,6 +90,11 @@ function wireControls() {
 
   s('s-shell', 'shell');
   s('s-homepage', 'browserHomepage');
+
+  document.getElementById('s-combo-fx').addEventListener('change', async (e) => {
+    await saveSetting('comboFx', e.target.checked);
+    if (typeof setComboFxEnabled === 'function') setComboFxEnabled(e.target.checked);
+  });
 }
 
 function onSettingChanged(key) {
@@ -114,5 +120,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateControls(s);
     applyTheme(s.theme);
     applyTermSettings();
+    if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
   });
 });
