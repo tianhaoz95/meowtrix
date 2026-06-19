@@ -143,6 +143,17 @@
           </div>
         </div>
         <div class="settings-section">
+          <div class="settings-section-title">Saved Commands</div>
+          <div id="s-commands-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 150px; overflow-y: auto; padding-right: 4px;"></div>
+          <div style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="s-command-id" placeholder="ID (e.g. status)" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+              <input type="text" id="s-command-cmd" placeholder="Command" style="flex: 2; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+            </div>
+            <button id="btn-add-command" style="align-self: flex-end; padding: 6px 12px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Add Command</button>
+          </div>
+        </div>
+        <div class="settings-section">
           <div class="settings-section-title">Updates</div>
           <div class="settings-row">
             <label for="s-auto-update">Check for updates automatically</label>

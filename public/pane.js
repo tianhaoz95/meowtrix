@@ -410,10 +410,49 @@ function initTerminalTab(tab, existingPtyId) {
     return true;
   });
 
+  term.attachCustomKeyEventHandler(e => {
+    if (tab.acActive) {
+      if (e.key === 'ArrowUp' && e.type === 'keydown') {
+        moveAutocompleteSelection(tab, -1);
+        return false;
+      }
+      if (e.key === 'ArrowDown' && e.type === 'keydown') {
+        moveAutocompleteSelection(tab, 1);
+        return false;
+      }
+      if (e.key === 'Enter' && e.type === 'keydown') {
+        selectAutocompleteItem(tab);
+        return false;
+      }
+      if (e.key === 'Tab' && e.type === 'keydown') {
+        selectAutocompleteItem(tab);
+        return false;
+      }
+      if (e.key === 'Escape' && e.type === 'keydown') {
+        closeAutocomplete(tab);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  term.textarea?.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (tab.acActive) closeAutocomplete(tab);
+    }, 150);
+  });
+
   term.onData(data => {
     // A scheduled tab is locked: swallow input until its Enter fires or is
     // cancelled, so stray keystrokes can't disturb the queued command.
     if (tab.schedule) return;
+
+    if (data === '@' && !tab.acActive) {
+      startAutocomplete(tab);
+    } else if (tab.acActive) {
+      handleAutocompleteData(tab, data);
+    }
+
     // Apply any armed mobile sticky modifiers (Ctrl/Alt/Cmd) to typed input.
     const out = (typeof applyStickyMods === 'function') ? applyStickyMods(data) : data;
     if (out) sendTerminalInput(ptyId, out);
@@ -423,7 +462,10 @@ function initTerminalTab(tab, existingPtyId) {
 
   const ro = new ResizeObserver(() => { if (tab.viewEl.classList.contains('active')) fitAddon.fit(); });
   ro.observe(tab.viewEl);
-  tab.disposeTerminal = () => { ro.disconnect(); };
+  tab.disposeTerminal = () => {
+    ro.disconnect();
+    if (tab.acActive) closeAutocomplete(tab);
+  };
 }
 
 function initBrowserTab(tab, viewEl, label, initialUrl) {
@@ -1067,4 +1109,182 @@ function interceptConsole(frame, tab) {
   } catch (e) {
     console.debug('Cannot intercept console due to cross-origin restriction:', e);
   }
+}
+
+// ── Terminal Autocomplete ───────────────────────────────────────────────────
+
+function startAutocomplete(tab) {
+  tab.acActive = true;
+  tab.acQuery = '';
+  tab.acFiltered = [];
+  tab.acIndex = 0;
+  
+  if (!tab.acEl) {
+    tab.acEl = document.createElement('div');
+    tab.acEl.className = 'term-autocomplete';
+    const parentEl = tab.term?.element || tab.viewEl;
+    if (parentEl) parentEl.appendChild(tab.acEl);
+  }
+  
+  positionAutocomplete(tab);
+  filterAutocomplete(tab);
+}
+
+function positionAutocomplete(tab) {
+  if (!tab.acEl || !tab.term) return;
+  const term = tab.term;
+  
+  // Safe buffer dimensions extraction
+  const cursorX = (term.buffer && term.buffer.active) ? term.buffer.active.cursorX : 0;
+  const cursorY = (term.buffer && term.buffer.active) ? term.buffer.active.cursorY : 0;
+  
+  const charWidth = term._core?._renderService?.dimensions?.actualCellWidth || 8.5;
+  const charHeight = term._core?._renderService?.dimensions?.actualCellHeight || 18;
+  
+  const termPaddingLeft = 10;
+  const termPaddingTop = 5;
+  
+  let left = termPaddingLeft + (cursorX * charWidth);
+  let top = termPaddingTop + ((cursorY + 1) * charHeight);
+  
+  const parentEl = term.element || tab.viewEl;
+  const termWidth = parentEl ? parentEl.clientWidth : 800;
+  const termHeight = parentEl ? parentEl.clientHeight : 600;
+  const dropdownWidth = 240;
+  const dropdownHeight = 180;
+  
+  if (left + dropdownWidth > termWidth) {
+    left = Math.max(10, termWidth - dropdownWidth - 20);
+  }
+  if (top + dropdownHeight > termHeight) {
+    top = termPaddingTop + ((cursorY - 1) * charHeight) - dropdownHeight;
+  }
+  
+  tab.acEl.style.left = `${left}px`;
+  tab.acEl.style.top = `${top}px`;
+}
+
+function filterAutocomplete(tab) {
+  const s = typeof getSettings === 'function' ? getSettings() : {};
+  const cmds = (s.savedCommands && typeof s.savedCommands === 'object') ? s.savedCommands : {};
+  const query = (tab.acQuery || '').toLowerCase();
+  
+  const filtered = Object.entries(cmds)
+    .filter(([id]) => id.toLowerCase().includes(query))
+    .map(([id, cmd]) => ({ id, cmd }));
+    
+  tab.acFiltered = filtered;
+  tab.acIndex = Math.min(tab.acIndex, Math.max(0, filtered.length - 1));
+  
+  renderAutocomplete(tab);
+}
+
+function renderAutocomplete(tab) {
+  if (!tab.acEl) return;
+  tab.acEl.innerHTML = '';
+  
+  if (!tab.acFiltered || tab.acFiltered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'term-autocomplete-empty';
+    empty.textContent = 'No matching commands';
+    tab.acEl.appendChild(empty);
+    return;
+  }
+  
+  tab.acFiltered.forEach((item, index) => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'term-autocomplete-item' + (index === tab.acIndex ? ' active' : '');
+    
+    const idEl = document.createElement('div');
+    idEl.className = 'term-autocomplete-id';
+    idEl.textContent = '@' + item.id;
+    
+    const cmdEl = document.createElement('div');
+    cmdEl.className = 'term-autocomplete-cmd';
+    cmdEl.textContent = item.cmd;
+    
+    itemEl.appendChild(idEl);
+    itemEl.appendChild(cmdEl);
+    
+    itemEl.addEventListener('mouseenter', () => {
+      tab.acIndex = index;
+      Array.from(tab.acEl.children).forEach((child, idx) => {
+        child.classList.toggle('active', idx === tab.acIndex);
+      });
+    });
+    
+    itemEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectAutocompleteItem(tab);
+    });
+    
+    tab.acEl.appendChild(itemEl);
+  });
+  
+  const activeChild = tab.acEl.children[tab.acIndex];
+  if (activeChild) {
+    activeChild.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function moveAutocompleteSelection(tab, dir) {
+  if (!tab.acActive || !tab.acFiltered || tab.acFiltered.length === 0) return;
+  tab.acIndex = (tab.acIndex + dir + tab.acFiltered.length) % tab.acFiltered.length;
+  
+  Array.from(tab.acEl.children).forEach((child, idx) => {
+    child.classList.toggle('active', idx === tab.acIndex);
+  });
+  
+  const activeChild = tab.acEl.children[tab.acIndex];
+  if (activeChild) {
+    activeChild.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function selectAutocompleteItem(tab) {
+  if (!tab.acActive || !tab.acFiltered || tab.acFiltered.length === 0) {
+    closeAutocomplete(tab);
+    return;
+  }
+  const item = tab.acFiltered[tab.acIndex];
+  if (!item) {
+    closeAutocomplete(tab);
+    return;
+  }
+  const cmd = item.cmd;
+  
+  const eraseCount = (tab.acQuery || '').length + 1;
+  const backspaces = '\x7f'.repeat(eraseCount);
+  
+  sendTerminalInput(tab.ptyId, backspaces + cmd);
+  closeAutocomplete(tab);
+}
+
+function closeAutocomplete(tab) {
+  tab.acActive = false;
+  tab.acQuery = '';
+  tab.acFiltered = [];
+  tab.acIndex = 0;
+  if (tab.acEl) {
+    tab.acEl.remove();
+    tab.acEl = null;
+  }
+}
+
+function handleAutocompleteData(tab, data) {
+  if (data === '\x7f' || data === '\b') {
+    if (tab.acQuery && tab.acQuery.length > 0) {
+      tab.acQuery = tab.acQuery.slice(0, -1);
+      filterAutocomplete(tab);
+    } else {
+      closeAutocomplete(tab);
+    }
+    return;
+  }
+  if (data.length === 1 && /^[a-zA-Z0-9\-_]$/.test(data)) {
+    tab.acQuery += data;
+    filterAutocomplete(tab);
+    return;
+  }
+  closeAutocomplete(tab);
 }

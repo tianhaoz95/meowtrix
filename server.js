@@ -62,6 +62,11 @@ const DEFAULT_SETTINGS = {
   petX: null, // saved pet x position (px) when dragged
   petY: null, // saved pet y position (px) when dragged
   uiMode: 'auto', // switch between desktop, mobile, or auto (responsive) UI mode
+  savedCommands: {
+    "status": "git status",
+    "log": "git log --oneline -n 10",
+    "install": "npm install"
+  }
 };
 
 function readSettings() {

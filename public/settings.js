@@ -83,6 +83,46 @@ function populateControls(s) {
   document.getElementById('s-pet-speed-val').textContent = petSpeed.value;
   updateRangeFill(petSpeed);
   refreshPetAvailability();
+  populateSavedCommandsList();
+}
+
+function populateSavedCommandsList() {
+  const listEl = document.getElementById('s-commands-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  const cmds = currentSettings.savedCommands || {};
+  
+  Object.entries(cmds).forEach(([id, cmd]) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; background:var(--bg3); padding:6px 10px; border-radius:8px; border:1px solid var(--border3); font-size:12px; gap:8px; margin-bottom: 2px;';
+    
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex; flex-direction:column; gap:2px; min-width:0; flex:1;';
+    
+    const idEl = document.createElement('span');
+    idEl.style.cssText = 'font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+    idEl.textContent = '@' + id;
+    
+    const cmdEl = document.createElement('span');
+    cmdEl.style.cssText = 'color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:monospace;';
+    cmdEl.textContent = cmd;
+    
+    left.append(idEl, cmdEl);
+    
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.style.cssText = 'background:none; border:none; color:var(--text3); cursor:pointer; padding:2px 6px; font-size:12px; border-radius:4px; font-weight:bold; transition: color 0.12s;';
+    delBtn.addEventListener('mouseenter', () => delBtn.style.color = '#f87171');
+    delBtn.addEventListener('mouseleave', () => delBtn.style.color = 'var(--text3)');
+    delBtn.addEventListener('click', async () => {
+      delete currentSettings.savedCommands[id];
+      await saveSetting('savedCommands', currentSettings.savedCommands);
+      populateSavedCommandsList();
+    });
+    
+    row.append(left, delBtn);
+    listEl.appendChild(row);
+  });
 }
 
 // Enable/disable the pet toggle based on whether Chrome's on-device model is
@@ -184,6 +224,26 @@ function wireControls() {
     if (typeof setPetSpeed === 'function') setPetSpeed(val);
     await saveSetting('petSpeed', val);
   });
+
+  const btnAdd = document.getElementById('btn-add-command');
+  if (btnAdd) {
+    btnAdd.addEventListener('click', async () => {
+      const idInput = document.getElementById('s-command-id');
+      const cmdInput = document.getElementById('s-command-cmd');
+      const id = idInput.value.trim().replace(/^@/, '');
+      const cmd = cmdInput.value.trim();
+      if (!id || !cmd) return;
+      
+      if (!currentSettings.savedCommands) {
+        currentSettings.savedCommands = {};
+      }
+      currentSettings.savedCommands[id] = cmd;
+      await saveSetting('savedCommands', currentSettings.savedCommands);
+      idInput.value = '';
+      cmdInput.value = '';
+      populateSavedCommandsList();
+    });
+  }
 }
 
 function onSettingChanged(key) {
