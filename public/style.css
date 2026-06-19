@@ -400,6 +400,29 @@ button:focus-visible { border-radius: 8px; }
 }
 #mtx-toast.visible { opacity: 1; transform: translate(-50%, 0); }
 
+/* Self-update banner (server reported the git clone is behind its upstream) */
+#update-banner {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  z-index: 1001; max-width: min(560px, 94vw);
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 16px; border-radius: 12px;
+  background: var(--bg4); color: var(--text);
+  border: 1px solid var(--accent2); box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  font-size: 13px; font-weight: 500;
+}
+#update-banner-text { flex: 1; }
+#update-banner-apply {
+  flex: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  background: var(--accent); color: #fff; border: none;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+#update-banner-apply:hover { background: var(--accent-hi); }
+#update-banner-dismiss {
+  flex: none; padding: 4px 8px; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--text2); border: none; font-size: 13px;
+}
+#update-banner-dismiss:hover { color: var(--text); }
+
 /* ── Command palette ───────────────────────────────────────────────────────*/
 #palette-overlay {
   position: fixed; inset: 0; z-index: 2000;

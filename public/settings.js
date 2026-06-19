@@ -67,6 +67,7 @@ function populateControls(s) {
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
+  document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
   document.getElementById('s-pet').checked = !!s.petEnabled;
   const faceSel = document.getElementById('s-pet-face');
   if (!faceSel.dataset.built && typeof PET_FACES !== 'undefined') {
@@ -152,6 +153,10 @@ function wireControls() {
   document.getElementById('s-combo-fx').addEventListener('change', async (e) => {
     await saveSetting('comboFx', e.target.checked);
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(e.target.checked);
+  });
+
+  document.getElementById('s-auto-update').addEventListener('change', async (e) => {
+    await saveSetting('autoUpdate', e.target.checked);
   });
 
   document.getElementById('s-pet').addEventListener('change', async (e) => {

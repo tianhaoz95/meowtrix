@@ -64,6 +64,10 @@ if [ "$SERVICE" = true ]; then
     <string>$INSTALL_DIR/server.js</string>
   </array>
   <key>WorkingDirectory</key>  <string>$INSTALL_DIR</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>MEOWTRIX_SUPERVISED</key> <string>1</string>
+  </dict>
   <key>RunAtLoad</key>         <true/>
   <key>KeepAlive</key>         <true/>
   <key>StandardOutPath</key>   <string>$HOME/.meowtrix/meowtrix.log</string>
@@ -91,7 +95,8 @@ After=network.target
 [Service]
 ExecStart=$NODE_BIN $INSTALL_DIR/server.js
 WorkingDirectory=$INSTALL_DIR
-Restart=on-failure
+Environment=MEOWTRIX_SUPERVISED=1
+Restart=always
 StandardOutput=append:$HOME/.meowtrix/meowtrix.log
 StandardError=append:$HOME/.meowtrix/meowtrix.log
 

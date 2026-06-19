@@ -37,6 +37,8 @@ function handleWsMessage(msg) {
     if (typeof onScheduleState === 'function') onScheduleState(msg.schedules);
   } else if (msg.type === 'schedule:fired') {
     if (typeof onScheduleFired === 'function') onScheduleFired(msg.ptyId);
+  } else if (msg.type === 'update:state') {
+    if (typeof onUpdateState === 'function') onUpdateState(msg.info);
   }
 }
 

@@ -47,6 +47,7 @@ function buildCommands() {
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
+    { icon: '⬇', title: 'Check for updates', keywords: 'upgrade version git pull', run: () => { if (typeof checkForUpdateNow === 'function') checkForUpdateNow(); } },
     { icon: '🔥', title: (typeof isComboFxEnabled === 'function' && isComboFxEnabled()) ? 'Turn off keystroke combo FX' : 'Turn on keystroke combo FX',
       keywords: 'streak effect particles fire visual', run: () => {
         const on = !(typeof isComboFxEnabled === 'function' && isComboFxEnabled());
@@ -55,6 +56,11 @@ function buildCommands() {
         const cb = document.getElementById('s-combo-fx'); if (cb) cb.checked = on;
       } },
   ];
+  // Only offer the apply action when the server has reported an update.
+  if (typeof updateAvailable === 'function' && updateAvailable()) {
+    cmds.push({ icon: '🚀', title: 'Update & restart Meowtrix', keywords: 'upgrade version git pull install',
+      run: () => { if (typeof applyUpdateNow === 'function') applyUpdateNow(); } });
+  }
   // One entry per theme.
   THEMES.forEach(t => cmds.push({
     icon: t.icon, title: `Theme: ${t.label}`, keywords: 'color appearance', run: () => setTheme(t.id),

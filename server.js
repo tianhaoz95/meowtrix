@@ -53,6 +53,7 @@ const DEFAULT_SETTINGS = {
   termScrollback: 10000,
   shell: process.env.SHELL || '/bin/bash',
   browserHomepage: '', // blank → new browser tabs show the local start page
+  autoUpdate: true, // background-check the git clone for updates (see self-update below)
   comboFx: true, // keystroke-streak visual effects (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
   petFace: 'cat', // pet appearance id (see PET_FACES in public/pet.js)
@@ -492,6 +493,9 @@ wss.on('connection', (ws) => {
   // refreshed page re-renders its locked tabs.
   if (ws.readyState === ws.OPEN) {
     ws.send(JSON.stringify({ type: 'schedule:state', schedules: scheduleSnapshot() }));
+    // …and on whatever the last update check found, so a fresh page shows the
+    // "update available" banner without waiting for the next periodic check.
+    if (lastUpdateInfo) ws.send(JSON.stringify(updateStatePayload()));
   }
 
   ws.on('message', (raw) => {
@@ -620,6 +624,137 @@ wss.on('connection', (ws) => {
     }
   });
 });
+
+// ── Self-update ──────────────────────────────────────────────────────────────
+// Meowtrix is normally a git clone in ~/.meowtrix/app (see install.sh), so an
+// update is just: `git pull --ff-only`, reinstall deps if the lockfile/manifest
+// moved, then exit so the supervisor (launchd/systemd) relaunches on the new
+// code. We only auto-exit when actually supervised (MEOWTRIX_SUPERVISED=1, set
+// by `install.sh --service`); otherwise nothing would bring us back up, so we
+// still pull but tell the client to restart by hand.
+//
+// The check (a background `git fetch` + compare) only *notifies*; the pull and
+// restart are user-triggered (palette / banner) because a restart kills every
+// in-memory PTY — the user picks the moment. Same no-auth stance as the rest of
+// the app: anyone who can reach this server already has a shell here, so a
+// remote-triggered pull is no new capability; the background check can still be
+// turned off via the `autoUpdate` setting.
+const APP_ROOT = __dirname;
+const IS_SUPERVISED = process.env.MEOWTRIX_SUPERVISED === '1';
+const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // hourly background check
+let lastUpdateInfo = null; // cached result of the most recent check
+
+function appGit(args, opts = {}) {
+  return new Promise((resolve) => {
+    execFile('git', ['-C', APP_ROOT, ...args], { maxBuffer: 4 * 1024 * 1024, ...opts },
+      (err, stdout, stderr) => resolve({
+        ok: !err,
+        stdout: (stdout || '').toString().trim(),
+        stderr: (stderr || (err && err.message) || '').toString().trim(),
+      }));
+  });
+}
+
+function appVersion() {
+  try { return require('./package.json').version || ''; } catch { return ''; }
+}
+
+// Inspect the local clone against its upstream. Does a `git fetch` first (unless
+// fetch:false) and compares HEAD to the upstream tracking ref. Degrades cleanly
+// when the install isn't a git checkout or has no upstream — `updateAvailable`
+// just stays false and `error` explains why.
+async function checkForUpdate({ fetch = true } = {}) {
+  const info = {
+    isRepo: false, supervised: IS_SUPERVISED, updateAvailable: false,
+    behind: 0, ahead: 0, version: appVersion(), local: '', remote: '', error: null,
+  };
+  const head = await appGit(['rev-parse', 'HEAD']);
+  if (!head.ok) { info.error = 'not a git checkout'; lastUpdateInfo = info; return info; }
+  info.isRepo = true;
+  info.local = head.stdout;
+  if (fetch) {
+    const f = await appGit(['fetch', '--quiet']);
+    if (!f.ok) { info.error = f.stderr || 'git fetch failed'; lastUpdateInfo = info; return info; }
+  }
+  const up = await appGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
+  if (!up.ok) { info.error = 'no upstream tracking branch'; lastUpdateInfo = info; return info; }
+  const counts = await appGit(['rev-list', '--left-right', '--count', `HEAD...${up.stdout}`]);
+  if (counts.ok) {
+    const [ahead, behind] = counts.stdout.split(/\s+/).map(Number);
+    info.ahead = ahead || 0;
+    info.behind = behind || 0;
+  }
+  const remote = await appGit(['rev-parse', up.stdout]);
+  if (remote.ok) info.remote = remote.stdout;
+  info.updateAvailable = info.behind > 0;
+  lastUpdateInfo = info;
+  return info;
+}
+
+function updateStatePayload() { return { type: 'update:state', info: lastUpdateInfo }; }
+
+function broadcastUpdate() {
+  const payload = JSON.stringify(updateStatePayload());
+  for (const c of sessionClients) if (c.readyState === c.OPEN) c.send(payload);
+}
+
+// Pull the pending update, reinstalling deps only when package.json/the lockfile
+// changed, then (if supervised) signal the caller to exit so the new code loads.
+async function applyUpdate() {
+  const up = await appGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
+  if (!up.ok) return { ok: false, output: 'no upstream tracking branch' };
+  // Only act when there's actually something to pull — otherwise a supervised
+  // server would exit (and relaunch) for no reason. Don't re-fetch here; the
+  // caller just checked, and we want to apply exactly what was reported.
+  const counts = await appGit(['rev-list', '--count', `HEAD..${up.stdout}`]);
+  if (!counts.ok || Number(counts.stdout) === 0) return { ok: false, output: 'already up to date' };
+  // Does the pending update touch dependencies? Check before pulling.
+  const depDiff = await appGit(['diff', '--name-only', 'HEAD', up.stdout, '--', 'package.json', 'package-lock.json']);
+  const depsChanged = depDiff.ok && depDiff.stdout.length > 0;
+
+  const pull = await appGit(['pull', '--ff-only']);
+  if (!pull.ok) return { ok: false, output: pull.stderr || 'git pull failed' };
+  let output = pull.stdout;
+
+  if (depsChanged) {
+    output += '\nReinstalling dependencies…';
+    const npm = await new Promise((resolve) => {
+      execFile('npm', ['install', '--omit=dev'], { cwd: APP_ROOT, maxBuffer: 32 * 1024 * 1024 },
+        (err, _out, stderr) => resolve({ ok: !err, stderr: (stderr || (err && err.message) || '').toString() }));
+    });
+    if (!npm.ok) return { ok: false, output: `${output}\nDependency install failed: ${npm.stderr}` };
+  }
+
+  await checkForUpdate({ fetch: false }); // refresh cache → no longer "behind"
+  broadcastUpdate();
+  return { ok: true, output, depsChanged, restarting: IS_SUPERVISED };
+}
+
+app.get('/api/update/check', async (req, res) => {
+  const info = await checkForUpdate({ fetch: true });
+  res.json(info);
+  broadcastUpdate();
+});
+
+app.post('/api/update/apply', async (req, res) => {
+  const result = await applyUpdate();
+  res.json(result);
+  // Exit only when supervised, and only after the response has had a moment to
+  // flush — the supervisor relaunches us on the freshly pulled code.
+  if (result.ok && IS_SUPERVISED) setTimeout(() => process.exit(0), 500);
+});
+
+// Background check: shortly after boot, then hourly. Honors the autoUpdate
+// setting (re-read each tick so toggling it doesn't need a restart).
+function startUpdateChecks() {
+  const tick = async () => {
+    if (readSettings().autoUpdate === false) return;
+    try { await checkForUpdate({ fetch: true }); broadcastUpdate(); } catch {}
+  };
+  setTimeout(tick, 10000);
+  setInterval(tick, UPDATE_CHECK_INTERVAL).unref();
+}
+startUpdateChecks();
 
 // ── Network binding ──────────────────────────────────────────────────────────
 // A Meowtrix server hands whoever can reach it a real shell on the host, so by
