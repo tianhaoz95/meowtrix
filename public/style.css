@@ -987,7 +987,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
 #settings-overlay.open { display: block; }
 
 #settings-panel {
-  position: fixed; top: 0; right: 0; bottom: 0; width: 360px;
+  position: fixed; top: 0; right: 0; bottom: 0; width: 540px;
   background: var(--glass-strong);
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
