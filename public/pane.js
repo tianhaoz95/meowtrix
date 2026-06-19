@@ -490,7 +490,18 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     label.textContent = 'New Tab';
   };
 
-  frame.addEventListener('load', () => loadingBar.classList.remove('active'));
+  frame.addEventListener('load', () => {
+    loadingBar.classList.remove('active');
+    try {
+      syncThemeToIframe(frame);
+    } catch (e) {}
+  });
+
+  tab.updateTheme = () => {
+    try {
+      syncThemeToIframe(frame);
+    } catch (e) {}
+  };
 
   const homepage = (getSettings().browserHomepage || '').trim();
   if (initialUrl) navigate(initialUrl);
@@ -544,4 +555,40 @@ function getAllPanes() {
   }
   walk(document.getElementById('workspace'));
   return results;
+}
+
+function syncThemeToIframe(frame) {
+  try {
+    const doc = frame.contentDocument || frame.contentWindow?.document;
+    if (!doc) return;
+    const currentTheme = document.documentElement.dataset.theme || 'dark';
+    const isDark = currentTheme !== 'light';
+
+    // 1. Sync data-theme attribute
+    doc.documentElement.setAttribute('data-theme', currentTheme);
+
+    // 2. Set color-scheme style on documentElement
+    doc.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+
+    // 3. Inject overrides stylesheet if not present
+    let styleEl = doc.getElementById('mtx-theme-overrides');
+    if (!styleEl) {
+      styleEl = doc.createElement('style');
+      styleEl.id = 'mtx-theme-overrides';
+      doc.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      html {
+        color-scheme: ${isDark ? 'dark' : 'light'} !important;
+      }
+    `;
+
+    // 4. Trigger the custom listener if registered in proxy window
+    if (typeof frame.contentWindow.__mtx_update_theme === 'function') {
+      frame.contentWindow.__mtx_update_theme(currentTheme);
+    }
+  } catch (e) {
+    // Gracefully handle cross-origin restrictions
+    console.debug('Cannot sync theme to iframe due to cross-origin restriction:', e);
+  }
 }

@@ -388,6 +388,53 @@ function proxyHandler(req, res) {
           const abs = url.startsWith('/') ? base + url : url;
           return `${attr}=${q}/proxy/${encodeURIComponent(abs)}${q}`;
         });
+        const script = `
+<script id="mtx-proxy-theme">
+  (function() {
+    let currentTheme = 'dark';
+    try {
+      currentTheme = window.parent.document.documentElement.dataset.theme || 'dark';
+    } catch (e) {}
+    let isDark = currentTheme !== 'light';
+    
+    // Mock matchMedia for CSS / JS theme helpers
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = function(query) {
+      if (query && query.includes('prefers-color-scheme')) {
+        const matches = query.includes('dark') ? isDark : !isDark;
+        return {
+          matches: matches,
+          media: query,
+          onchange: null,
+          addListener: function() {},
+          removeListener: function() {},
+          addEventListener: function() {},
+          removeEventListener: function() {}
+        };
+      }
+      return originalMatchMedia ? originalMatchMedia.apply(this, arguments) : { matches: false };
+    };
+    
+    // Apply styling tokens
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    
+    // Global listener for runtime updates from parent window
+    window.__mtx_update_theme = function(theme) {
+      currentTheme = theme;
+      isDark = theme !== 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    };
+  })();
+</script>
+`;
+        const headMatch = body.match(/<head[^>]*>/i);
+        if (headMatch) {
+          body = body.replace(headMatch[0], headMatch[0] + script);
+        } else {
+          body = script + body;
+        }
         res.send(body);
       });
     } else {
