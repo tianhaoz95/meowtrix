@@ -767,6 +767,28 @@ body.dragging-tab .pane-content { pointer-events: none; }
   border: 1px solid var(--border3); border-radius: 8px; outline: none;
 }
 .folder-prompt-input:focus { border-color: var(--accent); }
+
+/* Directory autocomplete dropdown */
+.folder-prompt-list {
+  margin-top: 6px; max-height: 220px; overflow-y: auto;
+  background: var(--bg3); border: 1px solid var(--border3); border-radius: 8px;
+  padding: 4px;
+}
+.folder-prompt-suggestion {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 9px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; color: var(--text2); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.folder-prompt-suggestion::before { content: '📁'; font-size: 12px; flex: none; }
+.folder-prompt-suggestion:hover { background: var(--bg5); color: var(--text); }
+.folder-prompt-suggestion.active { background: var(--accent); color: #fff; }
+.folder-prompt-list::-webkit-scrollbar { width: 9px; }
+.folder-prompt-list::-webkit-scrollbar-thumb {
+  background: var(--border3); border-radius: 6px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+
 .folder-prompt-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .folder-prompt-actions button {
   padding: 7px 16px; font-size: 13px; font-weight: 500; font-family: inherit;

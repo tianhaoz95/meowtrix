@@ -142,6 +142,10 @@ app.get('/api/download', (req, res) => {
 // has full shell access, so any file they can read/write is fair game.
 const EDITOR_MAX_FILE = 2 * 1024 * 1024; // refuse to open files larger than this
 
+// Home directory — used as the default starting point for the editor's folder
+// picker / path autocomplete.
+app.get('/api/fs/home', (req, res) => res.json({ home: os.homedir() }));
+
 // List a directory: dirs first, then files, each alphabetical (case-insensitive).
 app.get('/api/fs/list', (req, res) => {
   const p = req.query.path;

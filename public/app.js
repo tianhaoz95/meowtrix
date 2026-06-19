@@ -348,8 +348,9 @@ function triggerDownload(filePath) {
 }
 
 // Prompt for a project folder (absolute path) to open in a code-editor tab.
-// Resolves to the entered path, or null if cancelled. Styled like the schedule
-// dialog / tab-type picker.
+// Resolves to the entered path, or null if cancelled. Offers filesystem-backed
+// directory autocomplete (via /api/fs/list) as you type. Styled like the
+// schedule dialog / tab-type picker.
 function promptForFolder() {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
@@ -363,6 +364,11 @@ function promptForFolder() {
     input.className = 'folder-prompt-input';
     input.placeholder = '/path/to/project';
     input.spellcheck = false;
+    input.autocomplete = 'off';
+
+    const list = document.createElement('div');
+    list.className = 'folder-prompt-list';
+    list.hidden = true;
 
     const row = document.createElement('div');
     row.className = 'folder-prompt-actions';
@@ -372,19 +378,83 @@ function promptForFolder() {
     open.textContent = 'Open';
     open.className = 'primary';
     row.append(cancel, open);
-    box.append(input, row);
+    box.append(input, list, row);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
     const close = (val) => { overlay.remove(); resolve(val); };
     const submit = () => { const v = input.value.trim(); if (v) close(v); };
+
+    // ── Directory autocomplete ────────────────────────────────────────────────
+    let items = [];        // [{ name, full }]
+    let activeIdx = -1;
+    let reqSeq = 0;        // guards against out-of-order fetch responses
+
+    const hideList = () => { list.hidden = true; items = []; activeIdx = -1; };
+
+    const renderList = () => {
+      list.innerHTML = '';
+      if (!items.length) { hideList(); return; }
+      items.forEach((it, i) => {
+        const el = document.createElement('div');
+        el.className = 'folder-prompt-suggestion' + (i === activeIdx ? ' active' : '');
+        el.textContent = it.name;
+        el.addEventListener('mousedown', (e) => { e.preventDefault(); drillInto(it.full); });
+        list.appendChild(el);
+        if (i === activeIdx) el.scrollIntoView({ block: 'nearest' });
+      });
+      list.hidden = false;
+    };
+
+    const refresh = async () => {
+      const val = input.value;
+      const slash = val.lastIndexOf('/');
+      if (slash < 0) { hideList(); return; }     // need an absolute parent to list
+      const parent = val.slice(0, slash + 1);    // always ends with '/'
+      const partial = val.slice(slash + 1).toLowerCase();
+      const seq = ++reqSeq;
+      try {
+        const res = await fetch('/api/fs/list?path=' + encodeURIComponent(parent));
+        const data = await res.json();
+        if (seq !== reqSeq) return;              // a newer request superseded this one
+        if (!res.ok) { hideList(); return; }
+        items = data.entries
+          .filter(e => e.type === 'dir' && e.name.toLowerCase().startsWith(partial))
+          .slice(0, 60)
+          .map(e => ({ name: e.name, full: parent + e.name }));
+        activeIdx = -1;
+        renderList();
+      } catch { if (seq === reqSeq) hideList(); }
+    };
+
+    // Fill the input with a directory and list its children so typing can continue.
+    const drillInto = (full) => { input.value = full + '/'; input.focus(); refresh(); };
+
+    let debounce;
+    input.addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(refresh, 110); });
+
     cancel.addEventListener('click', () => close(null));
     open.addEventListener('click', submit);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submit();
-      else if (e.key === 'Escape') close(null);
+      if (e.key === 'ArrowDown' && !list.hidden) {
+        e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); renderList();
+      } else if (e.key === 'ArrowUp' && !list.hidden) {
+        e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); renderList();
+      } else if (e.key === 'Tab' && items.length) {
+        e.preventDefault(); drillInto(items[activeIdx >= 0 ? activeIdx : 0].full);
+      } else if (e.key === 'Enter') {
+        if (activeIdx >= 0 && !list.hidden) { e.preventDefault(); drillInto(items[activeIdx].full); }
+        else submit();
+      } else if (e.key === 'Escape') {
+        if (!list.hidden) hideList(); else close(null);
+      }
     });
+
+    // Default the field to the home directory so suggestions appear immediately.
+    fetch('/api/fs/home').then(r => r.json()).then(({ home }) => {
+      if (home && !input.value) { input.value = home + '/'; refresh(); }
+    }).catch(() => {});
     setTimeout(() => input.focus(), 0);
   });
 }
