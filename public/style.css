@@ -707,11 +707,25 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .editor-resizer:hover,
 .editor-resizer.dragging { border-right-color: var(--accent); box-shadow: inset -1px 0 0 var(--accent); }
 
+/* Collapsed: hide the tree + its drag handle, leaving the editor full-width.
+   The toggle button lives in the file-tabs strip, so it stays reachable. */
+.pane-view.editor-view.sidebar-collapsed .editor-sidebar,
+.pane-view.editor-view.sidebar-collapsed .editor-resizer { display: none; }
+
 .editor-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .editor-filetabs {
-  display: flex; flex: none; overflow-x: auto;
+  display: flex; flex: none; overflow-x: auto; align-items: stretch;
   background: var(--bg2); border-bottom: 1px solid var(--border);
 }
+.editor-sidebar-toggle {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 34px; padding: 0; font-size: 14px; cursor: pointer;
+  background: transparent; color: var(--text3); font-family: inherit;
+  border: none; border-right: 1px solid var(--border);
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.editor-sidebar-toggle:hover { background: var(--bg4); color: var(--text); }
+.editor-sidebar-toggle.active { color: var(--accent-hi); }
 .editor-filetab {
   display: flex; align-items: center; gap: 7px; padding: 7px 12px;
   font-size: 12px; color: var(--text2); cursor: pointer; white-space: nowrap;

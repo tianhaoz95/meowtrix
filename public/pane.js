@@ -248,7 +248,7 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed) {
   const id = existingId || uid();
 
   const viewEl = document.createElement('div');
@@ -279,7 +279,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); } });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 
-  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null, editorDir: null, editorSidebarWidth: existingEditorWidth || null };
+  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null, editorDir: null, editorSidebarWidth: existingEditorWidth || null, editorSidebarCollapsed: !!existingEditorCollapsed };
   pane.tabs.push(tab);
 
   tabEl.draggable = true;

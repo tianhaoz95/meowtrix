@@ -69,6 +69,13 @@ function initEditorTab(tab, viewEl, dir) {
   main.className = 'editor-main';
   const fileTabs = document.createElement('div');
   fileTabs.className = 'editor-filetabs';
+  // Always-visible toggle to collapse/expand the file tree (stays leftmost; file
+  // tabs are appended after it).
+  const sidebarToggle = document.createElement('button');
+  sidebarToggle.className = 'editor-sidebar-toggle';
+  sidebarToggle.title = 'Toggle file tree';
+  sidebarToggle.textContent = '◧';
+  fileTabs.appendChild(sidebarToggle);
   const monacoHost = document.createElement('div');
   monacoHost.className = 'editor-monaco';
   const placeholder = document.createElement('div');
@@ -111,6 +118,19 @@ function initEditorTab(tab, viewEl, dir) {
   };
   resizer.addEventListener('pointerup', endDrag);
   resizer.addEventListener('pointercancel', endDrag);
+
+  // ── Sidebar collapse ─────────────────────────────────────────────────────────
+  function applyCollapsed(collapsed) {
+    viewEl.classList.toggle('sidebar-collapsed', collapsed);
+    sidebarToggle.classList.toggle('active', collapsed);
+    editor?.layout();
+  }
+  if (tab.editorSidebarCollapsed) applyCollapsed(true);
+  sidebarToggle.addEventListener('click', () => {
+    tab.editorSidebarCollapsed = !tab.editorSidebarCollapsed;
+    applyCollapsed(tab.editorSidebarCollapsed);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
 
   function toast(msg) { if (typeof showToast === 'function') showToast(msg); }
 
