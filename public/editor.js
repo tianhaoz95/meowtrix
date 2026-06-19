@@ -257,16 +257,18 @@ function initEditorTab(tab, viewEl, dir) {
     if (!s.isRepo) { gitEl.innerHTML = '<div class="editor-git-empty">Not a git repository</div>'; return; }
     renderGit(s);
   }
+  const STATUS_WORD = { M: 'Modified', A: 'Added', D: 'Deleted', R: 'Renamed', C: 'Copied', U: 'Untracked', '!': 'Ignored' };
   function gitSection(title, files, isStaged) {
     const sec = document.createElement('div'); sec.className = 'editor-git-section';
     const head = document.createElement('div'); head.className = 'editor-git-sectionhead';
     const t = document.createElement('span'); t.className = 'editor-git-sectiontitle'; t.textContent = title;
+    const count = document.createElement('span'); count.className = 'editor-git-count'; count.textContent = files.length;
     const all = iconBtn(isStaged ? '−' : '+', isStaged ? 'Unstage all' : 'Stage all', async () => {
       const url = isStaged ? '/api/git/unstage' : '/api/git/stage';
       if (await gitAction(url, { root: dir, all: true })) refreshGit();
     });
-    const count = document.createElement('span'); count.className = 'editor-git-count'; count.textContent = files.length;
-    head.append(t, all, count);
+    all.classList.add('editor-git-sectionaction');
+    head.append(t, count, all);
     sec.append(head);
     files.forEach(f => sec.append(gitFileRow(f, isStaged)));
     return sec;
@@ -276,10 +278,19 @@ function initEditorTab(tab, viewEl, dir) {
     const code = isStaged ? f.x : (f.x === '?' ? 'U' : f.y);
     const row = document.createElement('div'); row.className = 'editor-git-file';
     if (diffCurrent && diffCurrent.path === abs && diffCurrent.staged === isStaged) row.classList.add('selected');
-    const badge = document.createElement('span');
-    badge.className = 'editor-git-badge st-' + code; badge.textContent = code; badge.title = code;
+
+    const slash = f.path.lastIndexOf('/');
     const name = document.createElement('span'); name.className = 'editor-git-filename';
-    name.textContent = f.path; name.title = f.path;
+    const base = document.createElement('span'); base.className = 'editor-git-filebase';
+    base.textContent = slash >= 0 ? f.path.slice(slash + 1) : f.path;
+    name.appendChild(base);
+    if (slash >= 0) {
+      const folder = document.createElement('span'); folder.className = 'editor-git-filedir';
+      folder.textContent = f.path.slice(0, slash);
+      name.appendChild(folder);
+    }
+    name.title = f.path;
+
     const acts = document.createElement('span'); acts.className = 'editor-git-fileacts';
     if (isStaged) {
       acts.append(iconBtn('−', 'Unstage', async (e) => {
@@ -301,46 +312,63 @@ function initEditorTab(tab, viewEl, dir) {
         if (await gitAction('/api/git/stage', { root: dir, paths: [abs] })) refreshGit();
       }));
     }
-    row.append(badge, name, acts);
+
+    const badge = document.createElement('span');
+    badge.className = 'editor-git-badge st-' + code; badge.textContent = code;
+    badge.title = STATUS_WORD[code] || code;
+
+    row.append(name, acts, badge);
     row.addEventListener('click', () => openDiff(abs, isStaged));
     return row;
   }
   function renderGit(s) {
     gitEl.innerHTML = '';
     const branchBar = document.createElement('div'); branchBar.className = 'editor-git-branch';
+    const bicon = document.createElement('span'); bicon.className = 'editor-git-branchicon'; bicon.textContent = '⎇';
     const bname = document.createElement('span'); bname.className = 'editor-git-branchname';
-    bname.textContent = '⎇ ' + (s.branch || '(detached)');
-    const sync = document.createElement('span'); sync.className = 'editor-git-syncinfo';
-    sync.textContent = (s.ahead ? '↑' + s.ahead : '') + (s.behind ? ' ↓' + s.behind : '');
+    bname.textContent = s.branch || '(detached)'; bname.title = s.branch || '';
+    branchBar.append(bicon, bname);
+    if (s.ahead || s.behind) {
+      const sync = document.createElement('span'); sync.className = 'editor-git-syncinfo';
+      sync.textContent = (s.behind ? '↓' + s.behind : '') + (s.ahead ? ' ↑' + s.ahead : '');
+      branchBar.append(sync);
+    }
     const acts = document.createElement('span'); acts.className = 'editor-git-branchactions';
     acts.append(
       iconBtn('↻', 'Refresh', refreshGit),
-      iconBtn('⤓', 'Pull', async () => { if (await gitAction('/api/git/pull', { root: dir })) { toast('Pulled'); refreshGit(); } }),
-      iconBtn('⤒', 'Push', async () => { if (await gitAction('/api/git/push', { root: dir })) { toast('Pushed'); refreshGit(); } }),
+      iconBtn('↓', 'Pull', async () => { if (await gitAction('/api/git/pull', { root: dir })) { toast('Pulled'); refreshGit(); } }),
+      iconBtn('↑', 'Push', async () => { if (await gitAction('/api/git/push', { root: dir })) { toast('Pushed'); refreshGit(); } }),
     );
-    branchBar.append(bname, sync, acts);
+    branchBar.append(acts);
     gitEl.append(branchBar);
-
-    const commitBox = document.createElement('div'); commitBox.className = 'editor-git-commit';
-    const msg = document.createElement('textarea');
-    msg.className = 'editor-git-msg'; msg.placeholder = 'Commit message (staged changes)'; msg.rows = 2;
-    const commitBtn = document.createElement('button');
-    commitBtn.className = 'editor-git-commitbtn'; commitBtn.textContent = '✓ Commit';
-    commitBtn.addEventListener('click', async () => {
-      if (!msg.value.trim()) { toast('Enter a commit message'); return; }
-      const r = await gitAction('/api/git/commit', { root: dir, message: msg.value });
-      if (r) { toast('Committed'); msg.value = ''; closeDiff(); refreshGit(); }
-    });
-    commitBox.append(msg, commitBtn);
-    gitEl.append(commitBox);
 
     const staged = s.files.filter(f => f.x !== ' ' && f.x !== '?');
     const changes = s.files.filter(f => f.y !== ' ' || f.x === '?');
+
+    const commitBox = document.createElement('div'); commitBox.className = 'editor-git-commit';
+    const msg = document.createElement('textarea');
+    msg.className = 'editor-git-msg'; msg.placeholder = 'Message (Cmd/Ctrl+Enter to commit)'; msg.rows = 2;
+    const commitBtn = document.createElement('button');
+    commitBtn.className = 'editor-git-commitbtn';
+    commitBtn.textContent = staged.length ? `✓ Commit ${staged.length} file${staged.length > 1 ? 's' : ''}` : '✓ Commit';
+    commitBtn.disabled = !staged.length;
+    const doCommit = async () => {
+      if (!staged.length) { toast('Nothing staged to commit'); return; }
+      if (!msg.value.trim()) { toast('Enter a commit message'); msg.focus(); return; }
+      const r = await gitAction('/api/git/commit', { root: dir, message: msg.value });
+      if (r) { toast('Committed'); msg.value = ''; closeDiff(); refreshGit(); }
+    };
+    commitBtn.addEventListener('click', doCommit);
+    msg.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doCommit(); } });
+    commitBox.append(msg, commitBtn);
+    gitEl.append(commitBox);
+
     if (staged.length) gitEl.append(gitSection('Staged Changes', staged, true));
     if (changes.length) gitEl.append(gitSection('Changes', changes, false));
     if (!staged.length && !changes.length) {
       const clean = document.createElement('div'); clean.className = 'editor-git-empty';
-      clean.textContent = '✓ Nothing to commit'; gitEl.append(clean);
+      clean.innerHTML = '<div class="editor-git-empty-icon">✓</div>No changes — working tree clean';
+      gitEl.append(clean);
     }
   }
 
