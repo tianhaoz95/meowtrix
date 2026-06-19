@@ -103,6 +103,18 @@
         <h3>Install as a background service</h3>
         <p>Add <code>--service</code> to auto-start Meowtrix on login and restart it if it crashes (launchd on macOS, systemd on Linux):</p>
         <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service</code></pre>
+        <h4>Stopping &amp; starting the service</h4>
+        <p>Once installed with <code>--service</code>, control Meowtrix with your platform's native service manager. Stopping the service kills all in-memory PTYs (running shells).</p>
+        <p><strong>macOS (launchd):</strong></p>
+        <pre><code>launchctl unload ~/Library/LaunchAgents/com.meowtrix.plist   # stop (disable auto-start)
+launchctl load   ~/Library/LaunchAgents/com.meowtrix.plist   # start (re-enable auto-start)</code></pre>
+        <p>Check status with <code>launchctl list | grep com.meowtrix</code>; logs are at <code>~/.meowtrix/meowtrix.log</code>.</p>
+        <p><strong>Linux (systemd):</strong></p>
+        <pre><code>systemctl --user stop    meowtrix   # stop
+systemctl --user start   meowtrix   # start
+systemctl --user restart meowtrix   # restart
+systemctl --user status  meowtrix   # check status</code></pre>
+        <p>Use <code>systemctl --user disable meowtrix</code> to stop it auto-starting on login (<code>enable</code> to turn it back on); follow logs with <code>journalctl --user -u meowtrix -f</code>.</p>
         <h3>From source</h3>
         <pre><code>git clone https://github.com/tianhaoz95/meowtrix.git
 cd meowtrix

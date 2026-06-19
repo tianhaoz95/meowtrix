@@ -1,0 +1,40 @@
+{
+  "name": "Meowtrix",
+  // Debian-based Node image. Ships git, build-essential, and python3, which
+  // node-pty needs to compile its native addon on `npm install`.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+
+  // Meowtrix serves the UI + WebSocket on PORT (default 9123).
+  "forwardPorts": [9123],
+  "portsAttributes": {
+    "9123": {
+      "label": "Meowtrix",
+      "onAutoForward": "openBrowser"
+    }
+  },
+
+  "containerEnv": {
+    // Bind to all interfaces inside the (isolated) container so the forwarded
+    // port is reachable from the host browser. Safe here: the container is the
+    // sandbox. See CLAUDE.md "Network binding" — HOST overrides the loopback default.
+    "HOST": "0.0.0.0"
+  },
+
+  // node-pty compiles natively, so install after the container is built.
+  "postCreateCommand": "npm install",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+
+  // Run as the image's non-root user.
+  "remoteUser": "node"
+}

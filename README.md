@@ -53,6 +53,30 @@ curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh
 
 Uses **launchd** on macOS and **systemd** on Linux. Meowtrix will start automatically on login and restart if it crashes.
 
+#### Stopping & starting the service
+
+Once installed with `--service`, control it with the native service manager. Stopping the service kills all in-memory PTYs (running shells).
+
+**macOS (launchd):**
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.meowtrix.plist   # stop (and disable auto-start)
+launchctl load   ~/Library/LaunchAgents/com.meowtrix.plist   # start (and re-enable auto-start)
+```
+
+To check status: `launchctl list | grep com.meowtrix`. Logs: `~/.meowtrix/meowtrix.log`.
+
+**Linux (systemd):**
+
+```bash
+systemctl --user stop    meowtrix   # stop
+systemctl --user start   meowtrix   # start
+systemctl --user restart meowtrix   # restart
+systemctl --user status  meowtrix   # check status
+```
+
+To stop it from auto-starting on login: `systemctl --user disable meowtrix` (and `enable` to turn it back on). Logs: `journalctl --user -u meowtrix -f`.
+
 ### Update
 
 Re-run the installer — it pulls the latest into `~/.meowtrix/app`:
@@ -100,6 +124,10 @@ Then open `http://<host-ip>:9123` from any device. You can also bind to one spec
 ```bash
 ./start.sh       # nodemon + browser hot-reload
 ```
+
+### Containerized development (Dev Container)
+
+A [Dev Container](https://containers.dev) config lives in `.devcontainer/`. Open the repo in VS Code (or GitHub Codespaces) and "Reopen in Container" — it builds on a Debian-based Node image with the toolchain `node-pty` needs, runs `npm install`, and forwards port `9123`. Then run `npm start` (or `./start.sh`) inside the container.
 
 ## Try the demo (no install)
 
