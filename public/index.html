@@ -19,16 +19,18 @@
         <span id="logo-text">Meow<span id="logo-trix">trix</span></span>
       </span>
       <div id="toolbar-actions">
-        <button id="btn-split-v" title="Split vertical (side by side)"><span class="btn-icon">◧</span><span class="btn-text">Split V</span></button>
-        <button id="btn-split-h" title="Split horizontal (top/bottom)"><span class="btn-icon">⬓</span><span class="btn-text">Split H</span></button>
-        <button id="btn-close-pane" title="Close active pane" class="btn-danger"><span class="btn-icon">✕</span><span class="btn-text">Close</span></button>
-        <button id="btn-broadcast" title="Broadcast input to all visible terminals" aria-pressed="false"><span class="btn-icon">📡</span><span class="btn-text">Broadcast</span></button>
-        <button id="btn-upload" title="Upload file(s) to the host (~/meowtrix)"><span class="btn-icon">📤</span><span class="btn-text">Upload</span></button>
-        <input type="file" id="upload-input" multiple hidden>
-        <button id="btn-schedule" title="Schedule an Enter key press in the active terminal (for when your quota resets)"><span class="btn-icon">⏰</span><span class="btn-text">Schedule</span></button>
         <button id="btn-palette" aria-label="Command palette"><span class="btn-icon">⌘</span><span class="btn-text">Commands</span></button>
-        <button id="btn-theme" title="Toggle light/dark theme">☀</button>
-        <button id="btn-settings" title="Settings">⚙</button>
+        <button id="btn-menu" aria-label="More actions" class="mobile-only"><span class="btn-icon">☰</span></button>
+        <div id="toolbar-group-extra">
+          <button id="btn-split-v" title="Split vertical (side by side)"><span class="btn-icon">◧</span><span class="btn-text">Split V</span></button>
+          <button id="btn-split-h" title="Split horizontal (top/bottom)"><span class="btn-icon">⬓</span><span class="btn-text">Split H</span></button>
+          <button id="btn-close-pane" title="Close active pane" class="btn-danger"><span class="btn-icon">✕</span><span class="btn-text">Close</span></button>
+          <button id="btn-broadcast" title="Broadcast input to all visible terminals" aria-pressed="false"><span class="btn-icon">📡</span><span class="btn-text">Broadcast</span></button>
+          <button id="btn-upload" title="Upload file(s) to the host (~/meowtrix)"><span class="btn-icon">📤</span><span class="btn-text">Upload</span></button>
+          <input type="file" id="upload-input" multiple hidden>
+          <button id="btn-schedule" title="Schedule an Enter key press in the active terminal (for when your quota resets)"><span class="btn-icon">⏰</span><span class="btn-text">Schedule</span></button>
+          <button id="btn-settings" title="Settings"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span><span class="btn-text">Settings</span></button>
+        </div>
       </div>
     </div>
     <div id="workspace"></div>
@@ -137,6 +139,13 @@
           <div class="settings-row">
             <label for="s-auto-update">Check for updates automatically</label>
             <input type="checkbox" id="s-auto-update">
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Support</div>
+          <div class="settings-row">
+            <label>Help & Feedback</label>
+            <button id="btn-feedback">Submit Feedback</button>
           </div>
         </div>
       </div>

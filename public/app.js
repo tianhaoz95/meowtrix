@@ -274,7 +274,12 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = meta.id;
   const themeBtn = document.getElementById('btn-theme');
   if (themeBtn) {
-    themeBtn.textContent = meta.icon;
+    const iconEl = themeBtn.querySelector('.btn-icon');
+    if (iconEl) {
+      iconEl.textContent = meta.icon;
+    } else {
+      themeBtn.textContent = meta.icon;
+    }
     themeBtn.title = `Theme: ${meta.label} — click to cycle`;
   }
   localStorage.setItem('theme', meta.id);
@@ -520,12 +525,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply saved theme immediately (server settings loaded async in settings.js)
   applyTheme(localStorage.getItem('theme') || 'dark');
-
-  document.getElementById('btn-theme').addEventListener('click', () => {
-    const cur = document.documentElement.dataset.theme || 'dark';
-    const idx = THEMES.findIndex(t => t.id === cur);
-    setTheme(THEMES[(idx + 1) % THEMES.length].id);
-  });
 
   // ── Toolbar ──
   document.getElementById('btn-split-v').addEventListener('click', () => {

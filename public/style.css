@@ -477,10 +477,10 @@ button:focus-visible { border-radius: 8px; }
 }
 
 /* Visually separate the icon-only utility buttons from the action group */
-#btn-theme {
+#btn-settings {
   margin-left: 5px; position: relative;
 }
-#btn-theme::before {
+#btn-settings::before {
   content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
   width: 1px; height: 18px; background: var(--border3);
 }
@@ -494,7 +494,17 @@ html[data-theme="light"] #toolbar button.btn-danger:hover,
 html[data-theme="sakura"] #toolbar button.btn-danger:hover,
 html[data-theme="bubblegum"] #toolbar button.btn-danger:hover,
 html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
-#btn-theme, #btn-settings { width: 32px; padding: 0; font-size: 14px; }
+#btn-settings { width: 32px; padding: 0; font-size: 14px; }
+#btn-settings .btn-text { display: none; }
+#btn-settings svg { transition: transform 0.25s var(--ease); }
+#btn-settings:hover svg { transform: rotate(45deg); }
+
+#toolbar-group-extra {
+  display: contents;
+}
+.mobile-only {
+  display: none !important;
+}
 
 /* ── Workspace ── */
 #workspace { flex: 1; display: flex; overflow: hidden; }
@@ -1118,6 +1128,22 @@ body.dragging-tab .pane-content { pointer-events: none; }
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.settings-row button {
+  background: var(--accent-soft); border: 1px solid var(--border3);
+  color: var(--accent-hi); border-radius: 9px; font-size: 12px;
+  font-weight: 600; padding: 7px 10px; outline: none; cursor: pointer;
+  font-family: inherit; transition: all 0.15s var(--ease);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  max-width: 170px; flex: 1; min-width: 0;
+}
+.settings-row button:hover {
+  background: var(--accent); color: #fff; border-color: transparent;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.settings-row button:active {
+  transform: scale(0.97);
+}
+
 /* ── Inactive session overlay ── */
 #inactive-overlay {
   position: fixed;
@@ -1365,8 +1391,83 @@ body.dragging-tab .pane-content { pointer-events: none; }
   #toolbar button { padding: 0; width: 36px; height: 36px; gap: 0; }
   #toolbar button .btn-text { display: none; }
   #toolbar button .btn-icon { font-size: 15px; }
-  #btn-theme, #btn-settings { width: 36px; height: 36px; }
+  #btn-settings { width: 36px; height: 36px; }
   #logo-text { font-size: 15px; }
+
+  .mobile-only {
+    display: inline-flex !important;
+  }
+
+  #toolbar-group-extra {
+    display: none;
+    position: absolute;
+    top: 46px;
+    right: 8px;
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: var(--shadow-lg);
+    flex-direction: column;
+    gap: 4px;
+    z-index: 100;
+    min-width: 150px;
+  }
+  
+  #toolbar-group-extra.open {
+    display: flex;
+    animation: menu-fade-in 0.15s var(--ease);
+  }
+  
+  @keyframes menu-fade-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  #toolbar-group-extra button {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 0 12px !important;
+    justify-content: flex-start !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: var(--text) !important;
+    border-radius: 8px !important;
+    gap: 10px !important;
+  }
+  
+  #toolbar-group-extra button:hover {
+    background: var(--bg5) !important;
+  }
+  
+  #toolbar-group-extra button:active {
+    background: var(--bg4) !important;
+  }
+  
+  #toolbar-group-extra button .btn-text {
+    display: inline !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+  }
+  
+  #toolbar-group-extra button .btn-icon {
+    font-size: 15px !important;
+  }
+  
+  #toolbar-group-extra button.btn-danger {
+    color: #f87171 !important;
+  }
+  
+  #toolbar-group-extra button.btn-danger:hover {
+    background: rgba(248, 113, 113, 0.12) !important;
+    border-color: rgba(248, 113, 113, 0.3) !important;
+  }
+
+  #btn-settings::before {
+    display: none;
+  }
 
   /* Settings slides over the full width instead of a fixed sidebar */
   #settings-panel { width: 100%; }

@@ -47,6 +47,7 @@ function buildCommands() {
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
+    { icon: '💬', title: 'Submit feedback', keywords: 'feedback support bug issue feature request report github', run: () => window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank') },
     { icon: '⬇', title: 'Check for updates', keywords: 'upgrade version git pull', run: () => { if (typeof checkForUpdateNow === 'function') checkForUpdateNow(); } },
     { icon: '🔥', title: (typeof isComboFxEnabled === 'function' && isComboFxEnabled()) ? 'Turn off keystroke combo FX' : 'Turn on keystroke combo FX',
       keywords: 'streak effect particles fire visual', run: () => {

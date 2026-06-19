@@ -137,4 +137,47 @@ function initMobileKeyBar() {
   window.visualViewport?.addEventListener('scroll', () => { if (!bar.hidden) position(); });
 }
 
-document.addEventListener('DOMContentLoaded', initMobileKeyBar);
+function initMobileMenu() {
+  const menuBtn = document.getElementById('btn-menu');
+  const groupExtra = document.getElementById('toolbar-group-extra');
+  if (!menuBtn || !groupExtra) return;
+
+  const closeMenu = () => {
+    groupExtra.classList.remove('open');
+    menuBtn.classList.remove('active');
+  };
+
+  const openMenu = () => {
+    groupExtra.classList.add('open');
+    menuBtn.classList.add('active');
+  };
+
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (groupExtra.classList.contains('open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+
+  // Close the menu when clicking on any action button inside the dropdown
+  groupExtra.addEventListener('click', (e) => {
+    const button = e.target.closest('button');
+    if (button) {
+      closeMenu();
+    }
+  });
+
+  // Light dismiss: Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!groupExtra.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
+      closeMenu();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initMobileKeyBar();
+  initMobileMenu();
+});
