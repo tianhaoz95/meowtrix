@@ -8,6 +8,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { URL } = require('url');
+const { execFile } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
@@ -190,6 +191,134 @@ app.put('/api/fs/write', (req, res) => {
   out.on('finish', () => res.json({ ok: true, path: resolved }));
   req.on('error', () => out.destroy());
   req.pipe(out);
+});
+
+// ── Git API (Source Control panel in the editor) ─────────────────────────────
+// Runs `git` in the editor tab's project directory via execFile (no shell, so
+// paths/messages aren't interpolated into a command line). Same no-sandbox
+// stance as the file API — the user already has full shell access here.
+function runGit(root, args, opts = {}) {
+  return new Promise((resolve) => {
+    execFile('git', ['-C', path.resolve(root), ...args],
+      { maxBuffer: 20 * 1024 * 1024, ...opts },
+      (err, stdout, stderr) => resolve({
+        ok: !err,
+        stdout: stdout || '',
+        stderr: (stderr || (err && err.message) || '').toString(),
+      }));
+  });
+}
+// `git show <spec>` as raw bytes (so binary files can be detected), or null.
+function gitShowBuf(root, spec) {
+  return new Promise((resolve) => {
+    execFile('git', ['-C', path.resolve(root), 'show', spec],
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'buffer' },
+      (err, stdout) => resolve(err ? null : stdout));
+  });
+}
+function toRel(root, abs) {
+  return path.relative(path.resolve(root), path.resolve(abs)).split(path.sep).join('/');
+}
+
+// Working-tree status + branch info. Returns { isRepo:false } for non-repos.
+app.get('/api/git/status', async (req, res) => {
+  const root = req.query.root;
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, ['status', '--porcelain=v1', '--branch', '-z']);
+  if (!r.ok) return res.json({ isRepo: false });
+
+  const parts = r.stdout.split('\0');
+  let branch = '', ahead = 0, behind = 0;
+  const files = [];
+  for (let i = 0; i < parts.length; i++) {
+    const entry = parts[i];
+    if (!entry) continue;
+    if (entry.startsWith('## ')) {
+      const head = entry.slice(3);
+      branch = (head.match(/^(?:No commits yet on )?(.+?)(?:\.\.\.|$| \[)/) || [, head])[1];
+      ahead = +(head.match(/ahead (\d+)/) || [, 0])[1];
+      behind = +(head.match(/behind (\d+)/) || [, 0])[1];
+      continue;
+    }
+    const x = entry[0], y = entry[1], p = entry.slice(3);
+    if (x === 'R' || x === 'C') i++; // rename/copy emits the source path next; skip it
+    files.push({ path: p, x, y });
+  }
+  res.json({ isRepo: true, branch, ahead, behind, files });
+});
+
+// Original vs modified content for a file, for the Monaco diff view.
+// staged=1 → HEAD vs index; otherwise index (fallback HEAD) vs working tree.
+app.get('/api/git/filediff', async (req, res) => {
+  const { root, path: abs } = req.query;
+  if (!root || !abs) return res.status(400).json({ error: 'Missing root/path' });
+  const rel = toRel(root, abs);
+  const staged = req.query.staged === '1';
+
+  let origBuf, modBuf;
+  if (staged) {
+    origBuf = await gitShowBuf(root, 'HEAD:' + rel);
+    modBuf = await gitShowBuf(root, ':0:' + rel);
+  } else {
+    origBuf = await gitShowBuf(root, ':0:' + rel) || await gitShowBuf(root, 'HEAD:' + rel);
+    try { modBuf = fs.readFileSync(path.resolve(abs)); } catch { modBuf = null; }
+  }
+  const isBin = b => b && b.includes(0);
+  if (isBin(origBuf) || isBin(modBuf)) return res.json({ binary: true, original: '', modified: '' });
+  res.json({
+    original: origBuf ? origBuf.toString('utf8') : '',
+    modified: modBuf ? modBuf.toString('utf8') : '',
+  });
+});
+
+// Mutating actions. Bodies are JSON: { root, paths?:[abs], all?, message? }.
+function relsFrom(body) { return (body.paths || []).map(p => toRel(body.root, p)); }
+
+app.post('/api/git/stage', async (req, res) => {
+  const { root, all } = req.body || {};
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, all ? ['add', '-A'] : ['add', '--', ...relsFrom(req.body)]);
+  res.json({ ok: r.ok, error: r.ok ? undefined : r.stderr });
+});
+
+app.post('/api/git/unstage', async (req, res) => {
+  const { root, all } = req.body || {};
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, all ? ['reset', '-q', 'HEAD'] : ['reset', '-q', 'HEAD', '--', ...relsFrom(req.body)]);
+  res.json({ ok: r.ok, error: r.ok ? undefined : r.stderr });
+});
+
+// Discard working-tree changes: checkout tracked files, delete untracked ones.
+app.post('/api/git/discard', async (req, res) => {
+  const { root, path: abs, untracked } = req.body || {};
+  if (!root || !abs) return res.status(400).json({ error: 'Missing root/path' });
+  if (untracked) {
+    try { fs.unlinkSync(path.resolve(abs)); return res.json({ ok: true }); }
+    catch (e) { return res.json({ ok: false, error: e.message }); }
+  }
+  const r = await runGit(root, ['checkout', '--', toRel(root, abs)]);
+  res.json({ ok: r.ok, error: r.ok ? undefined : r.stderr });
+});
+
+app.post('/api/git/commit', async (req, res) => {
+  const { root, message } = req.body || {};
+  if (!root || !message || !message.trim()) return res.status(400).json({ error: 'Missing root/message' });
+  const r = await runGit(root, ['commit', '-m', message]);
+  res.json({ ok: r.ok, output: (r.stdout + r.stderr).trim() });
+});
+
+app.post('/api/git/push', async (req, res) => {
+  const { root } = req.body || {};
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, ['push']);
+  res.json({ ok: r.ok, output: (r.stdout + r.stderr).trim() });
+});
+
+app.post('/api/git/pull', async (req, res) => {
+  const { root } = req.body || {};
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, ['pull']);
+  res.json({ ok: r.ok, output: (r.stdout + r.stderr).trim() });
 });
 
 // ── Proxy: fetch server-side, strip X-Frame-Options / CSP frame directives ──

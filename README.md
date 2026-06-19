@@ -9,7 +9,7 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **Tiling panes & tabs** — split vertically or horizontally, drag dividers to resize; each pane holds multiple tabs
 - **Persistent terminals** — full PTY-backed shells via xterm.js that outlive the connection; refresh or reconnect and they reattach with replayed scrollback
 - **Embedded browser panes** — built-in browser with a server-side proxy that strips frame-blocking headers so otherwise un-embeddable pages render in a pane
-- **Code editor tabs** — a Monaco (VS Code) editor with a file tree rooted at a folder you choose; open one from the tab picker, the palette, or `mtx code /path/to/project` in a terminal. Cmd/Ctrl+S saves.
+- **Code editor tabs** — a Monaco (VS Code) editor with a file tree rooted at a folder you choose; open one from the tab picker, the palette, or `mtx code /path/to/project` in a terminal. Cmd/Ctrl+S saves. Git repos also get a **Source Control** panel — stage/unstage, side-by-side diffs, commit, push/pull.
 - **`mtx` host helper** — `mtx download <file>` pushes a host file to your browser as a download; `mtx code <dir>` opens that directory in a code-editor tab
 - **Cross-device sessions** — server-coordinated single active session; move the whole workspace between browsers and devices and your layout follows
 - **Command palette** — `⌘K` (or `Ctrl/⌘+Shift+P`) fuzzy launcher for every action: split, new tab, switch tabs/panes, broadcast, themes, settings

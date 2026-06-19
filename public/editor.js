@@ -57,9 +57,26 @@ function initEditorTab(tab, viewEl, dir) {
   sideHeaderName.textContent = dir ? basename(dir) : 'No folder';
   sideHeader.append(sideHeaderIcon, sideHeaderName);
   sideHeader.title = dir || '';
+
+  // View switcher: Explorer (file tree) vs Source Control (git). The git button
+  // is only shown once we confirm the folder is a repo.
+  const sideTabs = document.createElement('div');
+  sideTabs.className = 'editor-sidetabs';
+  const filesBtn = document.createElement('button');
+  filesBtn.className = 'editor-sidetab active';
+  filesBtn.textContent = '🗂 Files';
+  const gitBtn = document.createElement('button');
+  gitBtn.className = 'editor-sidetab';
+  gitBtn.textContent = '⎇ Git';
+  gitBtn.hidden = true;
+  sideTabs.append(filesBtn, gitBtn);
+
   const treeEl = document.createElement('div');
   treeEl.className = 'editor-tree';
-  sidebar.append(sideHeader, treeEl);
+  const gitEl = document.createElement('div');
+  gitEl.className = 'editor-git';
+  gitEl.hidden = true;
+  sidebar.append(sideHeader, sideTabs, treeEl, gitEl);
 
   // Drag handle between the tree and the editor.
   const resizer = document.createElement('div');
@@ -76,13 +93,35 @@ function initEditorTab(tab, viewEl, dir) {
   sidebarToggle.title = 'Toggle file tree';
   sidebarToggle.textContent = '◧';
   fileTabs.appendChild(sidebarToggle);
+  const body = document.createElement('div');
+  body.className = 'editor-body';
   const monacoHost = document.createElement('div');
   monacoHost.className = 'editor-monaco';
   const placeholder = document.createElement('div');
   placeholder.className = 'editor-placeholder';
   placeholder.textContent = 'Select a file to start editing';
   monacoHost.appendChild(placeholder);
-  main.append(fileTabs, monacoHost);
+
+  // Diff overlay (git Source Control): a Monaco diff editor shown on top of the
+  // normal editor when reviewing a changed file.
+  const diffWrap = document.createElement('div');
+  diffWrap.className = 'editor-diff';
+  diffWrap.hidden = true;
+  const diffHeader = document.createElement('div');
+  diffHeader.className = 'editor-diff-header';
+  const diffTitle = document.createElement('span');
+  diffTitle.className = 'editor-diff-title';
+  const diffClose = document.createElement('button');
+  diffClose.className = 'editor-diff-close';
+  diffClose.textContent = '✕';
+  diffClose.title = 'Close diff';
+  diffHeader.append(diffTitle, diffClose);
+  const diffHost = document.createElement('div');
+  diffHost.className = 'editor-diff-host';
+  diffWrap.append(diffHeader, diffHost);
+
+  body.append(monacoHost, diffWrap);
+  main.append(fileTabs, body);
 
   viewEl.append(sidebar, resizer, main);
 
@@ -134,8 +173,180 @@ function initEditorTab(tab, viewEl, dir) {
 
   function toast(msg) { if (typeof showToast === 'function') showToast(msg); }
 
+  // ── Sidebar view switch (Explorer / Source Control) ──────────────────────────
+  function showView(which) {
+    const git = which === 'git';
+    filesBtn.classList.toggle('active', !git);
+    gitBtn.classList.toggle('active', git);
+    treeEl.hidden = git;
+    gitEl.hidden = !git;
+    if (git) refreshGit();
+  }
+  filesBtn.addEventListener('click', () => showView('files'));
+  gitBtn.addEventListener('click', () => showView('git'));
+
+  // ── Git diff overlay ─────────────────────────────────────────────────────────
+  let diffEditor = null, diffModels = null, diffCurrent = null;
+  function langFromPath(monaco, p) {
+    const ext = '.' + p.split('.').pop().toLowerCase();
+    for (const l of monaco.languages.getLanguages()) if ((l.extensions || []).includes(ext)) return l.id;
+    return 'plaintext';
+  }
+  function closeDiff() {
+    if (diffWrap.hidden) return;
+    diffWrap.hidden = true;
+    diffCurrent = null;
+  }
+  async function openDiff(absPath, staged) {
+    let data;
+    try {
+      const res = await fetch(`/api/git/filediff?root=${encodeURIComponent(dir)}` +
+        `&path=${encodeURIComponent(absPath)}&staged=${staged ? 1 : 0}`);
+      data = await res.json();
+      if (!res.ok) { toast(data.error || 'Cannot diff'); return; }
+    } catch { toast('Cannot diff'); return; }
+    if (data.binary) { toast('Binary file — no diff'); return; }
+    const monaco = await ensureMonaco();
+    if (!diffEditor) {
+      diffEditor = monaco.editor.createDiffEditor(diffHost, {
+        theme: monacoTheme(), readOnly: true, automaticLayout: false,
+        renderSideBySide: true, fontSize: 13, scrollBeyondLastLine: false,
+      });
+    }
+    if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
+    const lang = langFromPath(monaco, absPath);
+    diffModels = {
+      original: monaco.editor.createModel(data.original, lang),
+      modified: monaco.editor.createModel(data.modified, lang),
+    };
+    diffEditor.setModel(diffModels);
+    diffCurrent = { path: absPath, staged };
+    diffTitle.textContent = basename(absPath) + (staged ? '  (staged)' : '');
+    diffTitle.title = absPath;
+    diffWrap.hidden = false;
+    requestAnimationFrame(() => diffEditor.layout());
+  }
+  diffClose.addEventListener('click', closeDiff);
+
+  // ── Git panel (Source Control) ───────────────────────────────────────────────
+  function iconBtn(label, title, onClick) {
+    const b = document.createElement('button');
+    b.className = 'editor-git-iconbtn';
+    b.textContent = label; b.title = title;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  async function gitAction(url, bodyObj) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyObj),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) { toast(data.error || data.output || 'Git action failed'); return false; }
+      return data;
+    } catch { toast('Git action failed'); return false; }
+  }
+  async function refreshGit() {
+    gitEl.innerHTML = '<div class="editor-git-empty">Loading…</div>';
+    let s;
+    try {
+      const res = await fetch('/api/git/status?root=' + encodeURIComponent(dir));
+      s = await res.json();
+    } catch { gitEl.innerHTML = '<div class="editor-git-empty">Git unavailable</div>'; return; }
+    if (!s.isRepo) { gitEl.innerHTML = '<div class="editor-git-empty">Not a git repository</div>'; return; }
+    renderGit(s);
+  }
+  function gitSection(title, files, isStaged) {
+    const sec = document.createElement('div'); sec.className = 'editor-git-section';
+    const head = document.createElement('div'); head.className = 'editor-git-sectionhead';
+    const t = document.createElement('span'); t.className = 'editor-git-sectiontitle'; t.textContent = title;
+    const all = iconBtn(isStaged ? '−' : '+', isStaged ? 'Unstage all' : 'Stage all', async () => {
+      const url = isStaged ? '/api/git/unstage' : '/api/git/stage';
+      if (await gitAction(url, { root: dir, all: true })) refreshGit();
+    });
+    const count = document.createElement('span'); count.className = 'editor-git-count'; count.textContent = files.length;
+    head.append(t, all, count);
+    sec.append(head);
+    files.forEach(f => sec.append(gitFileRow(f, isStaged)));
+    return sec;
+  }
+  function gitFileRow(f, isStaged) {
+    const abs = join(dir, f.path);
+    const code = isStaged ? f.x : (f.x === '?' ? 'U' : f.y);
+    const row = document.createElement('div'); row.className = 'editor-git-file';
+    if (diffCurrent && diffCurrent.path === abs && diffCurrent.staged === isStaged) row.classList.add('selected');
+    const badge = document.createElement('span');
+    badge.className = 'editor-git-badge st-' + code; badge.textContent = code; badge.title = code;
+    const name = document.createElement('span'); name.className = 'editor-git-filename';
+    name.textContent = f.path; name.title = f.path;
+    const acts = document.createElement('span'); acts.className = 'editor-git-fileacts';
+    if (isStaged) {
+      acts.append(iconBtn('−', 'Unstage', async (e) => {
+        e.stopPropagation();
+        if (await gitAction('/api/git/unstage', { root: dir, paths: [abs] })) refreshGit();
+      }));
+    } else {
+      const untracked = f.x === '?';
+      acts.append(iconBtn('↺', 'Discard', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Discard changes to ${f.path}?`)) return;
+        if (await gitAction('/api/git/discard', { root: dir, path: abs, untracked })) {
+          if (diffCurrent && diffCurrent.path === abs) closeDiff();
+          refreshGit();
+        }
+      }));
+      acts.append(iconBtn('+', 'Stage', async (e) => {
+        e.stopPropagation();
+        if (await gitAction('/api/git/stage', { root: dir, paths: [abs] })) refreshGit();
+      }));
+    }
+    row.append(badge, name, acts);
+    row.addEventListener('click', () => openDiff(abs, isStaged));
+    return row;
+  }
+  function renderGit(s) {
+    gitEl.innerHTML = '';
+    const branchBar = document.createElement('div'); branchBar.className = 'editor-git-branch';
+    const bname = document.createElement('span'); bname.className = 'editor-git-branchname';
+    bname.textContent = '⎇ ' + (s.branch || '(detached)');
+    const sync = document.createElement('span'); sync.className = 'editor-git-syncinfo';
+    sync.textContent = (s.ahead ? '↑' + s.ahead : '') + (s.behind ? ' ↓' + s.behind : '');
+    const acts = document.createElement('span'); acts.className = 'editor-git-branchactions';
+    acts.append(
+      iconBtn('↻', 'Refresh', refreshGit),
+      iconBtn('⤓', 'Pull', async () => { if (await gitAction('/api/git/pull', { root: dir })) { toast('Pulled'); refreshGit(); } }),
+      iconBtn('⤒', 'Push', async () => { if (await gitAction('/api/git/push', { root: dir })) { toast('Pushed'); refreshGit(); } }),
+    );
+    branchBar.append(bname, sync, acts);
+    gitEl.append(branchBar);
+
+    const commitBox = document.createElement('div'); commitBox.className = 'editor-git-commit';
+    const msg = document.createElement('textarea');
+    msg.className = 'editor-git-msg'; msg.placeholder = 'Commit message (staged changes)'; msg.rows = 2;
+    const commitBtn = document.createElement('button');
+    commitBtn.className = 'editor-git-commitbtn'; commitBtn.textContent = '✓ Commit';
+    commitBtn.addEventListener('click', async () => {
+      if (!msg.value.trim()) { toast('Enter a commit message'); return; }
+      const r = await gitAction('/api/git/commit', { root: dir, message: msg.value });
+      if (r) { toast('Committed'); msg.value = ''; closeDiff(); refreshGit(); }
+    });
+    commitBox.append(msg, commitBtn);
+    gitEl.append(commitBox);
+
+    const staged = s.files.filter(f => f.x !== ' ' && f.x !== '?');
+    const changes = s.files.filter(f => f.y !== ' ' || f.x === '?');
+    if (staged.length) gitEl.append(gitSection('Staged Changes', staged, true));
+    if (changes.length) gitEl.append(gitSection('Changes', changes, false));
+    if (!staged.length && !changes.length) {
+      const clean = document.createElement('div'); clean.className = 'editor-git-empty';
+      clean.textContent = '✓ Nothing to commit'; gitEl.append(clean);
+    }
+  }
+
   // ── File tabs ─────────────────────────────────────────────────────────────
   function setActive(p) {
+    closeDiff(); // viewing/opening a normal file leaves the git diff overlay
     if (activePath && open.has(activePath)) {
       open.get(activePath).viewState = editor.saveViewState();
     }
@@ -275,11 +486,27 @@ function initEditorTab(tab, viewEl, dir) {
   if (dir) renderDir(dir, treeEl, 0);
   else treeEl.textContent = '';
 
+  // Reveal the Source Control view once we confirm the folder is a git repo.
+  if (dir) {
+    fetch('/api/git/status?root=' + encodeURIComponent(dir))
+      .then(r => r.json()).then(s => { if (s.isRepo) gitBtn.hidden = false; })
+      .catch(() => {});
+  }
+
   // Lay out Monaco when the pane becomes visible or is resized (mirrors the
   // terminal's fit-on-resize). onActivate is invoked by activateTab in pane.js.
-  const relayout = () => { if (editor && viewEl.classList.contains('active')) editor.layout(); };
+  const relayout = () => {
+    if (!viewEl.classList.contains('active')) return;
+    if (editor) editor.layout();
+    if (diffEditor && !diffWrap.hidden) diffEditor.layout();
+  };
   tab.onActivate = relayout;
   new ResizeObserver(relayout).observe(viewEl);
 
-  tab.disposeEditor = () => { editor?.dispose(); open.forEach(st => st.model.dispose()); };
+  tab.disposeEditor = () => {
+    editor?.dispose();
+    diffEditor?.dispose();
+    if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
+    open.forEach(st => st.model.dispose());
+  };
 }
