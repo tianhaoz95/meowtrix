@@ -127,7 +127,7 @@ Then open `http://<host-ip>:9123` from any device. You can also bind to one spec
 
 ### Containerized development (Dev Container)
 
-A [Dev Container](https://containers.dev) config lives in `.devcontainer/`. Open the repo in VS Code (or GitHub Codespaces) and "Reopen in Container" — it builds on a Debian-based Node image with the toolchain `node-pty` needs, runs `npm install`, and forwards port `9123`. Then run `npm start` (or `./start.sh`) inside the container.
+A [Dev Container](https://containers.dev) config lives in `.devcontainer/`. Open the repo in VS Code (or GitHub Codespaces) and "Reopen in Container" — it builds on a Debian-based Node image with the toolchain `node-pty` needs, runs `npm install`, preinstalls both the Claude Code CLI (`claude`) and Antigravity CLI (`agy`) into `~/.local/bin` (and adds it to the `PATH`), and forwards port `9123`. Then run `npm start` (or `./start.sh`) inside the container.
 
 ## Try the demo (no install)
 

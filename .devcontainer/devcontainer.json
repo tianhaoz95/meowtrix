@@ -20,8 +20,13 @@
     "HOST": "0.0.0.0"
   },
 
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/node/.local/bin"
+  },
+
   // node-pty compiles natively, so install after the container is built.
-  "postCreateCommand": "npm install",
+  // Also preinstall Claude Code and Antigravity CLIs to ~/.local/bin.
+  "postCreateCommand": "npm install && mkdir -p ~/.local/bin && curl -fsSL https://claude.ai/install.sh | bash && curl -fsSL https://antigravity.google/cli/install.sh | bash",
 
   "customizations": {
     "vscode": {
