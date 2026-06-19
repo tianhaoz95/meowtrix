@@ -642,6 +642,15 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   frame.addEventListener('load', () => {
     loadingBar.classList.remove('active');
     try {
+      if (tab.openerWindow) {
+        try {
+          Object.defineProperty(frame.contentWindow, 'opener', {
+            value: tab.openerWindow,
+            configurable: true,
+            writable: true
+          });
+        } catch (err) {}
+      }
       syncThemeToIframe(frame);
       interceptLinksAndPopups(frame, tab);
       interceptConsole(frame, tab);
@@ -786,7 +795,12 @@ function interceptLinksAndPopups(frame, tab) {
     const doc = frame.contentDocument || win?.document;
     if (!doc || !win) return;
 
-    // 1. Override window.open inside the iframe
+    // 1. Override window.open inside the iframe.
+    // Everything (including OAuth / Firebase Auth Emulator popups) opens as an
+    // in-app browser tab through the proxy, rather than a native client-browser
+    // window. The new tab's `opener` is wired back to this app iframe so popup
+    // auth flows can relay their result home (see the auth-handler shim injected
+    // by the proxy in server.js).
     win.open = function(url, target, features) {
       const pane = paneOfTab(tab.tabEl);
       if (pane) {
@@ -801,11 +815,21 @@ function interceptLinksAndPopups(frame, tab) {
           } catch (e) {}
         }
         const newTab = addTab(pane, 'browser', null, null, resolvedUrl);
+        newTab.openerWindow = win;
         activateTab(pane, newTab.id);
         if (typeof saveSessionState === 'function') {
           saveSessionState();
         }
         const newIframe = newTab.viewEl.querySelector('iframe');
+        if (newIframe && newIframe.contentWindow) {
+          try {
+            Object.defineProperty(newIframe.contentWindow, 'opener', {
+              value: win,
+              configurable: true,
+              writable: true
+            });
+          } catch (e) {}
+        }
         return newIframe ? newIframe.contentWindow : null;
       }
       return null;

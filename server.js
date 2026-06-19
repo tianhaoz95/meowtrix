@@ -328,7 +328,57 @@ const STRIP_HEADERS = new Set([
   'content-security-policy',
   'content-security-policy-report-only',
   'set-cookie',
+  'access-control-allow-origin',
+  'access-control-allow-methods',
+  'access-control-allow-headers',
+  'access-control-allow-credentials',
 ]);
+
+const STRIP_REQ_HEADERS = new Set([
+  'host',
+  'cookie',
+  'accept-encoding',
+  'connection',
+  'upgrade',
+  'http2-settings',
+  'keep-alive',
+  'proxy-connection',
+  'transfer-encoding',
+]);
+
+function extractOriginalUrl(url) {
+  if (!url) return url;
+
+  // Handle structured proxy URLs: /proxy/(http|https)/hostname/path
+  const structRegex = /\/proxy\/(https?)\/([^/]+)\/?(.*)$/;
+  const sMatch = url.match(structRegex);
+  if (sMatch) {
+    const protocol = sMatch[1];
+    const host = sMatch[2];
+    const rest = sMatch[3] || '';
+    return `${protocol}://${host}/${rest}`;
+  }
+  
+  const proxyRegex = /\/proxy\/(.+)$/;
+  const match = url.match(proxyRegex);
+  if (match) {
+    try {
+      if (!match[1].startsWith('http/') && !match[1].startsWith('https/')) {
+        return decodeURIComponent(match[1]);
+      }
+    } catch (e) {}
+  }
+  
+  const queryRegex = /\/proxy\?url=([^&]+)/;
+  const qMatch = url.match(queryRegex);
+  if (qMatch) {
+    try {
+      return decodeURIComponent(qMatch[1]);
+    } catch (e) {}
+  }
+  
+  return url;
+}
 
 class CookieJar {
   constructor() {
@@ -430,17 +480,27 @@ function proxyHandler(req, res) {
 
   const lib = parsed.protocol === 'https:' ? https : http;
   
-  const outgoingHeaders = {
-    'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-    'Accept': req.headers['accept'] || 'text/html,application/xhtml+xml,*/*',
-    'Accept-Language': req.headers['accept-language'] || 'en-US,en;q=0.9',
-  };
+  const outgoingHeaders = {};
+  
+  // Forward incoming client headers
+  Object.entries(req.headers).forEach(([k, v]) => {
+    const key = k.toLowerCase();
+    if (!STRIP_REQ_HEADERS.has(key)) {
+      outgoingHeaders[k] = v;
+    }
+  });
 
-  if (req.headers['content-type']) {
-    outgoingHeaders['Content-Type'] = req.headers['content-type'];
+  // Set host header
+  outgoingHeaders['Host'] = parsed.host;
+
+  // Rewrite Origin and Referer headers to target host to satisfy CORS/referer checks
+  if (outgoingHeaders['origin']) {
+    outgoingHeaders['origin'] = parsed.origin;
   }
-  if (req.headers['content-length']) {
-    outgoingHeaders['Content-Length'] = req.headers['content-length'];
+  if (outgoingHeaders['referer']) {
+    try {
+      outgoingHeaders['referer'] = extractOriginalUrl(outgoingHeaders['referer']);
+    } catch (e) {}
   }
 
   const cookieHeader = proxyCookies.getCookieHeader(parsed);
@@ -477,6 +537,10 @@ function proxyHandler(req, res) {
       if (!STRIP_HEADERS.has(k.toLowerCase())) try { res.setHeader(k, v); } catch {}
     });
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', '*');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.status(proxyRes.statusCode);
 
     const ct = (proxyRes.headers['content-type'] || '').toLowerCase();
@@ -651,15 +715,21 @@ function proxyHandler(req, res) {
           const resolvedUrl = new URL(url, ${JSON.stringify(target)}).href;
           if (resolvedUrl.startsWith('http:') || resolvedUrl.startsWith('https:')) {
             const parsed = new URL(resolvedUrl);
-            const proto = parsed.protocol.replace(':', '');
-            const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
-            const proxiedUrl = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
-            if (typeof input === 'string') {
-              input = proxiedUrl;
-            } else if (input instanceof URL) {
-              input = new URL(proxiedUrl, window.location.origin);
-            } else if (input && typeof input === 'object') {
-              input = new Request(proxiedUrl, input);
+            const targetParsed = new URL(${JSON.stringify(target)});
+            const isLoopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
+            const isTargetHost = parsed.host === targetParsed.host;
+            const isAuthEmulator = parsed.port === '9099' || parsed.pathname.includes('/emulator/auth/') || parsed.pathname.includes('/__/auth/');
+            if (!isLoopback || isTargetHost || isAuthEmulator) {
+              const proto = parsed.protocol.replace(':', '');
+              const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+              const proxiedUrl = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+              if (typeof input === 'string') {
+                input = proxiedUrl;
+              } else if (input instanceof URL) {
+                input = new URL(proxiedUrl, window.location.origin);
+              } else if (input && typeof input === 'object') {
+                input = new Request(proxiedUrl, input);
+              }
             }
           }
         }
@@ -674,9 +744,15 @@ function proxyHandler(req, res) {
           const resolvedUrl = new URL(url, ${JSON.stringify(target)}).href;
           if (resolvedUrl.startsWith('http:') || resolvedUrl.startsWith('https:')) {
             const parsed = new URL(resolvedUrl);
-            const proto = parsed.protocol.replace(':', '');
-            const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
-            url = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+            const targetParsed = new URL(${JSON.stringify(target)});
+            const isLoopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
+            const isTargetHost = parsed.host === targetParsed.host;
+            const isAuthEmulator = parsed.port === '9099' || parsed.pathname.includes('/emulator/auth/') || parsed.pathname.includes('/__/auth/');
+            if (!isLoopback || isTargetHost || isAuthEmulator) {
+              const proto = parsed.protocol.replace(':', '');
+              const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+              url = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+            }
           }
         }
       } catch (e) {}
@@ -695,17 +771,27 @@ function proxyHandler(req, res) {
         };
         Object.defineProperty(el, 'src', {
           get() {
+            if (tag === 'iframe') {
+              return this.__mtx_original_src || desc.get.call(this);
+            }
             return desc.get.call(this);
           },
           set(val) {
+            this.__mtx_original_src = val;
             try {
               if (val && typeof val === 'string' && !val.startsWith('javascript:') && val !== 'about:blank') {
                 const resolvedUrl = new URL(val, ${JSON.stringify(target)}).href;
                 if (resolvedUrl.startsWith('http:') || resolvedUrl.startsWith('https:')) {
                   const parsed = new URL(resolvedUrl);
-                  const proto = parsed.protocol.replace(':', '');
-                  const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
-                  val = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+                  const targetParsed = new URL(${JSON.stringify(target)});
+                  const isLoopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
+                  const isTargetHost = parsed.host === targetParsed.host;
+                  const isAuthEmulator = parsed.port === '9099' || parsed.pathname.includes('/emulator/auth/') || parsed.pathname.includes('/__/auth/');
+                  if (!isLoopback || isTargetHost || isAuthEmulator) {
+                    const proto = parsed.protocol.replace(':', '');
+                    const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+                    val = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+                  }
                 }
               }
             } catch (e) {}
@@ -725,6 +811,71 @@ function proxyHandler(req, res) {
           body = body.replace(headMatch[0], headMatch[0] + script);
         } else {
           body = script + body;
+        }
+
+        // Firebase Auth Emulator popup sign-in fix.
+        // The emulator's IDP handler page finishes a popup sign-in by scanning
+        // `window.opener.frames` for the SDK's relay iframe, identifying it by
+        // reading each frame's `location.search`. When the handler is rendered
+        // through this proxy it sits on the proxy origin, while the SDK's relay
+        // iframe loads on the raw emulator origin (gapi locks it there) — so the
+        // cross-origin `location.search` read throws and the handler reports
+        // "Auth Emulator Internal Error: No matching frame". The relay's own
+        // message listener does NOT check the sender origin, so we override the
+        // handler's relay function to just postMessage the auth event to every
+        // opener frame. Injected at the end of the body so it runs after (and
+        // overrides) the emulator's own inline script.
+        if (parsed.pathname.includes('/emulator/auth/handler')) {
+          body += `
+<script id="mtx-auth-relay-shim">
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    var storageKey = q.get('apiKey') + ':' + q.get('appName');
+    window.sendAuthEventViaIframeRelay = function (authEvent, cb) {
+      var msg = {
+        data: { authEvent: authEvent, storageKey: storageKey },
+        eventId: Math.floor(Math.random() * Math.pow(10, 20)).toString(),
+        eventType: 'sendAuthEvent'
+      };
+      var opener = window.opener;
+      if (!opener) return cb('No matching frame');
+
+      // The opener (the app iframe) is same-origin through the proxy, so walk its
+      // frame tree and collect the Firebase Auth relay iframes by src. We must
+      // post to ONLY ONE of them: a dev server's hot-reload leaves stale relay
+      // iframes wired to dead SDK instances, and posting to those makes them reply
+      // non-ACK and throw "Sending authEvent failed" (even though the live relay
+      // succeeded and the user is signed in). The most recently created relay is
+      // the live one, and appended iframes land last in document order, so we keep
+      // the last relay we encounter. If no relay matches by src, fall back to the
+      // single most-recently-added iframe rather than spraying every frame.
+      var relays = [];
+      var lastIframeWin = null;
+      (function walk(win) {
+        var iframes;
+        try { iframes = win.document.getElementsByTagName('iframe'); } catch (e) { return; }
+        for (var i = 0; i < iframes.length; i++) {
+          var el = iframes[i];
+          var src = el.getAttribute('src') || el.src || '';
+          try { lastIframeWin = el.contentWindow; } catch (e) {}
+          if (src.indexOf('emulator/auth/iframe') !== -1 || src.indexOf('__/auth/iframe') !== -1) {
+            try { relays.push(el.contentWindow); } catch (e) {}
+          }
+          try { walk(el.contentWindow); } catch (e) {} // recurse into same-origin frames
+        }
+      })(opener);
+
+      var target = relays.length ? relays[relays.length - 1] : lastIframeWin;
+      var sent = false;
+      try {
+        if (target) { target.postMessage(msg, '*'); sent = true; }
+      } catch (e) {}
+      return cb(sent ? undefined : 'No matching frame');
+    };
+  } catch (e) {}
+})();
+</script>`;
         }
         res.send(body);
       });
