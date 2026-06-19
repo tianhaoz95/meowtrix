@@ -345,6 +345,21 @@ function initTerminalTab(tab, existingPtyId) {
   });
   const fitAddon = new FitAddon.FitAddon();
   term.loadAddon(fitAddon);
+
+  if (window.WebLinksAddon) {
+    const webLinksAddon = new window.WebLinksAddon.WebLinksAddon((event, uri) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        const pane = paneOfTab(tab.tabEl);
+        if (pane) {
+          addTab(pane, 'browser', null, null, uri);
+          if (typeof saveSessionState === 'function') saveSessionState();
+        }
+      }
+    });
+    term.loadAddon(webLinksAddon);
+  }
+
   term.open(tab.viewEl);
   tab.term = term;
   tab.fitAddon = fitAddon;
