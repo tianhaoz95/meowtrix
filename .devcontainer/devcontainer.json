@@ -25,8 +25,8 @@
   },
 
   // node-pty compiles natively, so install after the container is built.
-  // Also preinstall Claude Code and Antigravity CLIs to ~/.local/bin.
-  "postCreateCommand": "npm install && mkdir -p ~/.local/bin && curl -fsSL https://claude.ai/install.sh | bash && curl -fsSL https://antigravity.google/cli/install.sh | bash",
+  // Also preinstall Claude Code and Antigravity CLIs to ~/.local/bin and configure bashrc aliases.
+  "postCreateCommand": "npm install && mkdir -p ~/.local/bin && curl -fsSL https://claude.ai/install.sh | bash && curl -fsSL https://antigravity.google/cli/install.sh | bash && (grep -q -F 'alias ccyolo' ~/.bashrc || echo 'alias ccyolo=\"claude --dangerously-skip-permissions\"' >> ~/.bashrc) && (grep -q -F 'alias agyyolo' ~/.bashrc || echo 'alias agyyolo=\"agy --dangerously-skip-permissions\"' >> ~/.bashrc)",
 
   "customizations": {
     "vscode": {
