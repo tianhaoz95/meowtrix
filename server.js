@@ -327,7 +327,72 @@ const STRIP_HEADERS = new Set([
   'x-frame-options',
   'content-security-policy',
   'content-security-policy-report-only',
+  'set-cookie',
 ]);
+
+class CookieJar {
+  constructor() {
+    this.store = new Map(); // host -> Map of name -> { value, expires }
+  }
+
+  getCookieHeader(urlObj) {
+    const host = urlObj.hostname;
+    const hostCookies = this.store.get(host);
+    if (!hostCookies) return '';
+    
+    const now = Date.now();
+    const active = [];
+    for (const [name, entry] of hostCookies.entries()) {
+      if (entry.expires && entry.expires < now) {
+        hostCookies.delete(name);
+        continue;
+      }
+      active.push(`${name}=${entry.value}`);
+    }
+    return active.join('; ');
+  }
+
+  saveCookies(urlObj, setCookieHeaders) {
+    if (!setCookieHeaders) return;
+    const host = urlObj.hostname;
+    if (!this.store.has(host)) {
+      this.store.set(host, new Map());
+    }
+    const hostCookies = this.store.get(host);
+    
+    const headers = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+    headers.forEach(header => {
+      const parts = header.split(';').map(p => p.trim());
+      if (parts.length === 0) return;
+      const [nameValue, ...attrs] = parts;
+      const eqIdx = nameValue.indexOf('=');
+      if (eqIdx === -1) return;
+      const name = nameValue.slice(0, eqIdx).trim();
+      const value = nameValue.slice(eqIdx + 1).trim();
+      
+      let expires = null;
+      attrs.forEach(attr => {
+        const [k, v] = attr.split('=').map(s => s.trim());
+        if (k.toLowerCase() === 'expires' && v) {
+          try { expires = Date.parse(v); } catch (e) {}
+        }
+        if (k.toLowerCase() === 'max-age' && v) {
+          const secs = parseInt(v, 10);
+          if (!isNaN(secs)) {
+            expires = Date.now() + secs * 1000;
+          }
+        }
+      });
+      
+      if (value === '' || (expires && expires < Date.now())) {
+        hostCookies.delete(name);
+      } else {
+        hostCookies.set(name, { value, expires });
+      }
+    });
+  }
+}
+const proxyCookies = new CookieJar();
 
 // Resolve the proxied target from either /proxy?url=<enc> (initial loads) or
 // /proxy/<enc>[?formquery] (rewritten links & GET-form submissions). The path
@@ -335,6 +400,17 @@ const STRIP_HEADERS = new Set([
 // with the form fields — which would wipe a ?url= param — but it leaves the
 // path intact, so we keep the target in the path and re-attach the form query.
 function resolveProxyTarget(req) {
+  if (req.query.url) {
+    return req.query.url;
+  }
+  if (req.params.protocol && req.params.hostname) {
+    const protocol = req.params.protocol;
+    const host = req.params.hostname;
+    const pathPart = req.params[0] || '';
+    const qIdx = req.originalUrl.indexOf('?');
+    const qs = qIdx >= 0 ? req.originalUrl.slice(qIdx) : '';
+    return `${protocol}://${host}/${pathPart}${qs}`;
+  }
   if (req.params.enc != null) {
     const base = req.params.enc; // Express has already percent-decoded this
     const qIdx = req.originalUrl.indexOf('?');
@@ -342,7 +418,7 @@ function resolveProxyTarget(req) {
     if (!qs) return base;
     return base.includes('?') ? `${base}&${qs}` : `${base}?${qs}`;
   }
-  return req.query.url;
+  return null;
 }
 
 function proxyHandler(req, res) {
@@ -353,21 +429,48 @@ function proxyHandler(req, res) {
   if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).send('Only http/https');
 
   const lib = parsed.protocol === 'https:' ? https : http;
+  
+  const outgoingHeaders = {
+    'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+    'Accept': req.headers['accept'] || 'text/html,application/xhtml+xml,*/*',
+    'Accept-Language': req.headers['accept-language'] || 'en-US,en;q=0.9',
+  };
+
+  if (req.headers['content-type']) {
+    outgoingHeaders['Content-Type'] = req.headers['content-type'];
+  }
+  if (req.headers['content-length']) {
+    outgoingHeaders['Content-Length'] = req.headers['content-length'];
+  }
+
+  const cookieHeader = proxyCookies.getCookieHeader(parsed);
+  if (cookieHeader) {
+    outgoingHeaders['Cookie'] = cookieHeader;
+  }
+
   const opts = {
+    method: req.method,
     hostname: parsed.hostname,
     port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
     path: parsed.pathname + parsed.search,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
+    headers: outgoingHeaders,
   };
 
-  const proxyReq = lib.get(opts, (proxyRes) => {
+  const proxyReq = lib.request(opts, (proxyRes) => {
     if ([301, 302, 303, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
       const next = new URL(proxyRes.headers.location, target).href;
-      return res.redirect(`/proxy/${encodeURIComponent(next)}`);
+      try {
+        const nextUrl = new URL(next);
+        const proto = nextUrl.protocol.replace(':', '');
+        const pathAndQuery = nextUrl.pathname + nextUrl.search + nextUrl.hash;
+        return res.redirect(`/proxy/${proto}/${nextUrl.host}${pathAndQuery}`);
+      } catch (e) {
+        return res.redirect(`/proxy/${encodeURIComponent(next)}`);
+      }
+    }
+
+    if (proxyRes.headers['set-cookie']) {
+      proxyCookies.saveCookies(parsed, proxyRes.headers['set-cookie']);
     }
 
     Object.entries(proxyRes.headers).forEach(([k, v]) => {
@@ -383,10 +486,16 @@ function proxyHandler(req, res) {
       proxyRes.on('data', d => { body += d; });
       proxyRes.on('end', () => {
         const base = `${parsed.protocol}//${parsed.host}`;
-        // Rewrite root-relative and absolute URLs through proxy
         body = body.replace(/(href|src|action)=(["'])(\/[^"']*|https?:\/\/[^"']+)\2/gi, (_, attr, q, url) => {
           const abs = url.startsWith('/') ? base + url : url;
-          return `${attr}=${q}/proxy/${encodeURIComponent(abs)}${q}`;
+          try {
+            const pUrl = new URL(abs);
+            const proto = pUrl.protocol.replace(':', '');
+            const pathAndQuery = pUrl.pathname + pUrl.search + pUrl.hash;
+            return `${attr}=${q}/proxy/${proto}/${pUrl.host}${pathAndQuery}${q}`;
+          } catch (e) {
+            return `${attr}=${q}/proxy/${encodeURIComponent(abs)}${q}`;
+          }
         });
         const script = `
 <script id="mtx-proxy-theme">
@@ -397,7 +506,6 @@ function proxyHandler(req, res) {
     } catch (e) {}
     let isDark = currentTheme !== 'light';
     
-    // Mock matchMedia for CSS / JS theme helpers
     const originalMatchMedia = window.matchMedia;
     window.matchMedia = function(query) {
       if (query && query.includes('prefers-color-scheme')) {
@@ -415,11 +523,9 @@ function proxyHandler(req, res) {
       return originalMatchMedia ? originalMatchMedia.apply(this, arguments) : { matches: false };
     };
     
-    // Apply styling tokens
     document.documentElement.setAttribute('data-theme', currentTheme);
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
     
-    // Global listener for runtime updates from parent window
     window.__mtx_update_theme = function(theme) {
       currentTheme = theme;
       isDark = theme !== 'light';
@@ -427,7 +533,6 @@ function proxyHandler(req, res) {
       document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
     };
 
-    // Intercept console logs and post to parent window
     if (!window.__mtx_console_intercepted) {
       window.__mtx_console_intercepted = true;
       
@@ -537,6 +642,81 @@ function proxyHandler(req, res) {
         } catch (err) {}
       });
     }
+
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+      try {
+        let url = typeof input === 'string' ? input : (input instanceof URL ? input.href : (input && input.url));
+        if (url) {
+          const resolvedUrl = new URL(url, ${JSON.stringify(target)}).href;
+          if (resolvedUrl.startsWith('http:') || resolvedUrl.startsWith('https:')) {
+            const parsed = new URL(resolvedUrl);
+            const proto = parsed.protocol.replace(':', '');
+            const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+            const proxiedUrl = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+            if (typeof input === 'string') {
+              input = proxiedUrl;
+            } else if (input instanceof URL) {
+              input = new URL(proxiedUrl, window.location.origin);
+            } else if (input && typeof input === 'object') {
+              input = new Request(proxiedUrl, input);
+            }
+          }
+        }
+      } catch (e) {}
+      return originalFetch.apply(this, arguments);
+    };
+
+    const originalXhrOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...args) {
+      try {
+        if (url && typeof url === 'string') {
+          const resolvedUrl = new URL(url, ${JSON.stringify(target)}).href;
+          if (resolvedUrl.startsWith('http:') || resolvedUrl.startsWith('https:')) {
+            const parsed = new URL(resolvedUrl);
+            const proto = parsed.protocol.replace(':', '');
+            const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+            url = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+          }
+        }
+      } catch (e) {}
+      return originalXhrOpen.apply(this, [method, url, ...args]);
+    };
+
+    const originalCreateElement = document.createElement;
+    document.createElement = function(tagName, ...args) {
+      const el = originalCreateElement.apply(this, [tagName, ...args]);
+      const tag = tagName && tagName.toLowerCase();
+      if (tag === 'iframe' || tag === 'script') {
+        const protoClass = tag === 'iframe' ? HTMLIFrameElement : HTMLScriptElement;
+        const desc = Object.getOwnPropertyDescriptor(protoClass.prototype, 'src') || {
+          get() { return this.getAttribute('src'); },
+          set(v) { this.setAttribute('src', v); }
+        };
+        Object.defineProperty(el, 'src', {
+          get() {
+            return desc.get.call(this);
+          },
+          set(val) {
+            try {
+              if (val && typeof val === 'string' && !val.startsWith('javascript:') && val !== 'about:blank') {
+                const resolvedUrl = new URL(val, ${JSON.stringify(target)}).href;
+                if (resolvedUrl.startsWith('http:') || resolvedUrl.startsWith('https:')) {
+                  const parsed = new URL(resolvedUrl);
+                  const proto = parsed.protocol.replace(':', '');
+                  const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+                  val = '/proxy/' + proto + '/' + parsed.host + pathAndQuery;
+                }
+              }
+            } catch (e) {}
+            desc.set.call(this, val);
+          },
+          configurable: true,
+          enumerable: true
+        });
+      }
+      return el;
+    };
   })();
 </script>
 `;
@@ -554,10 +734,20 @@ function proxyHandler(req, res) {
   });
 
   proxyReq.on('error', err => res.status(502).send(`Proxy error: ${err.message}`));
+
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    const bodyStr = JSON.stringify(req.body);
+    proxyReq.write(bodyStr);
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq);
+  }
 }
 
-app.get('/proxy', proxyHandler);        // /proxy?url=<enc>  (initial loads, legacy)
-app.get('/proxy/:enc', proxyHandler);   // /proxy/<enc>      (rewritten links, GET forms)
+app.all('/proxy/:protocol/:hostname/*', proxyHandler);
+app.all('/proxy/:protocol/:hostname', proxyHandler);
+app.all('/proxy', proxyHandler);
+app.all('/proxy/:enc', proxyHandler);
 
 // ── PTY / WebSocket ──────────────────────────────────────────────────────────
 // ptys: id -> { proc, dataListeners: Set, buffer: string }
@@ -913,6 +1103,32 @@ function startUpdateChecks() {
   setInterval(tick, UPDATE_CHECK_INTERVAL).unref();
 }
 startUpdateChecks();
+
+// Fallback middleware to resolve relative/origin-relative references (e.g., ES modules, CSS imports)
+// that bypass same-origin resolution inside the iframe and request directly from the root domain.
+app.use((req, res, next) => {
+  const referer = req.headers.referer;
+  if (referer) {
+    // Match structured path format: /proxy/http/domain/...
+    const match = referer.match(/\/proxy\/(https?)\/([^/]+)/);
+    if (match) {
+      const protocol = match[1];
+      const host = match[2];
+      return res.redirect(`/proxy/${protocol}/${host}${req.url}`);
+    }
+    // Match legacy encoded format: /proxy/<encoded_url>
+    const legacyMatch = referer.match(/\/proxy\/([^/?#]+)/);
+    if (legacyMatch) {
+      try {
+        const decoded = decodeURIComponent(legacyMatch[1]);
+        const parsed = new URL(decoded);
+        const protocol = parsed.protocol.replace(':', '');
+        return res.redirect(`/proxy/${protocol}/${parsed.host}${req.url}`);
+      } catch (e) {}
+    }
+  }
+  next();
+});
 
 // ── Network binding ──────────────────────────────────────────────────────────
 // A Meowtrix server hands whoever can reach it a real shell on the host, so by

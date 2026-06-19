@@ -326,7 +326,12 @@ function activateTab(pane, id) {
   });
   pane.activeTab = pane.tabs.find(t => t.id === id);
   if (pane.activeTab?.type === 'terminal' && pane.activeTab.fitAddon) {
-    requestAnimationFrame(() => { pane.activeTab.fitAddon.fit(); pane.activeTab.term?.focus(); });
+    requestAnimationFrame(() => {
+      if (pane.activeTab?.type === 'terminal' && pane.activeTab.fitAddon) {
+        pane.activeTab.fitAddon.fit();
+        pane.activeTab.term?.focus();
+      }
+    });
   }
   if (pane.activeTab?.onActivate) requestAnimationFrame(() => pane.activeTab.onActivate());
 }
@@ -601,8 +606,20 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     startEl.classList.remove('visible');
     frame.style.display = '';
     tab.currentUrl = url;
+    
+    const toProxyUrl = (targetUrl) => {
+      try {
+        const parsed = new URL(targetUrl);
+        const proto = parsed.protocol.replace(':', '');
+        const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
+        return `/proxy/${proto}/${parsed.host}${pathAndQuery}`;
+      } catch (e) {
+        return '/proxy/' + encodeURIComponent(targetUrl);
+      }
+    };
+    
     // Serverless demo embeds directly; otherwise route through the proxy.
-    frame.src = window.DEMO_MODE ? url : '/proxy/' + encodeURIComponent(url);
+    frame.src = window.DEMO_MODE ? url : toProxyUrl(url);
     if (hintEl) hintEl.classList.add('visible');
     urlInput.value = url;
     try { label.textContent = new URL(url).hostname.replace('www.', ''); }
@@ -730,12 +747,24 @@ function syncThemeToIframe(frame) {
 function extractOriginalUrl(url) {
   if (!url) return url;
   
+  // Handle structured proxy URLs: /proxy/(http|https)/hostname/path
+  const structRegex = /\/proxy\/(https?)\/([^/]+)\/?(.*)$/;
+  const sMatch = url.match(structRegex);
+  if (sMatch) {
+    const protocol = sMatch[1];
+    const host = sMatch[2];
+    const rest = sMatch[3] || '';
+    return `${protocol}://${host}/${rest}`;
+  }
+  
   // Handle absolute or relative proxied URLs: /proxy/<encoded>
   const proxyRegex = /\/proxy\/(.+)$/;
   const match = url.match(proxyRegex);
   if (match) {
     try {
-      return decodeURIComponent(match[1]);
+      if (!match[1].startsWith('http/') && !match[1].startsWith('https/')) {
+        return decodeURIComponent(match[1]);
+      }
     } catch (e) {}
   }
   
