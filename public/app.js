@@ -26,6 +26,7 @@ function captureWorkspaceState() {
           type: t.type,
           ptyId: t.ptyId || null,
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
+          browserConsoleOpen: t.type === 'browser' ? !!t.consoleOpen : null,
           editorDir: t.type === 'editor' ? t.editorDir : null,
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
@@ -59,7 +60,7 @@ function restoreWorkspaceState(state) {
     if (node.type === 'pane') {
       const pane = createPane();
       node.tabs.forEach(tabState => {
-        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed);
+        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
       });
       if (node.activeTabId) activateTab(pane, node.activeTabId);

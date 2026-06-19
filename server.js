@@ -426,6 +426,117 @@ function proxyHandler(req, res) {
       document.documentElement.setAttribute('data-theme', theme);
       document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
     };
+
+    // Intercept console logs and post to parent window
+    if (!window.__mtx_console_intercepted) {
+      window.__mtx_console_intercepted = true;
+      
+      const logLevels = ['log', 'info', 'warn', 'error', 'debug'];
+      
+      function serializeConsoleArg(arg) {
+        if (arg === null) return null;
+        if (arg === undefined) return undefined;
+        
+        if (arg instanceof Element) {
+          return {
+            __isElement: true,
+            tagName: arg.tagName.toLowerCase(),
+            id: arg.id || '',
+            className: arg.className || ''
+          };
+        }
+
+        if (arg instanceof Error) {
+          return {
+            __isError: true,
+            name: arg.name,
+            message: arg.message,
+            stack: arg.stack
+          };
+        }
+
+        if (typeof arg === 'function') {
+          return '[Function: ' + (arg.name || 'anonymous') + ']';
+        }
+
+        if (typeof arg === 'symbol') {
+          return arg.toString();
+        }
+
+        if (typeof arg === 'object') {
+          try {
+            const seen = new Set();
+            function clone(val) {
+              if (val === null || typeof val !== 'object') return val;
+              if (val instanceof Element) return serializeConsoleArg(val);
+              if (val instanceof Error) return serializeConsoleArg(val);
+              if (seen.has(val)) return '[Circular]';
+              seen.add(val);
+              if (Array.isArray(val)) {
+                return val.map(item => clone(item));
+              }
+              const res = {};
+              for (const key in val) {
+                if (Object.prototype.hasOwnProperty.call(val, key)) {
+                  res[key] = clone(val[key]);
+                }
+              }
+              return res;
+            }
+            return clone(arg);
+          } catch (e) {
+            return String(arg);
+          }
+        }
+
+        return arg;
+      }
+      
+      logLevels.forEach(level => {
+        const original = console[level];
+        console[level] = function(...args) {
+          if (original) {
+            try {
+              original.apply(console, args);
+            } catch (e) {}
+          }
+          try {
+            const processedArgs = args.map(arg => serializeConsoleArg(arg));
+            window.parent.postMessage({
+              type: 'mtx:console',
+              level: level,
+              args: processedArgs
+            }, '*');
+          } catch (err) {}
+        };
+      });
+
+      window.addEventListener('error', function(event) {
+        try {
+          window.parent.postMessage({
+            type: 'mtx:console',
+            level: 'error',
+            args: [event.message + ' at ' + (event.filename || 'unknown') + ':' + (event.lineno || 0) + ':' + (event.colno || 0)]
+          }, '*');
+        } catch (err) {}
+      });
+
+      window.addEventListener('unhandledrejection', function(event) {
+        try {
+          let reasonMsg = event.reason;
+          if (event.reason && event.reason.message) {
+            reasonMsg = event.reason.message;
+          } else if (typeof event.reason === 'object') {
+            reasonMsg = JSON.stringify(event.reason);
+          }
+          window.parent.postMessage({
+            type: 'mtx:console',
+            level: 'error',
+            args: ['Unhandled Promise Rejection: ' + reasonMsg]
+          }, '*');
+        } catch (err) {}
+      });
+    }
   })();
 </script>
 `;

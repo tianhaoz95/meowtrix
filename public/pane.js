@@ -248,7 +248,7 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen) {
   const id = existingId || uid();
 
   const viewEl = document.createElement('div');
@@ -279,7 +279,21 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); } });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 
-  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null, editorDir: null, editorSidebarWidth: existingEditorWidth || null, editorSidebarCollapsed: !!existingEditorCollapsed };
+  const tab = {
+    id,
+    type,
+    tabEl,
+    viewEl,
+    label,
+    term: null,
+    fitAddon: null,
+    ptyId: null,
+    currentUrl: null,
+    editorDir: null,
+    editorSidebarWidth: existingEditorWidth || null,
+    editorSidebarCollapsed: !!existingEditorCollapsed,
+    consoleOpen: !!existingBrowserConsoleOpen
+  };
   pane.tabs.push(tab);
 
   tabEl.draggable = true;
@@ -417,6 +431,10 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   const fwdBtn = document.createElement('button');    fwdBtn.textContent = '→'; fwdBtn.title = 'Forward';
   const reloadBtn = document.createElement('button'); reloadBtn.textContent = '↺'; reloadBtn.title = 'Reload';
   const extBtn = document.createElement('button');    extBtn.textContent = '↗'; extBtn.title = 'Open in new window';
+  const consoleBtn = document.createElement('button');
+  consoleBtn.className = 'browser-console-toggle';
+  consoleBtn.textContent = 'Console';
+  consoleBtn.title = 'Toggle Developer Console';
 
   const urlInput = document.createElement('input');
   urlInput.className = 'browser-url';
@@ -424,7 +442,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   urlInput.placeholder = 'Enter URL…';
   urlInput.spellcheck = false;
 
-  bar.append(backBtn, fwdBtn, reloadBtn, extBtn, urlInput);
+  bar.append(backBtn, fwdBtn, reloadBtn, extBtn, consoleBtn, urlInput);
 
   const loadingBar = document.createElement('div');
   loadingBar.className = 'browser-loading';
@@ -432,6 +450,120 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   const frame = document.createElement('iframe');
   frame.className = 'browser-frame';
   frame.sandbox = 'allow-scripts allow-forms allow-popups allow-modals allow-same-origin';
+
+  // Console Panel layout
+  const consolePanel = document.createElement('div');
+  consolePanel.className = 'browser-console-panel';
+  consolePanel.style.height = '180px';
+  consolePanel.style.display = tab.consoleOpen ? 'flex' : 'none';
+
+  const consoleResizer = document.createElement('div');
+  consoleResizer.className = 'browser-console-resizer';
+
+  const consoleHeader = document.createElement('div');
+  consoleHeader.className = 'browser-console-header';
+
+  const consoleTitle = document.createElement('div');
+  consoleTitle.className = 'browser-console-title';
+  consoleTitle.innerHTML = '<span>Console</span><span class="console-indicator"></span>';
+
+  const consoleControls = document.createElement('div');
+  consoleControls.className = 'browser-console-controls';
+
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'console-clear-btn';
+  clearBtn.innerHTML = '🗑️ Clear';
+  clearBtn.title = 'Clear Console';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'console-close-btn';
+  closeBtn.innerHTML = '✕';
+  closeBtn.title = 'Close Console';
+
+  consoleControls.append(clearBtn, closeBtn);
+  consoleHeader.append(consoleTitle, consoleControls);
+
+  const consoleLogs = document.createElement('div');
+  consoleLogs.className = 'browser-console-logs';
+
+  consolePanel.append(consoleResizer, consoleHeader, consoleLogs);
+
+  // Resize handler
+  let startY = 0;
+  let startHeight = 0;
+  
+  const onPointerMove = (e) => {
+    const deltaY = startY - e.clientY;
+    const newHeight = Math.max(50, Math.min(window.innerHeight * 0.7, startHeight + deltaY));
+    consolePanel.style.height = `${newHeight}px`;
+  };
+  
+  const onPointerUp = () => {
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.body.classList.remove('resizing-console');
+  };
+
+  consoleResizer.addEventListener('pointerdown', (e) => {
+    startY = e.clientY;
+    startHeight = consolePanel.offsetHeight;
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+    document.body.classList.add('resizing-console');
+  });
+
+  // Toggle Console
+  if (tab.consoleOpen) {
+    consoleBtn.classList.add('active');
+  }
+
+  const toggleConsole = () => {
+    tab.consoleOpen = !tab.consoleOpen;
+    consolePanel.style.display = tab.consoleOpen ? 'flex' : 'none';
+    consoleBtn.classList.toggle('active', tab.consoleOpen);
+    if (typeof saveSessionState === 'function') {
+      saveSessionState();
+    }
+  };
+  consoleBtn.addEventListener('click', toggleConsole);
+  clearBtn.addEventListener('click', () => { consoleLogs.innerHTML = ''; });
+  closeBtn.addEventListener('click', toggleConsole);
+
+  tab.addConsoleLog = (level, args) => {
+    const logItem = document.createElement('div');
+    logItem.className = `console-log-item console-log-${level}`;
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'console-log-time';
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    timeSpan.textContent = `[${timeStr}]`;
+
+    const msgSpan = document.createElement('span');
+    msgSpan.className = 'console-log-message';
+    
+    const formattedArgs = args.map(arg => {
+      if (typeof arg === 'object' && arg !== null) {
+        const pre = document.createElement('pre');
+        pre.className = 'console-log-object';
+        pre.textContent = formatLogArg(arg);
+        return pre;
+      } else {
+        const text = document.createElement('span');
+        text.textContent = String(arg) + ' ';
+        return text;
+      }
+    });
+    
+    msgSpan.append(...formattedArgs);
+    logItem.append(timeSpan, msgSpan);
+    consoleLogs.appendChild(logItem);
+    
+    const isAtBottom = consoleLogs.scrollHeight - consoleLogs.clientHeight - consoleLogs.scrollTop < 30;
+    if (isAtBottom || consoleLogs.childNodes.length === 1) {
+      consoleLogs.scrollTop = consoleLogs.scrollHeight;
+    }
+  };
 
   // Local start page shown when no URL is loaded (new tabs).
   const startEl = document.createElement('div');
@@ -460,7 +592,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     hintEl.textContent = 'Demo: some sites block embedding and show blank — use ↗ to open in a new window.';
   }
 
-  viewEl.append(bar, ...(hintEl ? [hintEl] : []), loadingBar, frame, startEl);
+  viewEl.append(bar, ...(hintEl ? [hintEl] : []), loadingBar, frame, startEl, consolePanel);
 
   const navigate = (url) => {
     url = url.trim();
@@ -495,6 +627,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     try {
       syncThemeToIframe(frame);
       interceptLinksAndPopups(frame, tab);
+      interceptConsole(frame, tab);
     } catch (e) {}
   });
 
@@ -730,5 +863,155 @@ function interceptLinksAndPopups(frame, tab) {
     }, true);
   } catch (e) {
     console.debug('Cannot intercept links/popups due to cross-origin restriction:', e);
+  }
+}
+
+// ── Browser Console Helpers & Log Interceptor ──
+function formatLogArg(arg) {
+  if (arg === null) return 'null';
+  if (arg === undefined) return 'undefined';
+  if (typeof arg === 'object') {
+    if (arg.__isError) {
+      return `${arg.name || 'Error'}: ${arg.message || ''}\n${arg.stack || ''}`;
+    }
+    if (arg.__isElement) {
+      return `<${arg.tagName}${arg.id ? ' id="' + arg.id + '"' : ''}${arg.className ? ' class="' + arg.className + '"' : ''}>`;
+    }
+    try {
+      return JSON.stringify(arg, null, 2);
+    } catch (e) {
+      return String(arg);
+    }
+  }
+  return String(arg);
+}
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'mtx:console') {
+    const matchedTab = findTabByFrameWindow(e.source);
+    if (matchedTab) {
+      matchedTab.addConsoleLog(e.data.level, e.data.args);
+    }
+  }
+});
+
+function findTabByFrameWindow(sourceWindow) {
+  for (const pane of getAllPanes()) {
+    for (const tab of pane.tabs) {
+      if (tab.type === 'browser') {
+        const frame = tab.viewEl.querySelector('iframe');
+        if (frame && frame.contentWindow === sourceWindow) {
+          return tab;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function interceptConsole(frame, tab) {
+  try {
+    const win = frame.contentWindow;
+    if (!win || win.__mtx_console_intercepted) return;
+    win.__mtx_console_intercepted = true;
+
+    const logLevels = ['log', 'info', 'warn', 'error', 'debug'];
+    
+    function serializeConsoleArg(arg) {
+      if (arg === null) return null;
+      if (arg === undefined) return undefined;
+      
+      const ElementClass = win ? win.Element : Element;
+      const ErrorClass = win ? win.Error : Error;
+
+      if (arg instanceof ElementClass) {
+        return {
+          __isElement: true,
+          tagName: arg.tagName.toLowerCase(),
+          id: arg.id || '',
+          className: arg.className || ''
+        };
+      }
+
+      if (arg instanceof ErrorClass) {
+        return {
+          __isError: true,
+          name: arg.name,
+          message: arg.message,
+          stack: arg.stack
+        };
+      }
+
+      if (typeof arg === 'function') {
+        return '[Function: ' + (arg.name || 'anonymous') + ']';
+      }
+
+      if (typeof arg === 'symbol') {
+        return arg.toString();
+      }
+
+      if (typeof arg === 'object') {
+        try {
+          const seen = new Set();
+          function clone(val) {
+            if (val === null || typeof val !== 'object') return val;
+            if (val instanceof ElementClass) return serializeConsoleArg(val);
+            if (val instanceof ErrorClass) return serializeConsoleArg(val);
+            if (seen.has(val)) return '[Circular]';
+            seen.add(val);
+            if (Array.isArray(val)) {
+              return val.map(item => clone(item));
+            }
+            const res = {};
+            for (const key in val) {
+              if (Object.prototype.hasOwnProperty.call(val, key)) {
+                res[key] = clone(val[key]);
+              }
+            }
+            return res;
+          }
+          return clone(arg);
+        } catch (e) {
+          return String(arg);
+        }
+      }
+
+      return arg;
+    }
+
+    logLevels.forEach(level => {
+      const original = win.console[level];
+      win.console[level] = function(...args) {
+        if (original) {
+          try {
+            original.apply(win.console, args);
+          } catch (e) {}
+        }
+        try {
+          const processedArgs = args.map(arg => serializeConsoleArg(arg));
+          tab.addConsoleLog(level, processedArgs);
+        } catch (err) {}
+      };
+    });
+
+    win.addEventListener('error', function(event) {
+      try {
+        tab.addConsoleLog('error', [event.message + ' at ' + (event.filename || 'unknown') + ':' + (event.lineno || 0) + ':' + (event.colno || 0)]);
+      } catch (err) {}
+    });
+
+    win.addEventListener('unhandledrejection', function(event) {
+      try {
+        let reasonMsg = event.reason;
+        if (event.reason && event.reason.message) {
+          reasonMsg = event.reason.message;
+        } else if (typeof event.reason === 'object') {
+          reasonMsg = JSON.stringify(event.reason);
+        }
+        tab.addConsoleLog('error', ['Unhandled Promise Rejection: ' + reasonMsg]);
+      } catch (err) {}
+    });
+  } catch (e) {
+    console.debug('Cannot intercept console due to cross-origin restriction:', e);
   }
 }
