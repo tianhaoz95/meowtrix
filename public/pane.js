@@ -413,22 +413,32 @@ function initTerminalTab(tab, existingPtyId) {
   term.attachCustomKeyEventHandler(e => {
     if (tab.acActive) {
       if (e.key === 'ArrowUp' && e.type === 'keydown') {
+        e.preventDefault();
+        e.stopPropagation();
         moveAutocompleteSelection(tab, -1);
         return false;
       }
       if (e.key === 'ArrowDown' && e.type === 'keydown') {
+        e.preventDefault();
+        e.stopPropagation();
         moveAutocompleteSelection(tab, 1);
         return false;
       }
       if (e.key === 'Enter' && e.type === 'keydown') {
-        selectAutocompleteItem(tab);
+        e.preventDefault();
+        e.stopPropagation();
+        selectAutocompleteItem(tab, true);
         return false;
       }
       if (e.key === 'Tab' && e.type === 'keydown') {
-        selectAutocompleteItem(tab);
+        e.preventDefault();
+        e.stopPropagation();
+        selectAutocompleteItem(tab, false);
         return false;
       }
       if (e.key === 'Escape' && e.type === 'keydown') {
+        e.preventDefault();
+        e.stopPropagation();
         closeAutocomplete(tab);
         return false;
       }
@@ -1241,7 +1251,7 @@ function moveAutocompleteSelection(tab, dir) {
   }
 }
 
-function selectAutocompleteItem(tab) {
+function selectAutocompleteItem(tab, execute = false) {
   if (!tab.acActive || !tab.acFiltered || tab.acFiltered.length === 0) {
     closeAutocomplete(tab);
     return;
@@ -1256,7 +1266,7 @@ function selectAutocompleteItem(tab) {
   const eraseCount = (tab.acQuery || '').length + 1;
   const backspaces = '\x7f'.repeat(eraseCount);
   
-  sendTerminalInput(tab.ptyId, backspaces + cmd);
+  sendTerminalInput(tab.ptyId, backspaces + cmd + (execute ? '\r' : ''));
   closeAutocomplete(tab);
 }
 

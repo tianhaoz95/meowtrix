@@ -992,10 +992,11 @@ body.dragging-tab .pane-content { pointer-events: none; }
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
   display: flex; flex-direction: column; z-index: 101;
-  transform: translateX(100%); transition: transform 0.26s var(--ease);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 0.26s var(--ease), visibility 0.26s var(--ease);
   box-shadow: var(--shadow-lg);
 }
-#settings-panel.open { transform: translateX(0); }
+#settings-panel.open { transform: translateX(0); visibility: visible; }
 
 #settings-header {
   display: flex; align-items: center; justify-content: space-between;
