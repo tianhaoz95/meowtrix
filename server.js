@@ -61,6 +61,7 @@ const DEFAULT_SETTINGS = {
   petStay: false, // true → pet stays put (no wandering); drag to position it
   petX: null, // saved pet x position (px) when dragged
   petY: null, // saved pet y position (px) when dragged
+  uiMode: 'auto', // switch between desktop, mobile, or auto (responsive) UI mode
 };
 
 function readSettings() {

@@ -55,6 +55,7 @@ function populateControls(s) {
     themeSel.dataset.built = '1';
   }
   themeSel.value = s.theme;
+  document.getElementById('s-ui-mode').value = s.uiMode || 'auto';
   const fontSize = document.getElementById('s-font-size');
   fontSize.value = s.termFontSize;
   document.getElementById('s-font-size-val').textContent = s.termFontSize;
@@ -149,6 +150,7 @@ function wireControls() {
 
   s('s-shell', 'shell');
   s('s-homepage', 'browserHomepage');
+  s('s-ui-mode', 'uiMode');
 
   document.getElementById('s-combo-fx').addEventListener('change', async (e) => {
     await saveSetting('comboFx', e.target.checked);
@@ -186,6 +188,9 @@ function wireControls() {
 
 function onSettingChanged(key) {
   if (['termFontSize', 'termFontFamily', 'termScrollback'].includes(key)) applyTermSettings();
+  if (key === 'uiMode') {
+    if (typeof updateUiMode === 'function') updateUiMode();
+  }
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
@@ -195,6 +200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireControls();
   // Server is source of truth for theme
   applyTheme(s.theme);
+  if (typeof updateUiMode === 'function') updateUiMode();
 
   document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('settings-close').addEventListener('click', closeSettings);
@@ -210,6 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateControls(s);
     applyTheme(s.theme);
     applyTermSettings();
+    if (typeof updateUiMode === 'function') updateUiMode();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
     if (typeof setPetFace === 'function') setPetFace(s.petFace || 'cat');
     if (typeof setPetSpeed === 'function') setPetSpeed(s.petSpeed != null ? s.petSpeed : 3);

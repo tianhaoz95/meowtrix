@@ -10,6 +10,11 @@ const stickyMods = { ctrl: false, alt: false, meta: false };
 const modButtons = {};
 
 function isMobileLike() {
+  const s = (typeof getSettings === 'function') ? getSettings() : {};
+  const mode = s.uiMode || 'auto';
+  if (mode === 'mobile') return true;
+  if (mode === 'desktop') return false;
+
   return window.matchMedia('(pointer: coarse)').matches
     || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     || window.innerWidth <= 640;
@@ -114,6 +119,20 @@ function initMobileKeyBar() {
     if (!vv) return;
     const overlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     bar.style.transform = `translateY(${-overlap}px)`;
+
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      if (!bar.hidden) {
+        appEl.style.height = `${vv.height}px`;
+        appEl.style.paddingBottom = `${bar.offsetHeight}px`;
+        if (vv.offsetTop !== 0 || window.scrollY !== 0) {
+          window.scrollTo(0, 0);
+        }
+      } else {
+        appEl.style.height = '';
+        appEl.style.paddingBottom = '';
+      }
+    }
   };
 
   let hideTimer;
@@ -123,7 +142,15 @@ function initMobileKeyBar() {
     bar.hidden = false;
     position();
   };
-  const hide = () => { bar.hidden = true; clearStickyMods(); };
+  const hide = () => {
+    bar.hidden = true;
+    clearStickyMods();
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      appEl.style.height = '';
+      appEl.style.paddingBottom = '';
+    }
+  };
 
   // Show only while a terminal's hidden textarea is focused (keyboard is up).
   document.addEventListener('focusin', (e) => {
@@ -177,7 +204,34 @@ function initMobileMenu() {
   });
 }
 
+function updateUiMode() {
+  const s = (typeof getSettings === 'function') ? getSettings() : {};
+  const mode = s.uiMode || 'auto';
+  let isMobile = false;
+  if (mode === 'mobile') {
+    isMobile = true;
+  } else if (mode === 'desktop') {
+    isMobile = false;
+  } else {
+    isMobile = window.innerWidth <= 640;
+  }
+  document.documentElement.classList.toggle('mobile-ui', isMobile);
+
+  // Fit active terminals if UI mode changed
+  if (typeof getAllPanes === 'function') {
+    getAllPanes().forEach(p => p.tabs.forEach(t => {
+      if (t.term && t.fitAddon && t.viewEl.classList.contains('active')) {
+        requestAnimationFrame(() => {
+          try { t.fitAddon.fit(); } catch {}
+        });
+      }
+    }));
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initMobileKeyBar();
   initMobileMenu();
+  updateUiMode();
+  window.addEventListener('resize', updateUiMode);
 });
