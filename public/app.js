@@ -279,11 +279,10 @@ function applyTheme(theme) {
   localStorage.setItem('theme', meta.id);
   const sel = document.getElementById('s-theme');
   if (sel) sel.value = meta.id;
-  // Terminal colors are derived from the active theme's CSS variables, so
-  // every theme themes its terminals for free.
   const newTheme = getTermTheme();
   getAllPanes().forEach(p => p.tabs.forEach(t => {
     if (t.term) t.term.options.theme = newTheme;
+    if (typeof t.updateTheme === 'function') t.updateTheme();
   }));
 }
 

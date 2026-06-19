@@ -60,7 +60,8 @@ function connectWs() {
     return;
   }
 
-  ws = new WebSocket(`ws://${location.host}`);
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}`);
 
   ws.addEventListener('open', _onConnected);
 

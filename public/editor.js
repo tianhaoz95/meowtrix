@@ -38,6 +38,123 @@ function basename(p) {
   return parts[parts.length - 1] || p;
 }
 
+function getFileSvg(color, symbolHtml) {
+  return `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 1.5C3 0.67 3.67 0 4.5 0H9.5L13 3.5V14.5C13 15.33 12.33 16 11.5 16H4.5C3.67 16 3 15.33 3 14.5V1.5Z" fill="${color}" fill-opacity="0.08"/>
+    <path d="M3 1.5C3 0.67 3.67 0 4.5 0H9.5L13 3.5V14.5C13 15.33 12.33 16 11.5 16H4.5C3.67 16 3 15.33 3 14.5V1.5Z" stroke="${color}" stroke-width="1.2" stroke-opacity="0.8" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+    <path d="M9.5 0V3.5H13L9.5 0Z" fill="${color}" fill-opacity="0.8"/>
+    ${symbolHtml}
+  </svg>`;
+}
+
+function getFileIconSvg(filename, type, isOpen = false) {
+  if (type === 'dir') {
+    if (isOpen) {
+      return `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.2a1.5 1.5 0 0 1 1 .4L8.9 3.5H13A1.5 1.5 0 0 1 14.5 5v8.5a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5V3z" fill="#ffca28"/>
+        <path d="M1.5 6h13l-1.2 7.2a1.5 1.5 0 0 1-1.5 1.3H4.2a1.5 1.5 0 0 1-1.5-1.3L1.5 6z" fill="#ffb300"/>
+      </svg>`;
+    } else {
+      return `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.2a1.5 1.5 0 0 1 1 .4L8.9 3.5H13A1.5 1.5 0 0 1 14.5 5v8.5a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5V3z" fill="#ffca28"/>
+        <path d="M1.5 5.5h13V13a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5V5.5z" fill="#ffa000"/>
+      </svg>`;
+    }
+  }
+
+  const ext = filename.split('.').pop().toLowerCase();
+  
+  if (filename === 'package.json') {
+    return getFileSvg('#cb3837', `<text x="8" y="11.5" font-family="'Inter', sans-serif" font-size="4.2" font-weight="900" fill="#cb3837" text-anchor="middle">npm</text>`);
+  }
+  if (filename === 'package-lock.json') {
+    return getFileSvg('#cb3837', `<text x="8" y="11.5" font-family="'Inter', sans-serif" font-size="4.2" font-weight="900" fill="#cb3837" text-anchor="middle">lock</text>`);
+  }
+  if (filename.startsWith('.git') || filename === 'LICENSE') {
+    return getFileSvg('#f05032', `
+      <circle cx="6" cy="11.5" r="0.8" fill="#f05032"/>
+      <circle cx="10" cy="7.5" r="0.8" fill="#f05032"/>
+      <path d="M6 11.5V8a1.5 1.5 0 0 1 1.5-1.5h1" stroke="#f05032" stroke-width="0.8" fill="none"/>
+      <path d="M6 12.5v-6" stroke="#f05032" stroke-width="0.8" fill="none"/>
+      <circle cx="6" cy="5" r="0.8" fill="#f05032"/>
+    `);
+  }
+  if (filename === 'dockerfile' || filename === 'docker-compose.yml') {
+    return getFileSvg('#2496ed', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5" font-weight="800" fill="#2496ed" text-anchor="middle">DK</text>`);
+  }
+
+  switch (ext) {
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return getFileSvg('#f1c40f', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5.5" font-weight="800" fill="#f1c40f" text-anchor="middle">JS</text>`);
+    case 'ts':
+      return getFileSvg('#007acc', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5.5" font-weight="800" fill="#007acc" text-anchor="middle">TS</text>`);
+    case 'tsx':
+    case 'jsx':
+      return getFileSvg('#00d8ff', `
+        <g stroke="#00d8ff" stroke-width="0.6" fill="none">
+          <ellipse cx="8" cy="9.5" rx="4" ry="1.5" transform="rotate(30, 8, 9.5)"/>
+          <ellipse cx="8" cy="9.5" rx="4" ry="1.5" transform="rotate(90, 8, 9.5)"/>
+          <ellipse cx="8" cy="9.5" rx="4" ry="1.5" transform="rotate(150, 8, 9.5)"/>
+          <circle cx="8" cy="9.5" r="0.6" fill="#00d8ff"/>
+        </g>
+      `);
+    case 'html':
+    case 'htm':
+      return getFileSvg('#e44d26', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="4.5" font-weight="800" fill="#e44d26" text-anchor="middle">&lt;&gt;</text>`);
+    case 'css':
+    case 'scss':
+    case 'sass':
+    case 'less':
+      return getFileSvg('#264de4', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5.5" font-weight="800" fill="#264de4" text-anchor="middle">#</text>`);
+    case 'json':
+      return getFileSvg('#ea80fc', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5" font-weight="800" fill="#ea80fc" text-anchor="middle">{}</text>`);
+    case 'md':
+    case 'markdown':
+      return getFileSvg('#0083c9', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="4.5" font-weight="800" fill="#0083c9" text-anchor="middle">MD</text>`);
+    case 'py':
+    case 'pyc':
+      return getFileSvg('#306998', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5" font-weight="800" fill="#306998" text-anchor="middle">PY</text>`);
+    case 'go':
+      return getFileSvg('#00add8', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5" font-weight="900" fill="#00add8" text-anchor="middle">GO</text>`);
+    case 'rs':
+      return getFileSvg('#cea475', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5" font-weight="800" fill="#cea475" text-anchor="middle">RS</text>`);
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+      return getFileSvg('#41b883', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="4.5" font-weight="800" fill="#41b883" text-anchor="middle">&gt;_</text>`);
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'svg':
+    case 'webp':
+    case 'ico':
+      return getFileSvg('#a55eea', `
+        <rect x="5.5" y="7" width="5" height="4" rx="0.5" stroke="#a55eea" stroke-width="0.6" fill="none"/>
+        <circle cx="7" cy="8.2" r="0.5" fill="#a55eea"/>
+        <path d="M6 10.5l1.2-1.2 0.8 0.8 1.2-1.6 0.8 1.2" stroke="#a55eea" stroke-width="0.6" fill="none" stroke-linejoin="round"/>
+      `);
+    case 'txt':
+    case 'log':
+    case 'conf':
+    case 'ini':
+    case 'yml':
+    case 'yaml':
+      return getFileSvg('var(--text3)', `
+        <line x1="5.5" y1="7" x2="10.5" y2="7" stroke="currentColor" stroke-width="0.7" opacity="0.6"/>
+        <line x1="5.5" y1="9" x2="10.5" y2="9" stroke="currentColor" stroke-width="0.7" opacity="0.6"/>
+        <line x1="5.5" y1="11" x2="8.5" y2="11" stroke="currentColor" stroke-width="0.7" opacity="0.6"/>
+      `);
+    default:
+      return getFileSvg('currentColor', `
+        <line x1="5.5" y1="7" x2="10.5" y2="7" stroke="currentColor" stroke-width="0.7" opacity="0.4"/>
+        <line x1="5.5" y1="9" x2="10.5" y2="9" stroke="currentColor" stroke-width="0.7" opacity="0.4"/>
+      `);
+  }
+}
+
 function initEditorTab(tab, viewEl, dir) {
   viewEl.classList.add('editor-view');
   tab.editorDir = dir || '';
@@ -55,7 +172,17 @@ function initEditorTab(tab, viewEl, dir) {
   const sideHeaderName = document.createElement('span');
   sideHeaderName.className = 'editor-sidebar-name';
   sideHeaderName.textContent = dir ? basename(dir) : 'No folder';
-  sideHeader.append(sideHeaderIcon, sideHeaderName);
+  
+  const refreshBtn = document.createElement('button');
+  refreshBtn.className = 'editor-sidebar-refresh';
+  refreshBtn.textContent = '↻';
+  refreshBtn.title = 'Refresh file tree';
+  refreshBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    refreshFiles();
+  });
+
+  sideHeader.append(sideHeaderIcon, sideHeaderName, refreshBtn);
   sideHeader.title = dir || '';
 
   // View switcher: Explorer (file tree) vs Source Control (git). The git button
@@ -484,13 +611,15 @@ function initEditorTab(tab, viewEl, dir) {
       const row = document.createElement('div');
       row.className = 'editor-tree-row ' + (entry.type === 'dir' ? 'is-dir' : 'is-file');
       row.style.paddingLeft = (depth * 14 + 6) + 'px';
-      const chevron = document.createElement('span');
-      chevron.className = 'editor-tree-chevron';
-      chevron.textContent = entry.type === 'dir' ? '▸' : '';
+      
+      const icon = document.createElement('span');
+      icon.className = 'editor-tree-icon';
+      icon.innerHTML = getFileIconSvg(entry.name, entry.type);
+      
       const name = document.createElement('span');
       name.className = 'editor-tree-name';
       name.textContent = entry.name;
-      row.append(chevron, name);
+      row.append(icon, name);
       containerEl.appendChild(row);
 
       if (entry.type === 'dir') {
@@ -501,15 +630,22 @@ function initEditorTab(tab, viewEl, dir) {
         row.addEventListener('click', async () => {
           const show = childWrap.hidden;
           childWrap.hidden = !show;
-          chevron.classList.toggle('open', show);
+          icon.innerHTML = getFileIconSvg(entry.name, entry.type, show);
           if (show && !loaded) { loaded = true; await renderDir(full, childWrap, depth + 1); }
         });
       } else {
         treeRows.set(full, row);
+        if (full === activePath) row.classList.add('selected');
         row.addEventListener('click', () => openFile(full));
       }
     }
   }
+
+  const refreshFiles = () => {
+    treeEl.innerHTML = '';
+    treeRows.clear();
+    if (dir) renderDir(dir, treeEl, 0);
+  };
 
   if (dir) renderDir(dir, treeEl, 0);
   else treeEl.textContent = '';
@@ -529,9 +665,16 @@ function initEditorTab(tab, viewEl, dir) {
     if (diffEditor && !diffWrap.hidden) diffEditor.layout();
   };
   tab.onActivate = relayout;
-  new ResizeObserver(relayout).observe(viewEl);
+  const ro = new ResizeObserver(relayout);
+  ro.observe(viewEl);
+
+  tab.updateTheme = () => {
+    if (editor) editor.updateOptions({ theme: monacoTheme() });
+    if (diffEditor) diffEditor.updateOptions({ theme: monacoTheme() });
+  };
 
   tab.disposeEditor = () => {
+    ro.disconnect();
     editor?.dispose();
     diffEditor?.dispose();
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }

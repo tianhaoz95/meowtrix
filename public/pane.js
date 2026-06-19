@@ -324,6 +324,7 @@ function closeTab(pane, id) {
   if (typeof teardownSchedule === 'function') teardownSchedule(tab); // stop any pending Enter timer
   if (tab.ptyId) destroyPty(tab.ptyId);
   if (tab.term) tab.term.dispose();
+  if (tab.disposeTerminal) tab.disposeTerminal();
   if (tab.disposeEditor) tab.disposeEditor();
   tab.viewEl.remove();
   tab.tabEl.remove();
@@ -388,6 +389,7 @@ function initTerminalTab(tab, existingPtyId) {
 
   const ro = new ResizeObserver(() => { if (tab.viewEl.classList.contains('active')) fitAddon.fit(); });
   ro.observe(tab.viewEl);
+  tab.disposeTerminal = () => { ro.disconnect(); };
 }
 
 function initBrowserTab(tab, viewEl, label, initialUrl) {

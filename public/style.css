@@ -702,7 +702,14 @@ body.dragging-tab .pane-content { pointer-events: none; }
   border-bottom: 1px solid var(--border);
 }
 .editor-sidebar-icon { font-size: 12px; flex: none; line-height: 1; }
-.editor-sidebar-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.editor-sidebar-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.editor-sidebar-refresh {
+  flex: none; background: transparent; border: none; cursor: pointer;
+  padding: 2px 4px; font-size: 12px; color: var(--text3);
+  border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.editor-sidebar-refresh:hover { background: var(--bg4); color: var(--text); }
 .editor-tree { flex: 1; overflow: auto; padding: 6px 0; font-size: 13px; }
 .editor-tree-row {
   display: flex; align-items: center; gap: 4px; padding: 3px 10px 3px 0;
@@ -714,11 +721,19 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .editor-tree-row.selected { background: var(--accent-soft); }
 .editor-tree-row.selected .editor-tree-name { color: var(--text); font-weight: 500; }
 .editor-tree-row.is-dir .editor-tree-name { color: var(--text); }
-.editor-tree-chevron {
-  width: 14px; flex: none; text-align: center; font-size: 8px;
-  color: var(--text3); transition: transform 0.12s var(--ease);
+.editor-tree-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
 }
-.editor-tree-chevron.open { transform: rotate(90deg); }
+.editor-tree-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
 .editor-tree-name { overflow: hidden; text-overflow: ellipsis; }
 
 /* Drag handle between tree and editor (carries the divider line). */
