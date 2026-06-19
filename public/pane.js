@@ -248,7 +248,7 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth) {
   const id = existingId || uid();
 
   const viewEl = document.createElement('div');
@@ -260,9 +260,9 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl) {
   tabEl.className = 'tab';
   const icon = document.createElement('span');
   icon.className = 'tab-icon';
-  icon.textContent = type === 'terminal' ? '⬛' : '🌐';
+  icon.textContent = type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : '🌐';
   const label = document.createElement('span');
-  label.textContent = type === 'terminal' ? 'Terminal' : 'Browser';
+  label.textContent = type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : 'Browser';
   const closeBtn = document.createElement('span');
   closeBtn.className = 'tab-close';
   closeBtn.textContent = '✕';
@@ -279,7 +279,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl) {
   tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); } });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 
-  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null };
+  const tab = { id, type, tabEl, viewEl, label, term: null, fitAddon: null, ptyId: null, currentUrl: null, editorDir: null, editorSidebarWidth: existingEditorWidth || null };
   pane.tabs.push(tab);
 
   tabEl.draggable = true;
@@ -298,6 +298,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl) {
   });
 
   if (type === 'terminal') initTerminalTab(tab, existingPtyId);
+  else if (type === 'editor') initEditorTab(tab, viewEl, existingDir);
   else initBrowserTab(tab, viewEl, label, existingUrl);
 
   activateTab(pane, id);
@@ -313,6 +314,7 @@ function activateTab(pane, id) {
   if (pane.activeTab?.type === 'terminal' && pane.activeTab.fitAddon) {
     requestAnimationFrame(() => { pane.activeTab.fitAddon.fit(); pane.activeTab.term?.focus(); });
   }
+  if (pane.activeTab?.onActivate) requestAnimationFrame(() => pane.activeTab.onActivate());
 }
 
 function closeTab(pane, id) {
@@ -322,6 +324,7 @@ function closeTab(pane, id) {
   if (typeof teardownSchedule === 'function') teardownSchedule(tab); // stop any pending Enter timer
   if (tab.ptyId) destroyPty(tab.ptyId);
   if (tab.term) tab.term.dispose();
+  if (tab.disposeEditor) tab.disposeEditor();
   tab.viewEl.remove();
   tab.tabEl.remove();
   pane.tabs.splice(idx, 1);
@@ -362,6 +365,13 @@ function initTerminalTab(tab, existingPtyId) {
   // marks the sequence handled so xterm consumes it (nothing is displayed).
   term.parser.registerOscHandler(5379, (filePath) => {
     if (typeof triggerDownload === 'function') triggerDownload(filePath);
+    return true;
+  });
+
+  // `mtx code <dir>` prints OSC 5380 with an absolute directory; open an editor
+  // tab rooted there instead of rendering the sequence.
+  term.parser.registerOscHandler(5380, (dir) => {
+    if (typeof triggerOpenEditor === 'function') triggerOpenEditor(dir);
     return true;
   });
 

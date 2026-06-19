@@ -665,6 +665,119 @@ body.dragging-tab .pane-content { pointer-events: none; }
 
 .tab-icon { font-size: 10px; }
 
+/* ── Code editor tab ── */
+/* .pane-view.active forces flex-direction:column, so match its specificity. */
+.pane-view.editor-view { flex-direction: row; background: var(--bg); overflow: hidden; }
+.editor-sidebar {
+  width: 240px; flex: none; display: flex; flex-direction: column;
+  background: var(--bg2); overflow: hidden;
+}
+.editor-sidebar-header {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text2);
+  border-bottom: 1px solid var(--border);
+}
+.editor-sidebar-icon { font-size: 12px; flex: none; line-height: 1; }
+.editor-sidebar-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.editor-tree { flex: 1; overflow: auto; padding: 6px 0; font-size: 13px; }
+.editor-tree-row {
+  display: flex; align-items: center; gap: 4px; padding: 3px 10px 3px 0;
+  cursor: pointer; color: var(--text2); white-space: nowrap;
+  user-select: none; border-radius: 0;
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.editor-tree-row:hover { background: var(--bg4); color: var(--text); }
+.editor-tree-row.selected { background: var(--accent-soft); }
+.editor-tree-row.selected .editor-tree-name { color: var(--text); font-weight: 500; }
+.editor-tree-row.is-dir .editor-tree-name { color: var(--text); }
+.editor-tree-chevron {
+  width: 14px; flex: none; text-align: center; font-size: 8px;
+  color: var(--text3); transition: transform 0.12s var(--ease);
+}
+.editor-tree-chevron.open { transform: rotate(90deg); }
+.editor-tree-name { overflow: hidden; text-overflow: ellipsis; }
+
+/* Drag handle between tree and editor (carries the divider line). */
+.editor-resizer {
+  flex: none; width: 6px; cursor: col-resize; position: relative;
+  background: var(--bg2); border-right: 1px solid var(--border);
+  touch-action: none; transition: box-shadow 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+.editor-resizer:hover,
+.editor-resizer.dragging { border-right-color: var(--accent); box-shadow: inset -1px 0 0 var(--accent); }
+
+.editor-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.editor-filetabs {
+  display: flex; flex: none; overflow-x: auto;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+}
+.editor-filetab {
+  display: flex; align-items: center; gap: 7px; padding: 7px 12px;
+  font-size: 12px; color: var(--text2); cursor: pointer; white-space: nowrap;
+  border-right: 1px solid var(--border);
+  border-top: 2px solid transparent;
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.editor-filetab:hover { background: var(--bg4); color: var(--text); }
+.editor-filetab.active { background: var(--bg); color: var(--text); border-top-color: var(--accent); }
+.editor-filetab-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: transparent; }
+.editor-filetab-dot.dirty { background: var(--accent-hi); }
+.editor-filetab-close {
+  color: var(--text3); font-size: 11px; line-height: 1;
+  width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+}
+.editor-filetab-close:hover { color: var(--text); background: var(--bg5); }
+.editor-monaco { flex: 1; position: relative; min-height: 0; }
+.editor-placeholder {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; color: var(--text3); font-size: 13px;
+}
+
+/* Slim scrollbars inside the editor chrome (the tree & file-tab strip). */
+.editor-tree::-webkit-scrollbar,
+.editor-filetabs::-webkit-scrollbar { width: 9px; height: 9px; }
+.editor-tree::-webkit-scrollbar-thumb,
+.editor-filetabs::-webkit-scrollbar-thumb {
+  background: var(--border3); border-radius: 6px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+.editor-tree::-webkit-scrollbar-thumb:hover,
+.editor-filetabs::-webkit-scrollbar-thumb:hover { background: var(--text4); background-clip: padding-box; }
+
+/* ── Folder prompt (open code editor) ── */
+.folder-prompt-overlay {
+  position: fixed; inset: 0; z-index: 2000; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.folder-prompt {
+  width: min(440px, 90vw); padding: 18px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border3); border-radius: 14px;
+  box-shadow: var(--shadow-lg); animation: picker-in 0.13s var(--ease);
+}
+.folder-prompt-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+.folder-prompt-input {
+  width: 100%; padding: 9px 12px; font-size: 13px; font-family: inherit;
+  background: var(--bg3); color: var(--text);
+  border: 1px solid var(--border3); border-radius: 8px; outline: none;
+}
+.folder-prompt-input:focus { border-color: var(--accent); }
+.folder-prompt-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.folder-prompt-actions button {
+  padding: 7px 16px; font-size: 13px; font-weight: 500; font-family: inherit;
+  border-radius: 8px; cursor: pointer;
+  background: transparent; border: 1px solid var(--border3); color: var(--text2);
+  transition: all 0.12s var(--ease);
+}
+.folder-prompt-actions button:hover { color: var(--text); border-color: var(--text3); }
+.folder-prompt-actions button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.folder-prompt-actions button.primary:hover { background: var(--accent-hi); }
+
 /* ── Settings panel ── */
 #settings-overlay {
   display: none; position: fixed; inset: 0;

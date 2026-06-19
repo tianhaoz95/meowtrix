@@ -137,9 +137,12 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <!-- Monaco's AMD loader; editor.js require()s the editor lazily on first use. -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
   <script src="demo.js"></script>
   <script src="ws.js"></script>
   <script src="pane.js"></script>
+  <script src="editor.js"></script>
   <script src="layout.js"></script>
   <script src="app.js"></script>
   <script src="mobile.js"></script>

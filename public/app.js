@@ -26,6 +26,8 @@ function captureWorkspaceState() {
           type: t.type,
           ptyId: t.ptyId || null,
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
+          editorDir: t.type === 'editor' ? t.editorDir : null,
+          editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           label: t.label?.textContent || null,
         })),
       };
@@ -56,7 +58,7 @@ function restoreWorkspaceState(state) {
     if (node.type === 'pane') {
       const pane = createPane();
       node.tabs.forEach(tabState => {
-        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl);
+        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
       });
       if (node.activeTabId) activateTab(pane, node.activeTabId);
@@ -220,10 +222,20 @@ function showTabTypePicker(e, pane) {
   const picker = document.createElement('div');
   picker.className = 'tab-type-picker';
 
-  [['⬛  Terminal', 'terminal'], ['🌐  Browser', 'browser']].forEach(([text, type]) => {
+  [['⬛  Terminal', 'terminal'], ['🌐  Browser', 'browser'], ['📝  Code editor', 'editor']].forEach(([text, type]) => {
     const btn = document.createElement('button');
     btn.textContent = text;
-    btn.addEventListener('click', () => { addTab(pane, type); saveSessionState(); picker.remove(); activePicker = null; });
+    btn.addEventListener('click', async () => {
+      picker.remove(); activePicker = null;
+      if (type === 'editor') {
+        const dir = await promptForFolder();
+        if (!dir) return;
+        addTab(pane, 'editor', undefined, undefined, undefined, dir);
+      } else {
+        addTab(pane, type);
+      }
+      saveSessionState();
+    });
     picker.appendChild(btn);
   });
 
@@ -333,6 +345,59 @@ function triggerDownload(filePath) {
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+// Prompt for a project folder (absolute path) to open in a code-editor tab.
+// Resolves to the entered path, or null if cancelled. Styled like the schedule
+// dialog / tab-type picker.
+function promptForFolder() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'folder-prompt-overlay';
+    const box = document.createElement('div');
+    box.className = 'folder-prompt';
+    box.innerHTML = '<div class="folder-prompt-title">Open folder</div>';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'folder-prompt-input';
+    input.placeholder = '/path/to/project';
+    input.spellcheck = false;
+
+    const row = document.createElement('div');
+    row.className = 'folder-prompt-actions';
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel';
+    const open = document.createElement('button');
+    open.textContent = 'Open';
+    open.className = 'primary';
+    row.append(cancel, open);
+    box.append(input, row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    const close = (val) => { overlay.remove(); resolve(val); };
+    const submit = () => { const v = input.value.trim(); if (v) close(v); };
+    cancel.addEventListener('click', () => close(null));
+    open.addEventListener('click', submit);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+      else if (e.key === 'Escape') close(null);
+    });
+    setTimeout(() => input.focus(), 0);
+  });
+}
+
+// Open a code-editor tab rooted at `dir` in the active pane. Called from the OSC
+// 5380 handler (pane.js) when the user runs `mtx code <dir>` in a terminal.
+function triggerOpenEditor(dir) {
+  if (!dir) return;
+  const pane = activePane || getAllPanes()[0];
+  if (!pane) return;
+  setActivePane(pane);
+  addTab(pane, 'editor', undefined, undefined, undefined, dir);
+  saveSessionState();
 }
 
 // Upload the chosen files to ~/meowtrix on the host, one request per file.

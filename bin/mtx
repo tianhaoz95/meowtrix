@@ -1,39 +1,75 @@
 #!/bin/sh
-# mtx — download a host file to your Meowtrix browser session.
+# mtx — Meowtrix host helper. Talks to your browser session via private OSC
+# escape sequences that the Meowtrix client reads out of the terminal stream.
 #
-# Usage: mtx <file>
+# Usage:
+#   mtx download <file>   download a host file to your browser
+#   mtx code <dir>        open a code-editor tab rooted at <dir>
 #
-# It resolves <file> to an absolute path and emits a private OSC escape
-# sequence (ESC ] 5379 ; <abs-path> BEL). The Meowtrix client reads that
-# sequence out of the terminal stream and triggers a browser download of the
-# file via the server's /api/download endpoint. This script is placed on PATH
-# for every spawned shell, which also gives `mtx ` filename tab-completion for
-# free (shells default to filename completion for a command's arguments).
+# `download` emits ESC ] 5379 ; <abs-path> BEL  → client GETs /api/download.
+# `code`     emits ESC ] 5380 ; <abs-path> BEL  → client opens an editor tab.
+# This script is placed on PATH for every spawned shell, which also gives
+# `mtx <cmd> ` filename/dir tab-completion for free.
 
-if [ $# -lt 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-  printf 'usage: mtx <file>   download a host file to your browser\n' >&2
+usage() {
+  printf 'usage:\n'                                              >&2
+  printf '  mtx download <file>   download a host file to your browser\n' >&2
+  printf '  mtx code <dir>        open a code-editor tab rooted at <dir>\n' >&2
   exit 1
-fi
+}
 
-target=$1
-case "$target" in
-  /*) abs=$target ;;
-  *)  abs=$PWD/$target ;;
+# Resolve $1 to an absolute path, collapsing ./ and ../ when the directory
+# exists, without relying on `realpath` being installed.
+resolve_abs() {
+  case "$1" in
+    /*) abs=$1 ;;
+    *)  abs=$PWD/$1 ;;
+  esac
+  dir=$(dirname "$abs")
+  base=$(basename "$abs")
+  if [ -d "$dir" ]; then
+    abs=$(cd "$dir" 2>/dev/null && pwd)/$base
+  fi
+  printf '%s' "$abs"
+}
+
+cmd=$1
+[ $# -lt 1 ] && usage
+case "$cmd" in -h|--help) usage ;; esac
+shift
+
+case "$cmd" in
+  download)
+    [ $# -lt 1 ] && usage
+    target=$1
+    abs=$(resolve_abs "$target")
+    if [ ! -f "$abs" ]; then
+      printf 'mtx: %s: no such file\n' "$target" >&2
+      exit 1
+    fi
+    # Private OSC sequence picked up by the client (pane.js OSC handler 5379).
+    printf '\033]5379;%s\007' "$abs"
+    printf '\342\206\223 downloading %s \342\200\246\n' "$(basename "$abs")"
+    ;;
+  code)
+    target=${1:-.}
+    if [ ! -d "$target" ]; then
+      printf 'mtx: %s: no such directory\n' "$target" >&2
+      exit 1
+    fi
+    # cd into the directory to get a fully canonical absolute path (collapses
+    # ., .., and trailing slashes) without relying on `realpath`.
+    abs=$(cd "$target" 2>/dev/null && pwd)
+    if [ -z "$abs" ]; then
+      printf 'mtx: %s: cannot access directory\n' "$target" >&2
+      exit 1
+    fi
+    # Private OSC sequence picked up by the client (pane.js OSC handler 5380).
+    printf '\033]5380;%s\007' "$abs"
+    printf '\342\206\227 opening %s in editor \342\200\246\n' "$abs"
+    ;;
+  *)
+    printf 'mtx: unknown command: %s\n' "$cmd" >&2
+    usage
+    ;;
 esac
-
-# Normalize to a real absolute path when the directory exists (collapses
-# ./ and ../ segments) without relying on `realpath` being installed.
-dir=$(dirname "$abs")
-base=$(basename "$abs")
-if [ -d "$dir" ]; then
-  abs=$(cd "$dir" 2>/dev/null && pwd)/$base
-fi
-
-if [ ! -f "$abs" ]; then
-  printf 'mtx: %s: no such file\n' "$target" >&2
-  exit 1
-fi
-
-# Private OSC sequence picked up by the client (pane.js OSC handler 5379).
-printf '\033]5379;%s\007' "$abs"
-printf '\342\206\223 downloading %s \342\200\246\n' "$base"

@@ -136,6 +136,58 @@ app.get('/api/download', (req, res) => {
   });
 });
 
+// ── Host file-system API (code editor tab) ───────────────────────────────────
+// Backs the editor tab's file tree and open/save. Same no-sandbox stance as the
+// download endpoint above: this is a personal remote workspace whose user already
+// has full shell access, so any file they can read/write is fair game.
+const EDITOR_MAX_FILE = 2 * 1024 * 1024; // refuse to open files larger than this
+
+// List a directory: dirs first, then files, each alphabetical (case-insensitive).
+app.get('/api/fs/list', (req, res) => {
+  const p = req.query.path;
+  if (!p) return res.status(400).json({ error: 'Missing path' });
+  const resolved = path.resolve(p);
+  fs.readdir(resolved, { withFileTypes: true }, (err, dirents) => {
+    if (err) return res.status(404).json({ error: 'Not a directory' });
+    const entries = dirents
+      .map(d => ({ name: d.name, type: d.isDirectory() ? 'dir' : 'file' }))
+      .sort((a, b) =>
+        a.type !== b.type ? (a.type === 'dir' ? -1 : 1)
+                          : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    res.json({ path: resolved, entries });
+  });
+});
+
+// Read a file as text. Rejects directories, oversized files, and binary content
+// (a NUL byte in the first chunk) so the editor can show a friendly message.
+app.get('/api/fs/read', (req, res) => {
+  const p = req.query.path;
+  if (!p) return res.status(400).json({ error: 'Missing path' });
+  const resolved = path.resolve(p);
+  fs.stat(resolved, (err, st) => {
+    if (err || !st.isFile()) return res.status(404).json({ error: 'Not a file' });
+    if (st.size > EDITOR_MAX_FILE) return res.status(413).json({ error: 'File too large to edit' });
+    fs.readFile(resolved, (rErr, buf) => {
+      if (rErr) return res.status(500).json({ error: rErr.message });
+      if (buf.includes(0)) return res.status(415).json({ error: 'Binary file' });
+      res.json({ path: resolved, content: buf.toString('utf8') });
+    });
+  });
+});
+
+// Write a file. Raw octet-stream body (like /api/upload) so express.json leaves
+// the stream untouched; the absolute target path comes in via ?path=.
+app.put('/api/fs/write', (req, res) => {
+  const p = req.query.path;
+  if (!p) return res.status(400).json({ error: 'Missing path' });
+  const resolved = path.resolve(p);
+  const out = fs.createWriteStream(resolved);
+  out.on('error', err => { if (!res.headersSent) res.status(500).json({ error: err.message }); });
+  out.on('finish', () => res.json({ ok: true, path: resolved }));
+  req.on('error', () => out.destroy());
+  req.pipe(out);
+});
+
 // ── Proxy: fetch server-side, strip X-Frame-Options / CSP frame directives ──
 const STRIP_HEADERS = new Set([
   'x-frame-options',
@@ -223,9 +275,12 @@ const ptys = new Map();
 // page refresh) can be re-hydrated with the existing terminal content.
 const PTY_BUFFER_MAX = 200000;
 
-// The private OSC sequence `mtx` emits to trigger a browser download
-// (ESC ] 5379 ; <path> BEL|ST). Stripped from the replay buffer below.
+// The private OSC sequences `mtx` emits: 5379 triggers a browser download
+// (`mtx download`), 5380 opens a code-editor tab on a directory (`mtx code`).
+// Both are ESC ] <code> ; <path> BEL|ST and are stripped from the replay buffer
+// below so a reconnect (which replays the buffer) doesn't re-fire the action.
 const DOWNLOAD_OSC_RE = /\x1b\]5379;[^\x07\x1b]*(?:\x07|\x1b\\)/g;
+const EDITOR_OSC_RE = /\x1b\]5380;[^\x07\x1b]*(?:\x07|\x1b\\)/g;
 
 // ── Active-session coordination ──────────────────────────────────────────────
 // Only one client (the most recent to claim) is the "active" session; everyone
@@ -374,9 +429,9 @@ wss.on('connection', (ws) => {
         // Persistently buffer output (independent of any connected WS) so it can
         // be replayed on reconnect. Capped to the most recent PTY_BUFFER_MAX bytes.
         proc.onData((data) => {
-          // Keep the download-trigger OSC out of the replay buffer so a
-          // reconnect (which replays the buffer) doesn't re-fire the download.
-          entry.buffer += data.replace(DOWNLOAD_OSC_RE, '');
+          // Keep the download/editor-trigger OSCs out of the replay buffer so a
+          // reconnect (which replays the buffer) doesn't re-fire the action.
+          entry.buffer += data.replace(DOWNLOAD_OSC_RE, '').replace(EDITOR_OSC_RE, '');
           if (entry.buffer.length > PTY_BUFFER_MAX) {
             entry.buffer = entry.buffer.slice(-PTY_BUFFER_MAX);
           }
