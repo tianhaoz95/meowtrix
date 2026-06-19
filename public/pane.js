@@ -494,6 +494,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     loadingBar.classList.remove('active');
     try {
       syncThemeToIframe(frame);
+      interceptLinksAndPopups(frame, tab);
     } catch (e) {}
   });
 
@@ -590,5 +591,144 @@ function syncThemeToIframe(frame) {
   } catch (e) {
     // Gracefully handle cross-origin restrictions
     console.debug('Cannot sync theme to iframe due to cross-origin restriction:', e);
+  }
+}
+
+function extractOriginalUrl(url) {
+  if (!url) return url;
+  
+  // Handle absolute or relative proxied URLs: /proxy/<encoded>
+  const proxyRegex = /\/proxy\/(.+)$/;
+  const match = url.match(proxyRegex);
+  if (match) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch (e) {}
+  }
+  
+  // Handle legacy/query-based proxied URLs: /proxy?url=<encoded>
+  const queryRegex = /\/proxy\?url=([^&]+)/;
+  const qMatch = url.match(queryRegex);
+  if (qMatch) {
+    try {
+      return decodeURIComponent(qMatch[1]);
+    } catch (e) {}
+  }
+  
+  return url;
+}
+
+function interceptLinksAndPopups(frame, tab) {
+  try {
+    const win = frame.contentWindow;
+    const doc = frame.contentDocument || win?.document;
+    if (!doc || !win) return;
+
+    // 1. Override window.open inside the iframe
+    win.open = function(url, target, features) {
+      const pane = paneOfTab(tab.tabEl);
+      if (pane) {
+        let resolvedUrl = url || 'about:blank';
+        // First extract original target URL if it's already proxied
+        resolvedUrl = extractOriginalUrl(resolvedUrl);
+        // Resolve relative paths against the target site's base
+        if (resolvedUrl && !/^https?:\/\//i.test(resolvedUrl) && resolvedUrl !== 'about:blank') {
+          try {
+            const base = extractOriginalUrl(win.location.href);
+            resolvedUrl = new URL(resolvedUrl, base).href;
+          } catch (e) {}
+        }
+        const newTab = addTab(pane, 'browser', null, null, resolvedUrl);
+        activateTab(pane, newTab.id);
+        if (typeof saveSessionState === 'function') {
+          saveSessionState();
+        }
+        const newIframe = newTab.viewEl.querySelector('iframe');
+        return newIframe ? newIframe.contentWindow : null;
+      }
+      return null;
+    };
+
+    // 2. Intercept click events on links with target="_blank"
+    doc.addEventListener('click', (e) => {
+      const anchor = e.target.closest('a');
+      if (anchor) {
+        const target = anchor.getAttribute('target');
+        
+        if (target === '_blank' || target === '_new' || e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Use anchor.href which is already resolved to an absolute URL by the browser,
+          // then extract the original unproxied target URL.
+          const resolvedUrl = extractOriginalUrl(anchor.href);
+          
+          const pane = paneOfTab(tab.tabEl);
+          if (pane && resolvedUrl) {
+            const newTab = addTab(pane, 'browser', null, null, resolvedUrl);
+            activateTab(pane, newTab.id);
+            if (typeof saveSessionState === 'function') {
+              saveSessionState();
+            }
+          }
+        }
+      }
+    }, true);
+
+    // 3. Intercept form submissions targeting _blank or _new
+    doc.addEventListener('submit', (e) => {
+      const form = e.target;
+      const target = form.getAttribute('target');
+      if (target === '_blank' || target === '_new') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const pane = paneOfTab(tab.tabEl);
+        if (pane) {
+          const action = form.getAttribute('action') || '';
+          let resolvedUrl = extractOriginalUrl(action);
+          if (resolvedUrl && !/^https?:\/\//i.test(resolvedUrl)) {
+            try {
+              const base = extractOriginalUrl(win.location.href);
+              resolvedUrl = new URL(resolvedUrl, base).href;
+            } catch (err) {}
+          }
+          
+          if (form.method.toLowerCase() === 'get') {
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+            const separator = resolvedUrl.includes('?') ? '&' : '?';
+            resolvedUrl = resolvedUrl + separator + params.toString();
+            
+            const newTab = addTab(pane, 'browser', null, null, resolvedUrl);
+            activateTab(pane, newTab.id);
+            if (typeof saveSessionState === 'function') {
+              saveSessionState();
+            }
+          } else {
+            const newTab = addTab(pane, 'browser', null, null, 'about:blank');
+            activateTab(pane, newTab.id);
+            
+            const newIframe = newTab.viewEl.querySelector('iframe');
+            if (newIframe) {
+              const uniqueName = 'mtx-form-target-' + Math.random().toString(36).substr(2, 9);
+              newIframe.name = uniqueName;
+              
+              const originalTarget = form.getAttribute('target');
+              form.setAttribute('target', uniqueName);
+              form.submit();
+              
+              if (originalTarget) {
+                form.setAttribute('target', originalTarget);
+              } else {
+                form.removeAttribute('target');
+              }
+            }
+          }
+        }
+      }
+    }, true);
+  } catch (e) {
+    console.debug('Cannot intercept links/popups due to cross-origin restriction:', e);
   }
 }
