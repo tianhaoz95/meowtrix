@@ -40,6 +40,7 @@ function applyTermSettings() {
 function openSettings() {
   document.getElementById('settings-panel').classList.add('open');
   document.getElementById('settings-overlay').classList.add('open');
+  if (typeof syncSettingsUpdateStatus === 'function') syncSettingsUpdateStatus();
 }
 function closeSettings() {
   document.getElementById('settings-panel').classList.remove('open');
@@ -74,7 +75,9 @@ function populateControls(s) {
 
   const statusEl = document.getElementById('s-update-status');
   if (statusEl) {
-    if (typeof latestUpdateInfo !== 'undefined' && latestUpdateInfo) {
+    if (typeof syncSettingsUpdateStatus === 'function') {
+      syncSettingsUpdateStatus();
+    } else if (typeof latestUpdateInfo !== 'undefined' && latestUpdateInfo) {
       if (latestUpdateInfo.error) {
         statusEl.textContent = 'Error: ' + latestUpdateInfo.error;
         statusEl.title = latestUpdateInfo.error;

@@ -57,6 +57,16 @@ function isMarkdownFile(filePath) {
   return ext === 'md' || ext === 'markdown';
 }
 
+function isHtmlFile(filePath) {
+  if (!filePath) return false;
+  const ext = filePath.split('.').pop().toLowerCase();
+  return ext === 'html' || ext === 'htm';
+}
+
+function isPreviewableFile(filePath) {
+  return isMarkdownFile(filePath) || isHtmlFile(filePath);
+}
+
 async function checkAICapabilities() {
   try {
     // 1. Check for LanguageModel constructor in self/window
@@ -367,12 +377,12 @@ function initEditorTab(tab, viewEl, dir) {
   const btnEdit = document.createElement('button');
   btnEdit.className = 'editor-markdown-btn active';
   btnEdit.textContent = 'Edit';
-  btnEdit.addEventListener('click', () => toggleMarkdownMode(false));
+  btnEdit.addEventListener('click', () => togglePreviewMode(false));
 
   const btnPreview = document.createElement('button');
   btnPreview.className = 'editor-markdown-btn';
   btnPreview.textContent = 'Preview';
-  btnPreview.addEventListener('click', () => toggleMarkdownMode(true));
+  btnPreview.addEventListener('click', () => togglePreviewMode(true));
 
   markdownToggleWrap.append(btnEdit, btnPreview);
 
@@ -459,7 +469,7 @@ function initEditorTab(tab, viewEl, dir) {
     if (diffWrap.hidden) return;
     diffWrap.hidden = true;
     diffCurrent = null;
-    if (isMarkdownFile(activePath)) {
+    if (isPreviewableFile(activePath)) {
       markdownToggleWrap.hidden = false;
     }
   }
@@ -986,7 +996,15 @@ function initEditorTab(tab, viewEl, dir) {
     }
   }
 
-  function toggleMarkdownMode(previewMode) {
+  function renderHtmlContent(st) {
+    markdownPreviewHost.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.className = 'editor-html-iframe';
+    iframe.srcdoc = st.model.getValue();
+    markdownPreviewHost.appendChild(iframe);
+  }
+
+  function togglePreviewMode(previewMode) {
     if (!activePath) return;
     const st = open.get(activePath);
     if (!st) return;
@@ -1013,9 +1031,9 @@ function initEditorTab(tab, viewEl, dir) {
     
     const st = open.get(p);
     
-    // Determine if markdown is active
-    const isMd = isMarkdownFile(p);
-    if (isMd && st) {
+    // Determine if markdown or HTML is active
+    const isPreviewable = isPreviewableFile(p);
+    if (isPreviewable && st) {
       markdownToggleWrap.hidden = false;
       btnEdit.classList.toggle('active', !st.previewActive);
       btnPreview.classList.toggle('active', st.previewActive);
@@ -1030,13 +1048,20 @@ function initEditorTab(tab, viewEl, dir) {
       return;
     }
 
-    if (isMd && st.previewActive) {
+    if (isPreviewable && st.previewActive) {
       monacoHost.hidden = true;
       markdownPreviewHost.hidden = false;
-      renderMarkdownContent(st);
+      if (isMarkdownFile(p)) {
+        markdownPreviewHost.classList.remove('is-html');
+        renderMarkdownContent(st);
+      } else if (isHtmlFile(p)) {
+        markdownPreviewHost.classList.add('is-html');
+        renderHtmlContent(st);
+      }
     } else {
       monacoHost.hidden = false;
       markdownPreviewHost.hidden = true;
+      markdownPreviewHost.classList.remove('is-html');
       editor?.setModel(st.model);
       if (st.viewState) editor?.restoreViewState(st.viewState);
       if (editor) editor.focus();

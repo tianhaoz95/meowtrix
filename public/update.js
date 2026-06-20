@@ -10,20 +10,35 @@
 let latestUpdateInfo = null;
 let _updateApplying = false;
 let _updateDismissed = false; // hide the banner for this page load once dismissed
+let _updateProgressText = '';
+let _updateError = null;
 
 function onUpdateState(info) {
   latestUpdateInfo = info;
   renderUpdateBanner();
+  syncSettingsUpdateStatus();
+}
 
+function syncSettingsUpdateStatus() {
   const statusEl = document.getElementById('s-update-status');
-  if (statusEl && info) {
-    if (info.error) {
-      statusEl.textContent = 'Error: ' + info.error;
-      statusEl.title = info.error;
+  if (!statusEl) return;
+
+  if (_updateApplying) {
+    statusEl.textContent = _updateProgressText || 'Updating...';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.title = _updateProgressText || '';
+  } else if (_updateError) {
+    statusEl.textContent = 'Error';
+    statusEl.style.color = '#f87171';
+    statusEl.title = 'Update failed: ' + _updateError;
+  } else if (latestUpdateInfo) {
+    if (latestUpdateInfo.error) {
+      statusEl.textContent = 'Error';
+      statusEl.title = latestUpdateInfo.error;
       statusEl.style.color = '#f87171';
     } else {
       statusEl.title = '';
-      if (info.updateAvailable) {
+      if (latestUpdateInfo.updateAvailable) {
         statusEl.textContent = 'Update available!';
         statusEl.style.color = 'var(--accent-hi)';
       } else {
@@ -31,6 +46,9 @@ function onUpdateState(info) {
         statusEl.style.color = 'var(--text3)';
       }
     }
+  } else {
+    statusEl.textContent = '';
+    statusEl.title = '';
   }
 }
 
@@ -39,25 +57,61 @@ function updateAvailable() {
 }
 
 function renderUpdateBanner() {
+  if (_updateDismissed && !_updateApplying && !_updateError) {
+    const bar = document.getElementById('update-banner');
+    if (bar) bar.remove();
+    return;
+  }
+
+  if (!updateAvailable() && !_updateApplying && !_updateError) {
+    const bar = document.getElementById('update-banner');
+    if (bar) bar.remove();
+    return;
+  }
+
   let bar = document.getElementById('update-banner');
-  if (!updateAvailable() || _updateDismissed) { if (bar) bar.remove(); return; }
   if (!bar) {
     bar = document.createElement('div');
     bar.id = 'update-banner';
-    bar.innerHTML =
-      '<span id="update-banner-text"></span>' +
-      '<button id="update-banner-apply">Update &amp; restart</button>' +
-      '<button id="update-banner-dismiss" title="Dismiss">✕</button>';
     document.body.appendChild(bar);
+  }
+
+  if (_updateApplying) {
+    bar.innerHTML = `
+      <span class="update-banner-spinner"></span>
+      <span id="update-banner-text"></span>
+    `;
+    bar.querySelector('#update-banner-text').textContent = _updateProgressText;
+  } else if (_updateError) {
+    bar.innerHTML = `
+      <span id="update-banner-text" class="update-banner-error-text"></span>
+      <button id="update-banner-apply">Retry</button>
+      <button id="update-banner-dismiss" title="Dismiss">✕</button>
+    `;
+    bar.querySelector('#update-banner-text').textContent = `Update failed: ${_updateError}`;
+    bar.querySelector('#update-banner-apply').addEventListener('click', applyUpdateNow);
+    bar.querySelector('#update-banner-dismiss').addEventListener('click', () => {
+      _updateError = null;
+      _updateDismissed = true;
+      bar.remove();
+    });
+  } else if (latestUpdateInfo && latestUpdateInfo.updateAvailable) {
+    bar.innerHTML = `
+      <span id="update-banner-text"></span>
+      <button id="update-banner-apply">Update &amp; restart</button>
+      <button id="update-banner-dismiss" title="Dismiss">✕</button>
+    `;
+    const n = latestUpdateInfo.behind;
+    bar.querySelector('#update-banner-text').textContent =
+      `A Meowtrix update is available (${n} commit${n === 1 ? '' : 's'} behind).`;
     bar.querySelector('#update-banner-apply').addEventListener('click', applyUpdateNow);
     bar.querySelector('#update-banner-dismiss').addEventListener('click', () => {
       _updateDismissed = true;
       bar.remove();
     });
+  } else {
+    bar.remove();
   }
-  const n = latestUpdateInfo.behind;
-  bar.querySelector('#update-banner-text').textContent =
-    `A Meowtrix update is available (${n} commit${n === 1 ? '' : 's'} behind).`;
 }
 
 // Pull + restart via the server. Confirms first because it ends running shells.
@@ -65,30 +119,43 @@ async function applyUpdateNow() {
   if (_updateApplying) return;
   if (!updateAvailable()) { showToast('Meowtrix is up to date.'); return; }
   if (!confirm('Update Meowtrix now? This restarts the server and ends all running terminal sessions.')) return;
+  
   _updateApplying = true;
+  _updateError = null;
+  _updateProgressText = 'Updating Meowtrix (pulling latest code and checking dependencies)…';
+  renderUpdateBanner();
+  syncSettingsUpdateStatus();
   showToast('Updating Meowtrix…');
+  
   try {
     const r = await fetch('/api/update/apply', { method: 'POST' }).then(res => res.json());
     if (!r.ok) {
-      showToast('Update failed: ' + (r.output || 'unknown error'));
+      _updateError = r.output || 'unknown error';
       _updateApplying = false;
+      renderUpdateBanner();
+      syncSettingsUpdateStatus();
+      showToast('Update failed: ' + _updateError);
       return;
     }
     if (r.restarting) {
-      // The server exits and the supervisor relaunches it. The WS drops and
-      // auto-reconnects (ws.js); we reload once the server answers again so the
-      // freshly pulled frontend is what loads.
+      _updateProgressText = 'Updated — restarting server…';
+      renderUpdateBanner();
+      syncSettingsUpdateStatus();
       showToast('Updated — restarting server…');
       waitForServerAndReload();
     } else {
-      // Unsupervised install (bare `meowtrix` launcher): code is pulled but
-      // nothing restarts us, so the user must do it.
-      showToast('Updated. Restart the meowtrix server to apply.');
+      _updateProgressText = 'Updated. Please restart the meowtrix server manually to apply.';
       _updateApplying = false;
+      renderUpdateBanner();
+      syncSettingsUpdateStatus();
+      showToast('Updated. Restart the meowtrix server to apply.');
     }
   } catch (e) {
-    showToast('Update failed: ' + e.message);
+    _updateError = e.message;
     _updateApplying = false;
+    renderUpdateBanner();
+    syncSettingsUpdateStatus();
+    showToast('Update failed: ' + _updateError);
   }
 }
 
