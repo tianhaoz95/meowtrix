@@ -477,14 +477,27 @@ function triggerOpenEditor(dir) {
 }
 
 // Upload the chosen files to ~/meowtrix on the host, one request per file.
+// Upload the chosen files to ~/meowtrix (or active workspace folder) on the host, one request per file.
 async function uploadFiles(fileList) {
   const files = [...fileList];
   if (!files.length) return;
-  showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`);
+
+  let activeDir = null;
+  const pane = (typeof activePane !== 'undefined') ? activePane : null;
+  if (pane && pane.activeTab && pane.activeTab.type === 'editor') {
+    activeDir = pane.activeTab.editorDir;
+  }
+  const dirName = activeDir ? (activeDir.split(/[/\\]/).pop() || activeDir) : '~/meowtrix';
+
+  showToast(`Uploading ${files.length} file${files.length > 1 ? 's' : ''} to ${dirName}…`);
   let ok = 0;
   for (const file of files) {
     try {
-      const res = await fetch('/api/upload?name=' + encodeURIComponent(file.name), {
+      let url = '/api/upload?name=' + encodeURIComponent(file.name);
+      if (activeDir) {
+        url += '&dir=' + encodeURIComponent(activeDir);
+      }
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
         body: file,
@@ -493,8 +506,15 @@ async function uploadFiles(fileList) {
     } catch {}
   }
   showToast(ok === files.length
-    ? `Uploaded ${ok} file${ok > 1 ? 's' : ''} to ~/meowtrix`
-    : `Uploaded ${ok}/${files.length} to ~/meowtrix — some failed`);
+    ? `Uploaded ${ok} file${ok > 1 ? 's' : ''} to ${dirName}`
+    : `Uploaded ${ok}/${files.length} to ${dirName} — some failed`);
+  
+  if (activeDir && pane && pane.activeTab && pane.activeTab.viewEl) {
+    const activeEditorRefreshBtn = pane.activeTab.viewEl.querySelector('.editor-sidebar-refresh');
+    if (activeEditorRefreshBtn) {
+      activeEditorRefreshBtn.click();
+    }
+  }
 }
 
 function initWorkspace() {

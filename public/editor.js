@@ -277,6 +277,24 @@ function initEditorTab(tab, viewEl, dir) {
   const sideHeaderName = document.createElement('span');
   sideHeaderName.className = 'editor-sidebar-name';
   sideHeaderName.textContent = dir ? basename(dir) : 'No folder';
+
+  const newFileBtn = document.createElement('button');
+  newFileBtn.className = 'editor-sidebar-refresh';
+  newFileBtn.innerHTML = '📄+';
+  newFileBtn.title = 'New file in root';
+  newFileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    createInDir(dir, 'file');
+  });
+
+  const newFolderBtn = document.createElement('button');
+  newFolderBtn.className = 'editor-sidebar-refresh';
+  newFolderBtn.innerHTML = '📁+';
+  newFolderBtn.title = 'New folder in root';
+  newFolderBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    createInDir(dir, 'dir');
+  });
   
   const refreshBtn = document.createElement('button');
   refreshBtn.className = 'editor-sidebar-refresh';
@@ -287,11 +305,10 @@ function initEditorTab(tab, viewEl, dir) {
     refreshFiles();
   });
 
-  sideHeader.append(sideHeaderIcon, sideHeaderName, refreshBtn);
+  sideHeader.append(sideHeaderIcon, sideHeaderName, newFileBtn, newFolderBtn, refreshBtn);
   sideHeader.title = dir || '';
 
-  // View switcher: Explorer (file tree) vs Source Control (git). The git button
-  // is only shown once we confirm the folder is a repo.
+  // View switcher: Explorer (file tree), Git (Source Control), and Search.
   const sideTabs = document.createElement('div');
   sideTabs.className = 'editor-sidetabs';
   const filesBtn = document.createElement('button');
@@ -301,14 +318,27 @@ function initEditorTab(tab, viewEl, dir) {
   gitBtn.className = 'editor-sidetab';
   gitBtn.textContent = '⎇ Git';
   gitBtn.hidden = true;
-  sideTabs.append(filesBtn, gitBtn);
+  const searchBtn = document.createElement('button');
+  searchBtn.className = 'editor-sidetab';
+  searchBtn.textContent = '🔍 Search';
+  sideTabs.append(filesBtn, gitBtn, searchBtn);
 
   const treeEl = document.createElement('div');
   treeEl.className = 'editor-tree';
   const gitEl = document.createElement('div');
   gitEl.className = 'editor-git';
   gitEl.hidden = true;
-  sidebar.append(sideHeader, sideTabs, treeEl, gitEl);
+  const searchEl = document.createElement('div');
+  searchEl.className = 'editor-search';
+  searchEl.hidden = true;
+  searchEl.innerHTML = `
+    <div class="editor-search-box">
+      <input type="text" class="editor-search-input" placeholder="Search in files...">
+      <button class="editor-search-submit">Search</button>
+    </div>
+    <div class="editor-search-results"></div>
+  `;
+  sidebar.append(sideHeader, sideTabs, treeEl, gitEl, searchEl);
 
   // Drag handle between the tree and the editor.
   const resizer = document.createElement('div');
@@ -446,17 +476,201 @@ function initEditorTab(tab, viewEl, dir) {
 
   function toast(msg) { if (typeof showToast === 'function') showToast(msg); }
 
-  // ── Sidebar view switch (Explorer / Source Control) ──────────────────────────
+  // ── Sidebar view switch (Explorer / Source Control / Search) ──────────────────
   function showView(which) {
     const git = which === 'git';
-    filesBtn.classList.toggle('active', !git);
+    const search = which === 'search';
+    const files = which === 'files';
+    filesBtn.classList.toggle('active', files);
     gitBtn.classList.toggle('active', git);
-    treeEl.hidden = git;
+    searchBtn.classList.toggle('active', search);
+    treeEl.hidden = !files;
     gitEl.hidden = !git;
+    searchEl.hidden = !search;
     if (git) refreshGit();
+    if (search) searchEl.querySelector('.editor-search-input')?.focus();
   }
   filesBtn.addEventListener('click', () => showView('files'));
   gitBtn.addEventListener('click', () => showView('git'));
+  searchBtn.addEventListener('click', () => showView('search'));
+
+  // ── CRUD Helpers ─────────────────────────────────────────────────────────────
+  async function createInDir(parentPath, type) {
+    const label = type === 'dir' ? 'folder' : 'file';
+    const name = prompt(`Enter new ${label} name:`);
+    if (!name || !name.trim()) return;
+    try {
+      const res = await fetch('/api/fs/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: parentPath, name: name.trim(), type })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || `Failed to create ${label}`);
+      } else {
+        toast(`Created ${label} ${name}`);
+        refreshFiles();
+        if (type === 'file') {
+          openFile(data.path);
+        }
+      }
+    } catch (err) {
+      toast(`Failed to create ${label}`);
+    }
+  }
+
+  async function renameItem(itemPath) {
+    const oldName = basename(itemPath);
+    const newName = prompt(`Rename ${oldName} to:`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    
+    // Construct new path
+    const lastSlash = itemPath.lastIndexOf('/');
+    const parentDir = lastSlash >= 0 ? itemPath.slice(0, lastSlash) : '';
+    const newPath = parentDir ? join(parentDir, newName.trim()) : newName.trim();
+    
+    try {
+      const res = await fetch('/api/fs/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldPath: itemPath, newPath })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || 'Failed to rename');
+      } else {
+        toast(`Renamed to ${newName}`);
+        if (open.has(itemPath)) {
+          const st = open.get(itemPath);
+          open.delete(itemPath);
+          
+          st.tabEl.title = newPath;
+          const labelEl = st.tabEl.querySelector('span:not(.editor-filetab-dot):not(.editor-filetab-close)');
+          if (labelEl) labelEl.textContent = newName.trim();
+          
+          st.tabEl.onclick = () => setActive(newPath);
+          const closeEl = st.tabEl.querySelector('.editor-filetab-close');
+          if (closeEl) {
+            closeEl.onclick = (e) => { e.stopPropagation(); closeFile(newPath); };
+          }
+          
+          open.set(newPath, st);
+          
+          if (activePath === itemPath) {
+            activePath = newPath;
+          }
+        }
+        refreshFiles();
+      }
+    } catch (err) {
+      toast('Failed to rename');
+    }
+  }
+
+  async function deleteItem(itemPath) {
+    const name = basename(itemPath);
+    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    try {
+      const res = await fetch('/api/fs/delete?path=' + encodeURIComponent(itemPath), {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || 'Failed to delete');
+      } else {
+        toast(`Deleted ${name}`);
+        if (open.has(itemPath)) {
+          closeFile(itemPath);
+        }
+        refreshFiles();
+      }
+    } catch (err) {
+      toast('Failed to delete');
+    }
+  }
+
+  function downloadFile(itemPath) {
+    const a = document.createElement('a');
+    a.href = '/api/download?path=' + encodeURIComponent(itemPath);
+    a.download = basename(itemPath);
+    a.click();
+  }
+
+  // ── Search Helpers (grep) ───────────────────────────────────────────────────
+  const searchInput = searchEl.querySelector('.editor-search-input');
+  const searchSubmit = searchEl.querySelector('.editor-search-submit');
+  const searchResults = searchEl.querySelector('.editor-search-results');
+
+  async function performSearch() {
+    const query = searchInput.value.trim();
+    if (!query) {
+      searchResults.innerHTML = '<div class="editor-git-empty">Enter a search query</div>';
+      return;
+    }
+    searchResults.innerHTML = '<div class="editor-git-empty">Searching...</div>';
+    try {
+      const res = await fetch(`/api/fs/search?root=${encodeURIComponent(dir)}&query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        searchResults.innerHTML = `<div class="editor-git-empty">Search failed: ${data.error || 'unknown error'}</div>`;
+        return;
+      }
+      renderSearchResults(data.matches);
+    } catch (err) {
+      searchResults.innerHTML = '<div class="editor-git-empty">Search failed</div>';
+    }
+  }
+
+  function renderSearchResults(matches) {
+    searchResults.innerHTML = '';
+    if (!matches || matches.length === 0) {
+      searchResults.innerHTML = '<div class="editor-git-empty">No results found</div>';
+      return;
+    }
+
+    const grouped = {};
+    matches.forEach(m => {
+      if (!grouped[m.relPath]) grouped[m.relPath] = [];
+      grouped[m.relPath].push(m);
+    });
+
+    Object.entries(grouped).forEach(([relPath, fileMatches]) => {
+      const fileGroup = document.createElement('div');
+      fileGroup.className = 'editor-search-file-group';
+
+      const fileHeader = document.createElement('div');
+      fileHeader.className = 'editor-search-file-header';
+      fileHeader.textContent = relPath;
+      fileGroup.appendChild(fileHeader);
+
+      fileMatches.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'editor-search-item';
+        
+        const lineNo = document.createElement('span');
+        lineNo.className = 'editor-search-lineno';
+        lineNo.textContent = m.line + ':';
+        
+        const snippet = document.createElement('span');
+        snippet.className = 'editor-search-snippet';
+        snippet.textContent = m.content;
+
+        item.append(lineNo, snippet);
+        item.addEventListener('click', () => {
+          openFile(m.path, m.line);
+        });
+        fileGroup.appendChild(item);
+      });
+
+      searchResults.appendChild(fileGroup);
+    });
+  }
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') performSearch();
+  });
+  searchSubmit.addEventListener('click', performSearch);
 
   // ── Git diff overlay ─────────────────────────────────────────────────────────
   let diffEditor = null, diffModels = null, diffCurrent = null;
@@ -755,8 +969,87 @@ function initEditorTab(tab, viewEl, dir) {
     gitEl.innerHTML = '';
     const branchBar = document.createElement('div'); branchBar.className = 'editor-git-branch';
     const bicon = document.createElement('span'); bicon.className = 'editor-git-branchicon'; bicon.textContent = '⎇';
-    const bname = document.createElement('span'); bname.className = 'editor-git-branchname';
-    bname.textContent = s.branch || '(detached)'; bname.title = s.branch || '';
+    const bname = document.createElement('select');
+    bname.className = 'editor-git-branchname';
+    bname.title = 'Switch Branch';
+    
+    // Add current branch as the initial option
+    const currentOpt = document.createElement('option');
+    currentOpt.value = s.branch || '';
+    currentOpt.textContent = s.branch || '(detached)';
+    currentOpt.selected = true;
+    bname.appendChild(currentOpt);
+
+    // Fetch branches asynchronously to populate options
+    fetch('/api/git/branches?root=' + encodeURIComponent(dir))
+      .then(res => res.json())
+      .then(data => {
+        if (!data.ok) return;
+        const lines = data.stdout.split('\n').map(l => l.trim()).filter(Boolean);
+        const branches = lines.map(l => l.replace(/^\*\s+/, ''));
+        
+        bname.innerHTML = '';
+        branches.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b;
+          opt.textContent = b;
+          if (b === s.branch) opt.selected = true;
+          bname.appendChild(opt);
+        });
+
+        // Option to create a new branch
+        const createOpt = document.createElement('option');
+        createOpt.value = '__create_new_branch__';
+        createOpt.textContent = '+ Create branch...';
+        bname.appendChild(createOpt);
+      })
+      .catch(() => {});
+
+    bname.addEventListener('change', async () => {
+      const selected = bname.value;
+      if (selected === '__create_new_branch__') {
+        bname.value = s.branch || ''; // revert UI visual state temporarily
+        const newBranch = prompt('Enter new branch name:');
+        if (!newBranch || !newBranch.trim()) return;
+        toast(`Creating branch ${newBranch.trim()}...`);
+        try {
+          const cRes = await fetch('/api/git/create-branch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ root: dir, branch: newBranch.trim() })
+          });
+          const cData = await cRes.json();
+          if (cData.ok) {
+            toast(`Switched to new branch ${newBranch.trim()}`);
+            refreshGit();
+          } else {
+            toast(cData.error || cData.output || 'Failed to create branch');
+          }
+        } catch (e) {
+          toast('Failed to create branch');
+        }
+      } else if (selected !== s.branch) {
+        toast(`Checking out ${selected}...`);
+        try {
+          const cRes = await fetch('/api/git/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ root: dir, branch: selected })
+          });
+          const cData = await cRes.json();
+          if (cData.ok) {
+            toast(`Switched to ${selected}`);
+            refreshGit();
+          } else {
+            toast(cData.error || cData.output || 'Failed to checkout branch');
+            bname.value = s.branch || ''; // revert select state
+          }
+        } catch (e) {
+          toast('Failed to checkout branch');
+          bname.value = s.branch || '';
+        }
+      }
+    });
     branchBar.append(bicon, bname);
     if (s.ahead || s.behind) {
       const sync = document.createElement('span'); sync.className = 'editor-git-syncinfo';
@@ -1017,7 +1310,7 @@ function initEditorTab(tab, viewEl, dir) {
     setActive(activePath);
   }
 
-  function setActive(p) {
+  function setActive(p, line = null) {
     closeDiff(); // viewing/opening a normal file leaves the git diff overlay
     if (activePath && open.has(activePath)) {
       const oldSt = open.get(activePath);
@@ -1065,6 +1358,10 @@ function initEditorTab(tab, viewEl, dir) {
       editor?.setModel(st.model);
       if (st.viewState) editor?.restoreViewState(st.viewState);
       if (editor) editor.focus();
+      if (line !== null && editor) {
+        editor.revealLineInCenter(line);
+        editor.setPosition({ lineNumber: line, column: 1 });
+      }
     }
   }
 
@@ -1103,8 +1400,8 @@ function initEditorTab(tab, viewEl, dir) {
     } catch { toast('Save failed: ' + basename(activePath)); }
   }
 
-  async function openFile(filePath) {
-    if (open.has(filePath)) { setActive(filePath); return; }
+  async function openFile(filePath, line = null) {
+    if (open.has(filePath)) { setActive(filePath, line); return; }
     let data;
     try {
       const res = await fetch('/api/fs/read?path=' + encodeURIComponent(filePath));
@@ -1144,7 +1441,7 @@ function initEditorTab(tab, viewEl, dir) {
     fileTabs.appendChild(tabEl);
 
     open.set(filePath, { model, viewState: null, dirty: false, tabEl, dotEl, previewActive: false });
-    setActive(filePath);
+    setActive(filePath, line);
   }
 
   // ── File tree (lazy-expanding) ──────────────────────────────────────────────
@@ -1171,7 +1468,63 @@ function initEditorTab(tab, viewEl, dir) {
       const name = document.createElement('span');
       name.className = 'editor-tree-name';
       name.textContent = entry.name;
-      row.append(icon, name);
+      
+      // Inline actions on hover
+      const actions = document.createElement('div');
+      actions.className = 'editor-tree-row-actions';
+
+      if (entry.type === 'dir') {
+        const addFile = document.createElement('button');
+        addFile.className = 'editor-tree-row-action';
+        addFile.innerHTML = '📄+';
+        addFile.title = 'New File';
+        addFile.addEventListener('click', (e) => {
+          e.stopPropagation();
+          createInDir(full, 'file');
+        });
+
+        const addFolder = document.createElement('button');
+        addFolder.className = 'editor-tree-row-action';
+        addFolder.innerHTML = '📁+';
+        addFolder.title = 'New Folder';
+        addFolder.addEventListener('click', (e) => {
+          e.stopPropagation();
+          createInDir(full, 'dir');
+        });
+
+        actions.append(addFile, addFolder);
+      } else {
+        const download = document.createElement('button');
+        download.className = 'editor-tree-row-action';
+        download.innerHTML = '📥';
+        download.title = 'Download File';
+        download.addEventListener('click', (e) => {
+          e.stopPropagation();
+          downloadFile(full);
+        });
+        actions.append(download);
+      }
+
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'editor-tree-row-action';
+      renameBtn.innerHTML = '✏️';
+      renameBtn.title = 'Rename';
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renameItem(full);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'editor-tree-row-action';
+      deleteBtn.innerHTML = '🗑️';
+      deleteBtn.title = 'Delete';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteItem(full);
+      });
+
+      actions.append(renameBtn, deleteBtn);
+      row.append(icon, name, actions);
       containerEl.appendChild(row);
 
       if (entry.type === 'dir') {

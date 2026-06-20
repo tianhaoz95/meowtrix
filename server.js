@@ -124,8 +124,17 @@ const UPLOAD_DIR = path.join(os.homedir(), 'meowtrix');
 app.post('/api/upload', (req, res) => {
   const name = path.basename(req.query.name || '').trim();
   if (!name || name === '.' || name === '..') return res.status(400).json({ error: 'Invalid name' });
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  const dest = path.join(UPLOAD_DIR, name);
+  let uploadDir = UPLOAD_DIR;
+  if (req.query.dir) {
+    const targetDir = path.resolve(req.query.dir);
+    try {
+      if (fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory()) {
+        uploadDir = targetDir;
+      }
+    } catch (e) {}
+  }
+  fs.mkdirSync(uploadDir, { recursive: true });
+  const dest = path.join(uploadDir, name);
   const out = fs.createWriteStream(dest);
   out.on('error', err => { if (!res.headersSent) res.status(500).json({ error: err.message }); });
   out.on('finish', () => res.json({ ok: true, path: dest }));
@@ -200,6 +209,110 @@ app.put('/api/fs/write', (req, res) => {
   out.on('finish', () => res.json({ ok: true, path: resolved }));
   req.on('error', () => out.destroy());
   req.pipe(out);
+});
+
+// Create a file or directory.
+app.post('/api/fs/create', (req, res) => {
+  const { path: dirPath, name, type } = req.body || {};
+  if (!dirPath || !name || !type) return res.status(400).json({ error: 'Missing path, name, or type' });
+  const baseName = path.basename(name).trim();
+  if (!baseName || baseName === '.' || baseName === '..') return res.status(400).json({ error: 'Invalid name' });
+  const target = path.join(path.resolve(dirPath), baseName);
+  if (fs.existsSync(target)) return res.status(409).json({ error: 'Already exists' });
+
+  if (type === 'dir') {
+    fs.mkdir(target, { recursive: true }, (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ ok: true, path: target });
+    });
+  } else {
+    fs.writeFile(target, '', (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ ok: true, path: target });
+    });
+  }
+});
+
+// Rename a file or directory.
+app.post('/api/fs/rename', (req, res) => {
+  const { oldPath, newPath } = req.body || {};
+  if (!oldPath || !newPath) return res.status(400).json({ error: 'Missing oldPath or newPath' });
+  const resolvedOld = path.resolve(oldPath);
+  const resolvedNew = path.resolve(newPath);
+  if (!fs.existsSync(resolvedOld)) return res.status(404).json({ error: 'Source file not found' });
+  if (fs.existsSync(resolvedNew)) return res.status(409).json({ error: 'Destination already exists' });
+
+  fs.rename(resolvedOld, resolvedNew, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ ok: true });
+  });
+});
+
+// Delete a file or directory.
+app.delete('/api/fs/delete', (req, res) => {
+  const p = req.query.path;
+  if (!p) return res.status(400).json({ error: 'Missing path' });
+  const resolved = path.resolve(p);
+  if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'Not found' });
+  fs.rm(resolved, { recursive: true, force: true }, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ ok: true });
+  });
+});
+
+// Search text across files in a workspace directory (grep).
+app.get('/api/fs/search', (req, res) => {
+  const { root, query } = req.query;
+  if (!root || !query) return res.status(400).json({ error: 'Missing root or query' });
+  const resolvedRoot = path.resolve(root);
+
+  execFile('grep', ['-rnI', '--exclude-dir=.git', '--exclude-dir=node_modules', '--max-count=100', query, resolvedRoot], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const matches = [];
+    if (stdout) {
+      const lines = stdout.toString('utf8').split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const firstColon = line.indexOf(':');
+        const secondColon = line.indexOf(':', firstColon + 1);
+        if (firstColon > 0 && secondColon > firstColon) {
+          const file = line.slice(0, firstColon);
+          const lineNo = parseInt(line.slice(firstColon + 1, secondColon), 10);
+          const content = line.slice(secondColon + 1);
+          matches.push({
+            path: file,
+            relPath: path.relative(resolvedRoot, file),
+            line: lineNo,
+            content: content.trim()
+          });
+        }
+      }
+    }
+    res.json({ ok: true, matches });
+  });
+});
+
+// Get all git branches.
+app.get('/api/git/branches', async (req, res) => {
+  const root = req.query.root;
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, ['branch', '-a']);
+  res.json({ ok: r.ok, stdout: r.stdout, stderr: r.stderr });
+});
+
+// Checkout a git branch.
+app.post('/api/git/checkout', async (req, res) => {
+  const { root, branch } = req.body || {};
+  if (!root || !branch) return res.status(400).json({ error: 'Missing root or branch' });
+  const r = await runGit(root, ['checkout', branch]);
+  res.json({ ok: r.ok, output: (r.stdout + r.stderr).trim() });
+});
+
+// Create a new git branch and checkout.
+app.post('/api/git/create-branch', async (req, res) => {
+  const { root, branch } = req.body || {};
+  if (!root || !branch) return res.status(400).json({ error: 'Missing root or branch' });
+  const r = await runGit(root, ['checkout', '-b', branch]);
+  res.json({ ok: r.ok, output: (r.stdout + r.stderr).trim() });
 });
 
 // ── Git API (Source Control panel in the editor) ─────────────────────────────
