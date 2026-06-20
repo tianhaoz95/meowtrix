@@ -28,6 +28,35 @@ function ensureMonaco() {
   return _monacoPromise;
 }
 
+let _markedPromise = null;
+function ensureMarked() {
+  if (_markedPromise) return _markedPromise;
+  _markedPromise = new Promise((resolve, reject) => {
+    const oldDefine = window.define;
+    if (typeof window.define === 'function') {
+      window.define = undefined;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js';
+    script.onload = () => {
+      if (oldDefine) window.define = oldDefine;
+      resolve(window.marked);
+    };
+    script.onerror = (err) => {
+      if (oldDefine) window.define = oldDefine;
+      reject(err);
+    };
+    document.head.appendChild(script);
+  });
+  return _markedPromise;
+}
+
+function isMarkdownFile(filePath) {
+  if (!filePath) return false;
+  const ext = filePath.split('.').pop().toLowerCase();
+  return ext === 'md' || ext === 'markdown';
+}
+
 async function checkAICapabilities() {
   try {
     // 1. Check for LanguageModel constructor in self/window
@@ -327,10 +356,37 @@ function initEditorTab(tab, viewEl, dir) {
   diffHost.className = 'editor-diff-host';
   diffWrap.append(diffHeader, diffHost);
 
-  body.append(monacoHost, diffWrap);
+  const markdownPreviewHost = document.createElement('div');
+  markdownPreviewHost.className = 'editor-markdown-preview';
+  markdownPreviewHost.hidden = true;
+
+  const markdownToggleWrap = document.createElement('div');
+  markdownToggleWrap.className = 'editor-markdown-toggle-wrap';
+  markdownToggleWrap.hidden = true;
+
+  const btnEdit = document.createElement('button');
+  btnEdit.className = 'editor-markdown-btn active';
+  btnEdit.textContent = 'Edit';
+  btnEdit.addEventListener('click', () => toggleMarkdownMode(false));
+
+  const btnPreview = document.createElement('button');
+  btnPreview.className = 'editor-markdown-btn';
+  btnPreview.textContent = 'Preview';
+  btnPreview.addEventListener('click', () => toggleMarkdownMode(true));
+
+  markdownToggleWrap.append(btnEdit, btnPreview);
+
+  body.append(monacoHost, markdownPreviewHost, diffWrap, markdownToggleWrap);
   main.append(fileTabs, body);
 
   viewEl.append(sidebar, resizer, main);
+
+  viewEl.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveActive();
+    }
+  });
 
   // ── State ──────────────────────────────────────────────────────────────────
   let editor = null;
@@ -403,6 +459,9 @@ function initEditorTab(tab, viewEl, dir) {
     if (diffWrap.hidden) return;
     diffWrap.hidden = true;
     diffCurrent = null;
+    if (isMarkdownFile(activePath)) {
+      markdownToggleWrap.hidden = false;
+    }
   }
   async function openDiff(absPath, staged) {
     let data;
@@ -431,6 +490,7 @@ function initEditorTab(tab, viewEl, dir) {
     diffTitle.textContent = basename(absPath) + (staged ? '  (staged)' : '');
     diffTitle.title = absPath;
     diffWrap.hidden = false;
+    markdownToggleWrap.hidden = true;
     requestAnimationFrame(() => diffEditor.layout());
   }
   diffClose.addEventListener('click', closeDiff);
@@ -462,6 +522,7 @@ function initEditorTab(tab, viewEl, dir) {
     diffTitle.textContent = basename(absPath) + `  @ ${commitHash.slice(0, 7)}`;
     diffTitle.title = absPath;
     diffWrap.hidden = false;
+    markdownToggleWrap.hidden = true;
     requestAnimationFrame(() => diffEditor.layout());
   }
 
@@ -884,20 +945,78 @@ function initEditorTab(tab, viewEl, dir) {
   }
 
   // ── File tabs ─────────────────────────────────────────────────────────────
+  async function renderMarkdownContent(st) {
+    markdownPreviewHost.innerHTML = '<div class="editor-markdown-loading">Rendering preview…</div>';
+    try {
+      const marked = await ensureMarked();
+      const content = st.model.getValue();
+      const parseFn = marked.parse || marked;
+      const html = parseFn(content);
+      markdownPreviewHost.innerHTML = html;
+      markdownPreviewHost.querySelectorAll('a').forEach(a => {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      });
+    } catch (err) {
+      markdownPreviewHost.innerHTML = `<div class="editor-markdown-error">Failed to render Markdown: ${err.message}</div>`;
+    }
+  }
+
+  function toggleMarkdownMode(previewMode) {
+    if (!activePath) return;
+    const st = open.get(activePath);
+    if (!st) return;
+    st.previewActive = previewMode;
+
+    if (previewMode && editor) {
+      st.viewState = editor.saveViewState();
+    }
+
+    setActive(activePath);
+  }
+
   function setActive(p) {
     closeDiff(); // viewing/opening a normal file leaves the git diff overlay
     if (activePath && open.has(activePath)) {
-      open.get(activePath).viewState = editor.saveViewState();
+      const oldSt = open.get(activePath);
+      if (editor && oldSt && !oldSt.previewActive) {
+        oldSt.viewState = editor.saveViewState();
+      }
     }
     activePath = p;
     open.forEach((st, path) => st.tabEl.classList.toggle('active', path === p));
     treeRows.forEach((row, path) => row.classList.toggle('selected', path === p));
+    
     const st = open.get(p);
+    
+    // Determine if markdown is active
+    const isMd = isMarkdownFile(p);
+    if (isMd && st) {
+      markdownToggleWrap.hidden = false;
+      btnEdit.classList.toggle('active', !st.previewActive);
+      btnPreview.classList.toggle('active', st.previewActive);
+    } else {
+      markdownToggleWrap.hidden = true;
+    }
+
     placeholder.style.display = st ? 'none' : '';
-    if (!st) { editor?.setModel(null); return; }
-    editor.setModel(st.model);
-    if (st.viewState) editor.restoreViewState(st.viewState);
-    editor.focus();
+    if (!st) {
+      editor?.setModel(null);
+      markdownPreviewHost.hidden = true;
+      return;
+    }
+
+    if (isMd && st.previewActive) {
+      monacoHost.hidden = true;
+      markdownPreviewHost.hidden = false;
+      renderMarkdownContent(st);
+    } else {
+      monacoHost.hidden = false;
+      markdownPreviewHost.hidden = true;
+      editor?.setModel(st.model);
+      if (st.viewState) editor?.restoreViewState(st.viewState);
+      if (editor) editor.focus();
+    }
   }
 
   function closeFile(p) {
@@ -975,7 +1094,7 @@ function initEditorTab(tab, viewEl, dir) {
     closeEl.addEventListener('click', (e) => { e.stopPropagation(); closeFile(filePath); });
     fileTabs.appendChild(tabEl);
 
-    open.set(filePath, { model, viewState: null, dirty: false, tabEl, dotEl });
+    open.set(filePath, { model, viewState: null, dirty: false, tabEl, dotEl, previewActive: false });
     setActive(filePath);
   }
 
