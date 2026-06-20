@@ -229,6 +229,40 @@ function toRel(root, abs) {
   return path.relative(path.resolve(root), path.resolve(abs)).split(path.sep).join('/');
 }
 
+// Git history graph log.
+app.get('/api/git/log', async (req, res) => {
+  const root = req.query.root;
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, ['log', '--graph', '--color=never', '--pretty=format:%h -%d %s (%cr) <%an>', '-n', '100']);
+  res.json({ ok: r.ok, stdout: r.stdout, stderr: r.stderr });
+});
+
+// Get files changed in a specific commit.
+app.get('/api/git/commitfiles', async (req, res) => {
+  const { root, hash } = req.query;
+  if (!root || !hash) return res.status(400).json({ error: 'Missing root or hash' });
+
+  if (!/^[0-9a-fA-F]+$/.test(hash)) {
+    return res.status(400).json({ error: 'Invalid commit hash' });
+  }
+
+  const r = await runGit(root, ['show', '--name-status', '--pretty=', hash]);
+  if (!r.ok) return res.json({ ok: false, error: r.stderr });
+
+  const files = [];
+  const lines = r.stdout.split('\n');
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const parts = line.split('\t');
+    if (parts.length >= 2) {
+      const status = parts[0];
+      const path = parts.length === 3 ? `${parts[1]} -> ${parts[2]}` : parts[1];
+      files.push({ status, path });
+    }
+  }
+  res.json({ ok: true, files });
+});
+
 // Working-tree status + branch info. Returns { isRepo:false } for non-repos.
 app.get('/api/git/status', async (req, res) => {
   const root = req.query.root;
@@ -257,21 +291,30 @@ app.get('/api/git/status', async (req, res) => {
 });
 
 // Original vs modified content for a file, for the Monaco diff view.
-// staged=1 → HEAD vs index; otherwise index (fallback HEAD) vs working tree.
+// hash is specified → hash^ vs hash; staged=1 → HEAD vs index; otherwise index (fallback HEAD) vs working tree.
 app.get('/api/git/filediff', async (req, res) => {
-  const { root, path: abs } = req.query;
+  const { root, path: abs, hash } = req.query;
   if (!root || !abs) return res.status(400).json({ error: 'Missing root/path' });
   const rel = toRel(root, abs);
-  const staged = req.query.staged === '1';
 
   let origBuf, modBuf;
-  if (staged) {
-    origBuf = await gitShowBuf(root, 'HEAD:' + rel);
-    modBuf = await gitShowBuf(root, ':0:' + rel);
+  if (hash) {
+    if (!/^[0-9a-fA-F]+$/.test(hash)) {
+      return res.status(400).json({ error: 'Invalid commit hash' });
+    }
+    origBuf = await gitShowBuf(root, `${hash}^:${rel}`);
+    modBuf = await gitShowBuf(root, `${hash}:${rel}`);
   } else {
-    origBuf = await gitShowBuf(root, ':0:' + rel) || await gitShowBuf(root, 'HEAD:' + rel);
-    try { modBuf = fs.readFileSync(path.resolve(abs)); } catch { modBuf = null; }
+    const staged = req.query.staged === '1';
+    if (staged) {
+      origBuf = await gitShowBuf(root, 'HEAD:' + rel);
+      modBuf = await gitShowBuf(root, ':0:' + rel);
+    } else {
+      origBuf = await gitShowBuf(root, ':0:' + rel) || await gitShowBuf(root, 'HEAD:' + rel);
+      try { modBuf = fs.readFileSync(path.resolve(abs)); } catch { modBuf = null; }
+    }
   }
+
   const isBin = b => b && b.includes(0);
   if (isBin(origBuf) || isBin(modBuf)) return res.json({ binary: true, original: '', modified: '' });
   res.json({

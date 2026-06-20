@@ -902,6 +902,82 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .editor-git-file:hover .editor-git-fileacts { display: flex; }
 .editor-git-fileacts .editor-git-iconbtn { min-width: 22px; height: 22px; font-size: 12px; }
 
+/* Git history graph */
+.editor-git-history-container {
+  border-top: 1px solid var(--border);
+  background: var(--bg3);
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  font-family: var(--term-font, Menlo, Monaco, "Cascadia Code", "JetBrains Mono", monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: var(--text2);
+}
+.git-log-row-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+.git-log-row {
+  padding: 3px 12px;
+  cursor: default;
+  white-space: pre;
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.git-log-row.is-commit {
+  cursor: pointer;
+}
+.git-log-row.is-commit:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+.git-log-row.expanded {
+  background: var(--bg5);
+  font-weight: 600;
+  color: var(--text);
+}
+.git-commit-details {
+  padding: 4px 12px 6px 28px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.git-commit-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s var(--ease);
+}
+.git-commit-file-row:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+.git-commit-file-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-log-hash {
+  color: #d8a657; /* Warm yellow/orange */
+  font-weight: 600;
+}
+.git-log-refs {
+  color: #89b482; /* Greenish */
+  font-weight: 600;
+}
+.git-log-date {
+  color: #7daea3; /* Cyan/blue */
+}
+.git-log-author {
+  color: var(--text3);
+  font-style: italic;
+}
+
 /* Editor body wraps the normal editor + the git diff overlay */
 .editor-body { flex: 1; position: relative; min-height: 0; }
 .editor-monaco { position: absolute; inset: 0; }

@@ -355,6 +355,36 @@ function initEditorTab(tab, viewEl, dir) {
   }
   diffClose.addEventListener('click', closeDiff);
 
+  async function openCommitDiff(absPath, commitHash) {
+    let data;
+    try {
+      const res = await fetch(`/api/git/filediff?root=${encodeURIComponent(dir)}` +
+        `&path=${encodeURIComponent(absPath)}&hash=${commitHash}`);
+      data = await res.json();
+      if (!res.ok) { toast(data.error || 'Cannot diff'); return; }
+    } catch { toast('Cannot diff'); return; }
+    if (data.binary) { toast('Binary file — no diff'); return; }
+    const monaco = await ensureMonaco();
+    if (!diffEditor) {
+      diffEditor = monaco.editor.createDiffEditor(diffHost, {
+        theme: monacoTheme(), readOnly: true, automaticLayout: false,
+        renderSideBySide: true, fontSize: 13, scrollBeyondLastLine: false,
+      });
+    }
+    if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
+    const lang = langFromPath(monaco, absPath);
+    diffModels = {
+      original: monaco.editor.createModel(data.original, lang),
+      modified: monaco.editor.createModel(data.modified, lang),
+    };
+    diffEditor.setModel(diffModels);
+    diffCurrent = { path: absPath, staged: false };
+    diffTitle.textContent = basename(absPath) + `  @ ${commitHash.slice(0, 7)}`;
+    diffTitle.title = absPath;
+    diffWrap.hidden = false;
+    requestAnimationFrame(() => diffEditor.layout());
+  }
+
   // ── Git panel (Source Control) ───────────────────────────────────────────────
   function iconBtn(label, title, onClick) {
     const b = document.createElement('button');
@@ -376,13 +406,23 @@ function initEditorTab(tab, viewEl, dir) {
   }
   async function refreshGit() {
     gitEl.innerHTML = '<div class="editor-git-empty">Loading…</div>';
-    let s;
+    let s, logData;
     try {
-      const res = await fetch('/api/git/status?root=' + encodeURIComponent(dir));
-      s = await res.json();
-    } catch { gitEl.innerHTML = '<div class="editor-git-empty">Git unavailable</div>'; return; }
-    if (!s.isRepo) { gitEl.innerHTML = '<div class="editor-git-empty">Not a git repository</div>'; return; }
-    renderGit(s);
+      const [resStatus, resLog] = await Promise.all([
+        fetch('/api/git/status?root=' + encodeURIComponent(dir)),
+        fetch('/api/git/log?root=' + encodeURIComponent(dir))
+      ]);
+      s = await resStatus.json();
+      logData = await resLog.json();
+    } catch {
+      gitEl.innerHTML = '<div class="editor-git-empty">Git unavailable</div>';
+      return;
+    }
+    if (!s.isRepo) {
+      gitEl.innerHTML = '<div class="editor-git-empty">Not a git repository</div>';
+      return;
+    }
+    renderGit(s, logData);
   }
   const STATUS_WORD = { M: 'Modified', A: 'Added', D: 'Deleted', R: 'Renamed', C: 'Copied', U: 'Untracked', '!': 'Ignored' };
   function gitSection(title, files, isStaged) {
@@ -448,7 +488,119 @@ function initEditorTab(tab, viewEl, dir) {
     row.addEventListener('click', () => openDiff(abs, isStaged));
     return row;
   }
-  function renderGit(s) {
+  function gitHistorySection(logData) {
+    const sec = document.createElement('div'); sec.className = 'editor-git-section';
+    const head = document.createElement('div'); head.className = 'editor-git-sectionhead';
+    const t = document.createElement('span'); t.className = 'editor-git-sectiontitle'; t.textContent = 'Commit History';
+    head.append(t);
+    sec.append(head);
+
+    const container = document.createElement('div');
+    container.className = 'editor-git-history-container';
+
+    if (!logData || !logData.ok || !logData.stdout.trim()) {
+      const empty = document.createElement('div');
+      empty.className = 'editor-git-empty';
+      empty.textContent = 'No commits found';
+      sec.append(empty);
+      return sec;
+    }
+
+    const lines = logData.stdout.split('\n').filter(line => line.trim());
+    lines.forEach(line => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'git-log-row-wrapper';
+
+      const row = document.createElement('div');
+      row.className = 'git-log-row';
+
+      let escaped = line
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      escaped = escaped.replace(/(&lt;[^&]+&gt;)$/, '<span class="git-log-author">$1</span>');
+      escaped = escaped.replace(/(\([^)]+\))\s+(<span class="git-log-author">)/, '<span class="git-log-date">$1</span> $2');
+      escaped = escaped.replace(/(\((HEAD\s*-&gt;\s*[^)]+|tag:\s*[^)]+|[^)]+)\))/, '<span class="git-log-refs">$1</span>');
+      escaped = escaped.replace(/\b([0-9a-f]{7})\b\s+-/, '<span class="git-log-hash">$1</span> -');
+
+      row.innerHTML = escaped;
+
+      const hashMatch = line.match(/\b([0-9a-f]{7})\b/);
+      if (hashMatch) {
+        const hash = hashMatch[1];
+        row.classList.add('is-commit');
+
+        const details = document.createElement('div');
+        details.className = 'git-commit-details';
+        details.style.display = 'none';
+
+        let loaded = false;
+
+        row.addEventListener('click', async () => {
+          if (details.style.display === 'block') {
+            details.style.display = 'none';
+            row.classList.remove('expanded');
+          } else {
+            // Close other expanded commits
+            container.querySelectorAll('.git-commit-details').forEach(el => el.style.display = 'none');
+            container.querySelectorAll('.git-log-row').forEach(el => el.classList.remove('expanded'));
+
+            details.style.display = 'block';
+            row.classList.add('expanded');
+
+            if (!loaded) {
+              details.innerHTML = '<div class="editor-git-empty" style="padding: 10px;">Loading changes…</div>';
+              try {
+                const res = await fetch(`/api/git/commitfiles?root=${encodeURIComponent(dir)}&hash=${hash}`);
+                const data = await res.json();
+                if (data.ok && data.files.length) {
+                  details.innerHTML = '';
+                  data.files.forEach(f => {
+                    const fileRow = document.createElement('div');
+                    fileRow.className = 'git-commit-file-row';
+
+                    const badge = document.createElement('span');
+                    const statusLetter = f.status[0];
+                    badge.className = 'editor-git-badge st-' + statusLetter;
+                    badge.textContent = statusLetter;
+                    badge.title = STATUS_WORD[statusLetter] || statusLetter;
+
+                    const pathSpan = document.createElement('span');
+                    pathSpan.className = 'git-commit-file-path';
+                    pathSpan.textContent = f.path;
+
+                    fileRow.append(badge, pathSpan);
+                    fileRow.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      openCommitDiff(f.path, hash);
+                    });
+
+                    details.append(fileRow);
+                  });
+                  loaded = true;
+                } else {
+                  details.textContent = 'No file changes found';
+                }
+              } catch (err) {
+                details.textContent = 'Error loading file changes';
+              }
+            }
+          }
+        });
+
+        wrapper.append(row, details);
+      } else {
+        wrapper.append(row);
+      }
+
+      container.append(wrapper);
+    });
+
+    sec.append(container);
+    return sec;
+  }
+
+  function renderGit(s, logData) {
     gitEl.innerHTML = '';
     const branchBar = document.createElement('div'); branchBar.className = 'editor-git-branch';
     const bicon = document.createElement('span'); bicon.className = 'editor-git-branchicon'; bicon.textContent = '⎇';
@@ -496,6 +648,10 @@ function initEditorTab(tab, viewEl, dir) {
       const clean = document.createElement('div'); clean.className = 'editor-git-empty';
       clean.innerHTML = '<div class="editor-git-empty-icon">✓</div>No changes — working tree clean';
       gitEl.append(clean);
+    }
+
+    if (logData && logData.ok && logData.stdout.trim()) {
+      gitEl.append(gitHistorySection(logData));
     }
   }
 
