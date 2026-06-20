@@ -812,7 +812,6 @@ function initEditorTab(tab, viewEl, dir) {
                 // Track generated tokens in real time
                 const tokenCount = await countTokens(session, genText);
                 tokenStatus.querySelector('.output-stat .git-token-val').textContent = tokenCount;
-                aiBtn.innerHTML = `✨ Gen (${tokenCount}t)`;
               }
             } else {
               genText = await session.prompt(promptText);
