@@ -2398,3 +2398,40 @@ body.resizing-console iframe {
   color: #ffffff;
 }
 
+/* Copy button for code blocks */
+.editor-markdown-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  visibility: hidden;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text3);
+  background: var(--bg3);
+  border: 1px solid var(--border3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.editor-markdown-preview pre:hover .editor-markdown-copy-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.editor-markdown-copy-btn:hover {
+  color: var(--text);
+  background: var(--bg5);
+  border-color: var(--border);
+}
+
+.editor-markdown-copy-btn.copied {
+  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+

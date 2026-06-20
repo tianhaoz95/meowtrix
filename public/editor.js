@@ -957,6 +957,30 @@ function initEditorTab(tab, viewEl, dir) {
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
       });
+      markdownPreviewHost.querySelectorAll('pre').forEach(pre => {
+        pre.style.position = 'relative';
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'editor-markdown-copy-btn';
+        copyBtn.textContent = 'Copy';
+        copyBtn.title = 'Copy code';
+        copyBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const codeEl = pre.querySelector('code');
+          const text = codeEl ? codeEl.textContent : pre.textContent;
+          try {
+            await navigator.clipboard.writeText(text);
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copied');
+            setTimeout(() => {
+              copyBtn.textContent = 'Copy';
+              copyBtn.classList.remove('copied');
+            }, 2000);
+          } catch (err) {
+            toast('Failed to copy');
+          }
+        });
+        pre.appendChild(copyBtn);
+      });
     } catch (err) {
       markdownPreviewHost.innerHTML = `<div class="editor-markdown-error">Failed to render Markdown: ${err.message}</div>`;
     }
