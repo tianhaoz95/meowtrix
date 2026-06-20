@@ -85,6 +85,36 @@ Re-run the installer — it pulls the latest into `~/.meowtrix/app`:
 curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash
 ```
 
+### Uninstall
+
+To fully uninstall Meowtrix, stop the service (if running), remove the service configuration, and delete the installation files.
+
+**macOS:**
+
+```bash
+# Stop and remove the launchd service
+launchctl unload ~/Library/LaunchAgents/com.meowtrix.plist 2>/dev/null || true
+rm -f ~/Library/LaunchAgents/com.meowtrix.plist
+
+# Remove the launcher and configuration folder
+rm -f ~/.local/bin/meowtrix
+rm -rf ~/.meowtrix
+```
+
+**Linux:**
+
+```bash
+# Stop and disable the systemd service
+systemctl --user stop meowtrix 2>/dev/null || true
+systemctl --user disable meowtrix 2>/dev/null || true
+rm -f ~/.config/systemd/user/meowtrix.service
+systemctl --user daemon-reload
+
+# Remove the launcher and configuration folder
+rm -f ~/.local/bin/meowtrix
+rm -rf ~/.meowtrix
+```
+
 ## Quick start (from source)
 
 ```bash
