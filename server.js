@@ -1323,6 +1323,43 @@ function resolveHost() {
   return process.env.HOST || '127.0.0.1';
 }
 
+// ── macOS Storage Permission Dry Run ─────────────────────────────────────────
+// On macOS, accessing Desktop, Documents, or Downloads folders requires user
+// permission under Transparency, Consent, and Control (TCC). When started
+// remotely, the user won't see the GUI consent dialog on the host, causing the
+// app to get stuck. Attempting to read these folders at startup forces the OS
+// to prompt the user immediately on the host machine.
+function dryRunMacPermissions() {
+  if (os.platform() !== 'darwin') return;
+
+  const home = os.homedir();
+  const locations = {
+    'Desktop': path.join(home, 'Desktop'),
+    'Documents': path.join(home, 'Documents'),
+    'Downloads': path.join(home, 'Downloads')
+  };
+
+  console.log('🐾 Running macOS storage permissions dry run...');
+
+  Object.entries(locations).forEach(([name, targetPath]) => {
+    if (fs.existsSync(targetPath)) {
+      fs.readdir(targetPath, (err) => {
+        if (err) {
+          if (err.code === 'EACCES' || err.code === 'EPERM') {
+            console.warn(`⚠️  Permission denied for macOS storage location: ${name}`);
+          } else {
+            console.warn(`⚠️  Could not read macOS storage location ${name}: ${err.message}`);
+          }
+        } else {
+          console.log(`✅ macOS storage permission verified/granted for: ${name}`);
+        }
+      });
+    }
+  });
+}
+
+dryRunMacPermissions();
+
 const PORT = process.env.PORT || 9123;
 const HOST = resolveHost();
 const isLoopback = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
