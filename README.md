@@ -13,7 +13,7 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **`mtx` host helper** — `mtx download <file>` pushes a host file to your browser as a download; `mtx code <dir>` opens that directory in a code-editor tab
 - **Cross-device sessions** — server-coordinated single active session; move the whole workspace between browsers and devices and your layout follows
 - **Command palette** — `⌘K` (or `Ctrl/⌘+Shift+P`) fuzzy launcher for every action: split, new tab, switch tabs/panes, broadcast, themes, settings
-- **Localhost-first** — binds to `127.0.0.1` by default so it's not exposed to your network; opt into LAN/remote access explicitly (see [Network access](#network-access--security))
+- **Localhost-first** — the manual launcher binds to `127.0.0.1` by default so it's not exposed to your network; opt into LAN/remote access explicitly (a `--service` install binds `0.0.0.0`) — see [Network access](#network-access--security)
 - **Broadcast input** — mirror keystrokes to every visible terminal at once (like tmux `synchronize-panes`)
 - **Mobile-ready** — on-screen key bar with sticky Ctrl/Alt/Cmd modifiers and double-tap autocomplete
 - **10 themes** — Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Bubblegum, Catppuccin, Cappuccino, Synthwave; terminals are themed to match
@@ -52,6 +52,8 @@ curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh
 ```
 
 Uses **launchd** on macOS and **systemd** on Linux. Meowtrix will start automatically on login and restart if it crashes.
+
+> ⚠️ Unlike the manual launcher (localhost-only), a `--service` install binds to **`0.0.0.0` (all interfaces)** by default — the assumption being that an auto-starting service is meant to be reached from other devices. Since there's no built-in auth, only do this on a network you trust, or front it with your own auth/firewall. To keep a service install localhost-only, edit the unit's `HOST` env var to `127.0.0.1` (in `~/Library/LaunchAgents/com.meowtrix.plist` or `~/.config/systemd/user/meowtrix.service`) and reload it.
 
 #### Stopping & starting the service
 
@@ -126,7 +128,7 @@ Then open `http://localhost:9123` in your browser.
 
 ## Network access & security
 
-Meowtrix hands whoever can reach it a **real shell on the host**, so by default it binds to **`127.0.0.1` (localhost only)** — reachable from the host itself but invisible to the rest of the network. There are two safe ways to use it remotely:
+Meowtrix hands whoever can reach it a **real shell on the host**, so by default it binds to **`127.0.0.1` (localhost only)** — reachable from the host itself but invisible to the rest of the network. (Exception: a `--service` install binds to `0.0.0.0` by default, since an auto-starting service is typically meant to be reached remotely — see [Install as a service](#install-as-a-service-auto-start-on-login).) There are two safe ways to use it remotely:
 
 **1. SSH tunnel (recommended).** Leave the default localhost binding and forward the port over SSH from your client machine:
 
