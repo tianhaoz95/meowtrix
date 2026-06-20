@@ -14,6 +14,24 @@ let _updateDismissed = false; // hide the banner for this page load once dismiss
 function onUpdateState(info) {
   latestUpdateInfo = info;
   renderUpdateBanner();
+
+  const statusEl = document.getElementById('s-update-status');
+  if (statusEl && info) {
+    if (info.error) {
+      statusEl.textContent = 'Error: ' + info.error;
+      statusEl.title = info.error;
+      statusEl.style.color = '#f87171';
+    } else {
+      statusEl.title = '';
+      if (info.updateAvailable) {
+        statusEl.textContent = 'Update available!';
+        statusEl.style.color = 'var(--accent-hi)';
+      } else {
+        statusEl.textContent = 'Up to date';
+        statusEl.style.color = 'var(--text3)';
+      }
+    }
+  }
 }
 
 function updateAvailable() {

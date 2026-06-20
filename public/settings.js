@@ -67,8 +67,34 @@ function populateControls(s) {
   document.getElementById('s-scrollback').value = String(s.termScrollback);
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
+  document.getElementById('s-http-proxy').value = s.httpProxy || '';
+  document.getElementById('s-https-proxy').value = s.httpsProxy || '';
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
+
+  const statusEl = document.getElementById('s-update-status');
+  if (statusEl) {
+    if (typeof latestUpdateInfo !== 'undefined' && latestUpdateInfo) {
+      if (latestUpdateInfo.error) {
+        statusEl.textContent = 'Error: ' + latestUpdateInfo.error;
+        statusEl.title = latestUpdateInfo.error;
+        statusEl.style.color = '#f87171';
+      } else {
+        statusEl.title = '';
+        if (latestUpdateInfo.updateAvailable) {
+          statusEl.textContent = 'Update available!';
+          statusEl.style.color = 'var(--accent-hi)';
+        } else {
+          statusEl.textContent = 'Up to date';
+          statusEl.style.color = 'var(--text3)';
+        }
+      }
+    } else {
+      statusEl.textContent = '';
+      statusEl.title = '';
+    }
+  }
+
   document.getElementById('s-pet').checked = !!s.petEnabled;
   const faceSel = document.getElementById('s-pet-face');
   if (!faceSel.dataset.built && typeof PET_FACES !== 'undefined') {
@@ -190,6 +216,8 @@ function wireControls() {
 
   s('s-shell', 'shell');
   s('s-homepage', 'browserHomepage');
+  s('s-http-proxy', 'httpProxy');
+  s('s-https-proxy', 'httpsProxy');
   s('s-ui-mode', 'uiMode');
 
   document.getElementById('s-combo-fx').addEventListener('change', async (e) => {
@@ -200,6 +228,33 @@ function wireControls() {
   document.getElementById('s-auto-update').addEventListener('change', async (e) => {
     await saveSetting('autoUpdate', e.target.checked);
   });
+
+  const btnCheckUpdate = document.getElementById('btn-check-update');
+  if (btnCheckUpdate) {
+    btnCheckUpdate.addEventListener('click', async () => {
+      const statusEl = document.getElementById('s-update-status');
+      if (statusEl) {
+        statusEl.textContent = 'Checking...';
+        statusEl.style.color = 'var(--text3)';
+      }
+      btnCheckUpdate.disabled = true;
+      try {
+        const res = await fetch('/api/update/check');
+        const info = await res.json();
+        if (typeof onUpdateState === 'function') {
+          onUpdateState(info);
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = 'Error';
+          statusEl.title = err.message || String(err);
+          statusEl.style.color = '#f87171';
+        }
+      } finally {
+        btnCheckUpdate.disabled = false;
+      }
+    });
+  }
 
   document.getElementById('s-pet').addEventListener('change', async (e) => {
     await saveSetting('petEnabled', e.target.checked);

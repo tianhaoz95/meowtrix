@@ -53,6 +53,8 @@ const DEFAULT_SETTINGS = {
   termScrollback: 10000,
   shell: process.env.SHELL || '/bin/bash',
   browserHomepage: '', // blank → new browser tabs show the local start page
+  httpProxy: '', // optional HTTP proxy for updates
+  httpsProxy: '', // optional HTTPS proxy for updates
   autoUpdate: true, // background-check the git clone for updates (see self-update below)
   comboFx: true, // keystroke-streak visual effects (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
@@ -1150,8 +1152,18 @@ const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // hourly background check
 let lastUpdateInfo = null; // cached result of the most recent check
 
 function appGit(args, opts = {}) {
+  const settings = readSettings();
+  const env = { ...process.env, ...opts.env };
+  if (settings.httpProxy) {
+    env.HTTP_PROXY = settings.httpProxy;
+    env.http_proxy = settings.httpProxy;
+  }
+  if (settings.httpsProxy) {
+    env.HTTPS_PROXY = settings.httpsProxy;
+    env.https_proxy = settings.httpsProxy;
+  }
   return new Promise((resolve) => {
-    execFile('git', ['-C', APP_ROOT, ...args], { maxBuffer: 4 * 1024 * 1024, ...opts },
+    execFile('git', ['-C', APP_ROOT, ...args], { maxBuffer: 4 * 1024 * 1024, ...opts, env },
       (err, stdout, stderr) => resolve({
         ok: !err,
         stdout: (stdout || '').toString().trim(),
@@ -1224,7 +1236,17 @@ async function applyUpdate() {
   if (depsChanged) {
     output += '\nReinstalling dependencies…';
     const npm = await new Promise((resolve) => {
-      execFile('npm', ['install', '--omit=dev'], { cwd: APP_ROOT, maxBuffer: 32 * 1024 * 1024 },
+      const settings = readSettings();
+      const env = { ...process.env };
+      if (settings.httpProxy) {
+        env.HTTP_PROXY = settings.httpProxy;
+        env.http_proxy = settings.httpProxy;
+      }
+      if (settings.httpsProxy) {
+        env.HTTPS_PROXY = settings.httpsProxy;
+        env.https_proxy = settings.httpsProxy;
+      }
+      execFile('npm', ['install', '--omit=dev'], { cwd: APP_ROOT, maxBuffer: 32 * 1024 * 1024, env },
         (err, _out, stderr) => resolve({ ok: !err, stderr: (stderr || (err && err.message) || '').toString() }));
     });
     if (!npm.ok) return { ok: false, output: `${output}\nDependency install failed: ${npm.stderr}` };

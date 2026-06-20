@@ -159,6 +159,21 @@
             <label for="s-auto-update">Check for updates automatically</label>
             <input type="checkbox" id="s-auto-update">
           </div>
+          <div class="settings-row">
+            <label for="s-http-proxy">HTTP Proxy (optional)</label>
+            <input type="text" id="s-http-proxy" placeholder="e.g. http://127.0.0.1:7890">
+          </div>
+          <div class="settings-row">
+            <label for="s-https-proxy">HTTPS Proxy (optional)</label>
+            <input type="text" id="s-https-proxy" placeholder="e.g. http://127.0.0.1:7890">
+          </div>
+          <div class="settings-row">
+            <label>Manual check</label>
+            <div class="settings-row-right">
+              <span id="s-update-status" style="font-size: 11px; color: var(--text3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+              <button id="btn-check-update">Check Now</button>
+            </div>
+          </div>
         </div>
         <div class="settings-section">
           <div class="settings-section-title">Support</div>
