@@ -693,11 +693,38 @@ function initEditorTab(tab, viewEl, dir) {
       branchBar.append(sync);
     }
     const acts = document.createElement('span'); acts.className = 'editor-git-branchactions';
-    acts.append(
-      iconBtn('↻', 'Refresh', refreshGit),
-      iconBtn('↓', 'Pull', async () => { if (await gitAction('/api/git/pull', { root: dir })) { toast('Pulled'); refreshGit(); } }),
-      iconBtn('↑', 'Push', async () => { if (await gitAction('/api/git/push', { root: dir })) { toast('Pushed'); refreshGit(); } }),
-    );
+    
+    const refreshBtn = iconBtn('↻', 'Refresh', async () => {
+      refreshBtn.classList.add('loading', 'anim-spin');
+      refreshBtn.disabled = true;
+      await refreshGit();
+      refreshBtn.classList.remove('loading', 'anim-spin');
+      refreshBtn.disabled = false;
+    });
+
+    const pullBtn = iconBtn('↓', 'Pull', async () => {
+      pullBtn.classList.add('loading', 'anim-slide-down');
+      pullBtn.disabled = true;
+      if (await gitAction('/api/git/pull', { root: dir })) {
+        toast('Pulled');
+        await refreshGit();
+      }
+      pullBtn.classList.remove('loading', 'anim-slide-down');
+      pullBtn.disabled = false;
+    });
+
+    const pushBtn = iconBtn('↑', 'Push', async () => {
+      pushBtn.classList.add('loading', 'anim-slide-up');
+      pushBtn.disabled = true;
+      if (await gitAction('/api/git/push', { root: dir })) {
+        toast('Pushed');
+        await refreshGit();
+      }
+      pushBtn.classList.remove('loading', 'anim-slide-up');
+      pushBtn.disabled = false;
+    });
+
+    acts.append(refreshBtn, pullBtn, pushBtn);
     branchBar.append(acts);
     gitEl.append(branchBar);
 
@@ -763,6 +790,7 @@ function initEditorTab(tab, viewEl, dir) {
           }
           aiBtn.disabled = true;
           aiBtn.innerHTML = '✨ Gen…';
+          msg.classList.add('generating');
 
           // Reset status
           tokenStatus.classList.remove('active');
@@ -832,6 +860,7 @@ function initEditorTab(tab, viewEl, dir) {
           } finally {
             aiBtn.disabled = false;
             aiBtn.innerHTML = '✨ Generate';
+            msg.classList.remove('generating');
           }
         });
       }
