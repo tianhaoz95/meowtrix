@@ -969,88 +969,116 @@ function initEditorTab(tab, viewEl, dir) {
     gitEl.innerHTML = '';
     const branchBar = document.createElement('div'); branchBar.className = 'editor-git-branch';
     const bicon = document.createElement('span'); bicon.className = 'editor-git-branchicon'; bicon.textContent = '⎇';
-    const bname = document.createElement('select');
-    bname.className = 'editor-git-branchname';
-    bname.title = 'Switch Branch';
-    
-    // Add current branch as the initial option
-    const currentOpt = document.createElement('option');
-    currentOpt.value = s.branch || '';
-    currentOpt.textContent = s.branch || '(detached)';
-    currentOpt.selected = true;
-    bname.appendChild(currentOpt);
+    const bnameTrigger = document.createElement('button');
+    bnameTrigger.className = 'editor-git-branchname';
+    bnameTrigger.textContent = s.branch ? `✓ ${s.branch}` : '(detached)';
+    bnameTrigger.title = 'Switch Branch';
 
-    // Fetch branches asynchronously to populate options
-    fetch('/api/git/branches?root=' + encodeURIComponent(dir))
-      .then(res => res.json())
-      .then(data => {
-        if (!data.ok) return;
-        const lines = data.stdout.split('\n').map(l => l.trim()).filter(Boolean);
-        const branches = lines.map(l => l.replace(/^\*\s+/, ''));
-        
-        bname.innerHTML = '';
-        branches.forEach(b => {
-          const opt = document.createElement('option');
-          opt.value = b;
-          opt.textContent = b;
-          if (b === s.branch) opt.selected = true;
-          bname.appendChild(opt);
-        });
+    const dropdownMenu = document.createElement('div');
+    dropdownMenu.className = 'editor-git-branch-menu';
+    dropdownMenu.hidden = true;
 
-        // Option to create a new branch
-        const createOpt = document.createElement('option');
-        createOpt.value = '__create_new_branch__';
-        createOpt.textContent = '+ Create branch...';
-        bname.appendChild(createOpt);
-      })
-      .catch(() => {});
+    bnameTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const show = dropdownMenu.hidden;
+      document.querySelectorAll('.editor-git-branch-menu').forEach(m => m.hidden = true);
+      dropdownMenu.hidden = !show;
+      if (show) {
+        dropdownMenu.innerHTML = '<div class="editor-git-branch-menu-item">Loading...</div>';
+        fetch('/api/git/branches?root=' + encodeURIComponent(dir))
+          .then(res => res.json())
+          .then(data => {
+            if (!data.ok) {
+              dropdownMenu.innerHTML = '<div class="editor-git-branch-menu-item">Failed to load</div>';
+              return;
+            }
+            const lines = data.stdout.split('\n').map(l => l.trim()).filter(Boolean);
+            const branches = lines.map(l => l.replace(/^\*\s+/, ''));
+            
+            dropdownMenu.innerHTML = '';
+            branches.forEach(b => {
+              const item = document.createElement('div');
+              item.className = 'editor-git-branch-menu-item';
+              if (b === s.branch) item.classList.add('active');
+              item.textContent = b === s.branch ? `✓ ${b}` : b;
+              item.addEventListener('click', async (itemEvent) => {
+                itemEvent.stopPropagation();
+                dropdownMenu.hidden = true;
+                if (b !== s.branch) {
+                  toast(`Checking out ${b}...`);
+                  try {
+                    const cRes = await fetch('/api/git/checkout', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ root: dir, branch: b })
+                    });
+                    const cData = await cRes.json();
+                    if (cData.ok) {
+                      toast(`Switched to ${b}`);
+                      refreshGit();
+                    } else {
+                      toast(cData.error || cData.output || 'Failed to checkout branch');
+                    }
+                  } catch (err) {
+                    toast('Failed to checkout branch');
+                  }
+                }
+              });
+              dropdownMenu.appendChild(item);
+            });
 
-    bname.addEventListener('change', async () => {
-      const selected = bname.value;
-      if (selected === '__create_new_branch__') {
-        bname.value = s.branch || ''; // revert UI visual state temporarily
-        const newBranch = prompt('Enter new branch name:');
-        if (!newBranch || !newBranch.trim()) return;
-        toast(`Creating branch ${newBranch.trim()}...`);
-        try {
-          const cRes = await fetch('/api/git/create-branch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ root: dir, branch: newBranch.trim() })
+            const divider = document.createElement('div');
+            divider.className = 'editor-git-branch-menu-divider';
+            dropdownMenu.appendChild(divider);
+
+            const createItem = document.createElement('div');
+            createItem.className = 'editor-git-branch-menu-item';
+            createItem.textContent = '+ Create branch...';
+            createItem.addEventListener('click', async (createEvent) => {
+              createEvent.stopPropagation();
+              dropdownMenu.hidden = true;
+              const newBranch = prompt('Enter new branch name:');
+              if (!newBranch || !newBranch.trim()) return;
+              toast(`Creating branch ${newBranch.trim()}...`);
+              try {
+                const cRes = await fetch('/api/git/create-branch', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ root: dir, branch: newBranch.trim() })
+                });
+                const cData = await cRes.json();
+                if (cData.ok) {
+                  toast(`Switched to new branch ${newBranch.trim()}`);
+                  refreshGit();
+                } else {
+                  toast(cData.error || cData.output || 'Failed to create branch');
+                }
+              } catch (err) {
+                toast('Failed to create branch');
+              }
+            });
+            dropdownMenu.appendChild(createItem);
+          })
+          .catch(() => {
+            dropdownMenu.innerHTML = '<div class="editor-git-branch-menu-item">Failed to load</div>';
           });
-          const cData = await cRes.json();
-          if (cData.ok) {
-            toast(`Switched to new branch ${newBranch.trim()}`);
-            refreshGit();
-          } else {
-            toast(cData.error || cData.output || 'Failed to create branch');
-          }
-        } catch (e) {
-          toast('Failed to create branch');
-        }
-      } else if (selected !== s.branch) {
-        toast(`Checking out ${selected}...`);
-        try {
-          const cRes = await fetch('/api/git/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ root: dir, branch: selected })
-          });
-          const cData = await cRes.json();
-          if (cData.ok) {
-            toast(`Switched to ${selected}`);
-            refreshGit();
-          } else {
-            toast(cData.error || cData.output || 'Failed to checkout branch');
-            bname.value = s.branch || ''; // revert select state
-          }
-        } catch (e) {
-          toast('Failed to checkout branch');
-          bname.value = s.branch || '';
-        }
       }
     });
-    branchBar.append(bicon, bname);
+
+    const closeMenu = (e) => {
+      if (!bnameTrigger.contains(e.target) && !dropdownMenu.contains(e.target)) {
+        dropdownMenu.hidden = true;
+      }
+    };
+    document.addEventListener('click', closeMenu);
+    
+    const oldDispose = tab.disposeEditor;
+    tab.disposeEditor = () => {
+      document.removeEventListener('click', closeMenu);
+      if (typeof oldDispose === 'function') oldDispose();
+    };
+
+    branchBar.append(bicon, bnameTrigger, dropdownMenu);
     if (s.ahead || s.behind) {
       const sync = document.createElement('span'); sync.className = 'editor-git-syncinfo';
       sync.textContent = (s.behind ? '↓' + s.behind : '') + (s.ahead ? ' ↑' + s.ahead : '');
