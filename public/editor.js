@@ -77,6 +77,22 @@ async function checkAICapabilities() {
   return null;
 }
 
+async function countTokens(modelOrSession, text) {
+  if (!text) return 0;
+  try {
+    if (modelOrSession && typeof modelOrSession.countTokens === 'function') {
+      const res = await modelOrSession.countTokens(text);
+      const count = (res && typeof res === 'object') ? (res.count || res.totalTokens) : res;
+      if (typeof count === 'number') return count;
+    }
+  } catch (e) {
+    console.warn('🐾 [Meowtrix AI Check] countTokens error:', e);
+  }
+  // Fallback estimation: ~4 characters per token
+  return Math.max(1, Math.round(text.length / 4));
+}
+
+
 
 // Light vs dark to match the app theme (non-'light' themes are all dark variants).
 function monacoTheme() {
@@ -692,6 +708,23 @@ function initEditorTab(tab, viewEl, dir) {
     const msg = document.createElement('textarea');
     msg.className = 'editor-git-msg'; msg.placeholder = 'Message (Cmd/Ctrl+Enter to commit)'; msg.rows = 2;
 
+    const tokenStatus = document.createElement('div');
+    tokenStatus.className = 'editor-git-token-status';
+    tokenStatus.innerHTML = `
+      <div class="git-token-stat input-stat">
+        <span class="git-token-label">Sent:</span>
+        <span class="git-token-val">0</span> tokens
+      </div>
+      <div class="git-token-stat output-stat">
+        <span class="git-token-label">Gen:</span>
+        <span class="git-token-val">0</span> tokens
+      </div>
+    `;
+
+    msg.addEventListener('input', () => {
+      tokenStatus.classList.remove('active');
+    });
+
     const btnRow = document.createElement('div');
     btnRow.className = 'editor-git-commit-btns';
 
@@ -703,7 +736,13 @@ function initEditorTab(tab, viewEl, dir) {
       if (!staged.length) { toast('Nothing staged to commit'); return; }
       if (!msg.value.trim()) { toast('Enter a commit message'); msg.focus(); return; }
       const r = await gitAction('/api/git/commit', { root: dir, message: msg.value });
-      if (r) { toast('Committed'); msg.value = ''; closeDiff(); refreshGit(); }
+      if (r) {
+        toast('Committed');
+        msg.value = '';
+        tokenStatus.classList.remove('active');
+        closeDiff();
+        refreshGit();
+      }
     };
     commitBtn.addEventListener('click', doCommit);
     msg.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doCommit(); } });
@@ -724,6 +763,13 @@ function initEditorTab(tab, viewEl, dir) {
           }
           aiBtn.disabled = true;
           aiBtn.innerHTML = '✨ Gen…';
+
+          // Reset status
+          tokenStatus.classList.remove('active');
+          tokenStatus.querySelector('.input-stat .git-token-val').textContent = '0';
+          tokenStatus.querySelector('.output-stat .git-token-val').textContent = '0';
+          tokenStatus.querySelector('.output-stat').classList.remove('generating');
+
           try {
             const res = await fetch('/api/git/diff?root=' + encodeURIComponent(dir));
             const data = await res.json();
@@ -737,16 +783,48 @@ function initEditorTab(tab, viewEl, dir) {
               diffText = diffText.slice(0, 8000) + '\n... [diff truncated for length]';
             }
 
+            const promptText = "Generate a commit message for the following diff:\n\n" + diffText;
+
+            // Calculate input tokens using our robust countTokens helper
+            const inputTokens = await countTokens(modelAPI, promptText);
+
+            tokenStatus.querySelector('.input-stat .git-token-val').textContent = inputTokens;
+            tokenStatus.classList.add('active');
+            tokenStatus.querySelector('.output-stat').classList.add('generating');
+
             const session = await modelAPI.create({
               systemPrompt: "You are a Git commit message generator. You write concise, clear, and conventional commit messages based on the provided diff. Only respond with the commit message itself, nothing else. No markdown formatting (like code blocks). Keep the summary line under 72 characters, followed by a blank line and brief bullet points for details if there are multiple files."
             });
 
-            const genText = await session.prompt("Generate a commit message for the following diff:\n\n" + diffText);
-            session.destroy?.();
-
-            if (genText && genText.trim()) {
-              msg.value = genText.trim();
+            let genText = '';
+            if (typeof session.promptStreaming === 'function') {
+              const stream = session.promptStreaming(promptText);
+              msg.value = '';
+              for await (const chunk of stream) {
+                const trimmedChunk = chunk.trim();
+                if (trimmedChunk.startsWith(genText)) {
+                  genText = trimmedChunk;
+                } else {
+                  genText += chunk;
+                }
+                msg.value = genText;
+                
+                // Track generated tokens in real time
+                const tokenCount = await countTokens(session, genText);
+                tokenStatus.querySelector('.output-stat .git-token-val').textContent = tokenCount;
+                aiBtn.innerHTML = `✨ Gen (${tokenCount}t)`;
+              }
             } else {
+              genText = await session.prompt(promptText);
+              msg.value = genText.trim();
+              const tokenCount = await countTokens(session, genText);
+              tokenStatus.querySelector('.output-stat .git-token-val').textContent = tokenCount;
+            }
+
+            session.destroy?.();
+            tokenStatus.querySelector('.output-stat').classList.remove('generating');
+
+            if (!genText) {
               toast('AI returned empty message');
             }
           } catch (err) {
@@ -761,7 +839,7 @@ function initEditorTab(tab, viewEl, dir) {
     });
 
     btnRow.append(commitBtn, aiBtn);
-    commitBox.append(msg, btnRow);
+    commitBox.append(msg, tokenStatus, btnRow);
     gitEl.append(commitBox);
 
     if (staged.length) gitEl.append(gitSection('Staged Changes', staged, true));

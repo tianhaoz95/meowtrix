@@ -897,6 +897,65 @@ body.dragging-tab .pane-content { pointer-events: none; }
   opacity: 0.5;
   cursor: default;
 }
+.editor-git-token-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border3);
+  border-radius: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+  pointer-events: none;
+}
+.editor-git-token-status.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.git-token-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.git-token-label {
+  font-weight: 500;
+  color: var(--text2);
+}
+.git-token-val {
+  font-family: var(--term-font, monospace);
+  font-weight: 700;
+  color: var(--accent-hi);
+  transition: color 0.1s var(--ease);
+}
+.git-token-stat.generating .git-token-val {
+  animation: git-token-pulse 1s infinite alternate;
+}
+.git-token-stat.generating::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+  animation: git-token-dot-pulse 1.2s infinite alternate;
+  margin-right: 2px;
+}
+
+@keyframes git-token-pulse {
+  from { color: var(--accent-hi); text-shadow: 0 0 2px var(--accent-soft); }
+  to { color: var(--text); text-shadow: 0 0 6px var(--accent-hi); }
+}
+
+@keyframes git-token-dot-pulse {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.3); }
+}
 .editor-git-section { padding: 2px 0 6px; }
 .editor-git-sectionhead {
   display: flex; align-items: center; gap: 6px; padding: 8px 6px 4px 12px;
