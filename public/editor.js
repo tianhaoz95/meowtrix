@@ -238,11 +238,25 @@ function initEditorTab(tab, viewEl, dir) {
   diffHeader.className = 'editor-diff-header';
   const diffTitle = document.createElement('span');
   diffTitle.className = 'editor-diff-title';
+
+  let diffSideBySide = true;
+  const diffToggleMode = document.createElement('button');
+  diffToggleMode.className = 'editor-diff-togglemode';
+  diffToggleMode.textContent = '◫ Split';
+  diffToggleMode.title = 'Toggle Split vs Unified diff view';
+  diffToggleMode.addEventListener('click', () => {
+    diffSideBySide = !diffSideBySide;
+    diffToggleMode.textContent = diffSideBySide ? '◫ Split' : '▤ Unified';
+    if (diffEditor) {
+      diffEditor.updateOptions({ renderSideBySide: diffSideBySide });
+    }
+  });
+
   const diffClose = document.createElement('button');
   diffClose.className = 'editor-diff-close';
   diffClose.textContent = '✕';
   diffClose.title = 'Close diff';
-  diffHeader.append(diffTitle, diffClose);
+  diffHeader.append(diffTitle, diffToggleMode, diffClose);
   const diffHost = document.createElement('div');
   diffHost.className = 'editor-diff-host';
   diffWrap.append(diffHeader, diffHost);
@@ -337,7 +351,7 @@ function initEditorTab(tab, viewEl, dir) {
     if (!diffEditor) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
-        renderSideBySide: true, fontSize: 13, scrollBeyondLastLine: false,
+        renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
       });
     }
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
@@ -368,7 +382,7 @@ function initEditorTab(tab, viewEl, dir) {
     if (!diffEditor) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
-        renderSideBySide: true, fontSize: 13, scrollBeyondLastLine: false,
+        renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
       });
     }
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
