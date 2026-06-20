@@ -263,6 +263,14 @@ app.get('/api/git/commitfiles', async (req, res) => {
   res.json({ ok: true, files });
 });
 
+// Get diff of staged changes for AI commit message generation.
+app.get('/api/git/diff', async (req, res) => {
+  const root = req.query.root;
+  if (!root) return res.status(400).json({ error: 'Missing root' });
+  const r = await runGit(root, ['diff', '--cached']);
+  res.json({ ok: r.ok, stdout: r.stdout, stderr: r.stderr });
+});
+
 // Working-tree status + branch info. Returns { isRepo:false } for non-repos.
 app.get('/api/git/status', async (req, res) => {
   const root = req.query.root;

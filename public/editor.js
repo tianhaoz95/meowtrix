@@ -28,6 +28,56 @@ function ensureMonaco() {
   return _monacoPromise;
 }
 
+async function checkAICapabilities() {
+  try {
+    // 1. Check for LanguageModel constructor in self/window
+    if (typeof LanguageModel !== 'undefined') {
+      console.log('🐾 [Meowtrix AI Check] Found global LanguageModel');
+      if (typeof LanguageModel.availability === 'function') {
+        const availability = await LanguageModel.availability();
+        console.log('🐾 [Meowtrix AI Check] LanguageModel availability:', availability);
+        if (availability === 'available' || availability === 'readily' || availability === 'downloadable' || availability === 'downloading') {
+          return LanguageModel;
+        }
+      } else if (typeof LanguageModel.capabilities === 'function') {
+        const capabilities = await LanguageModel.capabilities();
+        console.log('🐾 [Meowtrix AI Check] LanguageModel capabilities:', capabilities);
+        const av = capabilities && capabilities.available;
+        if (av === 'readily' || av === 'available' || av === 'after-download' || av === true) {
+          return LanguageModel;
+        }
+      } else if (typeof LanguageModel.create === 'function') {
+        return LanguageModel;
+      }
+    }
+
+    // 2. Fallback to standard ai.languageModel
+    const aiObj = window.ai || (typeof ai !== 'undefined' ? ai : null);
+    console.log('🐾 [Meowtrix AI Check] aiObj:', aiObj);
+    if (aiObj) {
+      const modelAPI = aiObj.languageModel || aiObj.assistant;
+      console.log('🐾 [Meowtrix AI Check] modelAPI:', modelAPI);
+      if (modelAPI) {
+        if (typeof modelAPI.capabilities === 'function') {
+          const capabilities = await modelAPI.capabilities();
+          console.log('🐾 [Meowtrix AI Check] capabilities:', capabilities);
+          const av = capabilities && capabilities.available;
+          if (av === 'readily' || av === 'available' || av === 'after-download' || av === true) {
+            return modelAPI;
+          }
+        } else if (typeof modelAPI.create === 'function') {
+          console.log('🐾 [Meowtrix AI Check] capabilities() not found, fallback to create()');
+          return modelAPI;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('🐾 [Meowtrix AI Check] check failed:', e);
+  }
+  return null;
+}
+
+
 // Light vs dark to match the app theme (non-'light' themes are all dark variants).
 function monacoTheme() {
   return document.documentElement.dataset.theme === 'light' ? 'vs' : 'vs-dark';
@@ -641,6 +691,10 @@ function initEditorTab(tab, viewEl, dir) {
     const commitBox = document.createElement('div'); commitBox.className = 'editor-git-commit';
     const msg = document.createElement('textarea');
     msg.className = 'editor-git-msg'; msg.placeholder = 'Message (Cmd/Ctrl+Enter to commit)'; msg.rows = 2;
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'editor-git-commit-btns';
+
     const commitBtn = document.createElement('button');
     commitBtn.className = 'editor-git-commitbtn';
     commitBtn.textContent = staged.length ? `✓ Commit ${staged.length} file${staged.length > 1 ? 's' : ''}` : '✓ Commit';
@@ -653,7 +707,61 @@ function initEditorTab(tab, viewEl, dir) {
     };
     commitBtn.addEventListener('click', doCommit);
     msg.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doCommit(); } });
-    commitBox.append(msg, commitBtn);
+
+    const aiBtn = document.createElement('button');
+    aiBtn.className = 'editor-git-aibtn';
+    aiBtn.innerHTML = '✨ Generate';
+    aiBtn.title = 'Generate commit message using Chrome on-device AI';
+    aiBtn.style.display = 'none';
+
+    checkAICapabilities().then(modelAPI => {
+      if (modelAPI) {
+        aiBtn.style.display = 'inline-flex';
+        aiBtn.addEventListener('click', async () => {
+          if (!staged.length) {
+            toast('Stage some changes first to generate a message');
+            return;
+          }
+          aiBtn.disabled = true;
+          aiBtn.innerHTML = '✨ Gen…';
+          try {
+            const res = await fetch('/api/git/diff?root=' + encodeURIComponent(dir));
+            const data = await res.json();
+            if (!data.ok || !data.stdout.trim()) {
+              toast('No changes found or could not get diff');
+              return;
+            }
+            
+            let diffText = data.stdout;
+            if (diffText.length > 8000) {
+              diffText = diffText.slice(0, 8000) + '\n... [diff truncated for length]';
+            }
+
+            const session = await modelAPI.create({
+              systemPrompt: "You are a Git commit message generator. You write concise, clear, and conventional commit messages based on the provided diff. Only respond with the commit message itself, nothing else. No markdown formatting (like code blocks). Keep the summary line under 72 characters, followed by a blank line and brief bullet points for details if there are multiple files."
+            });
+
+            const genText = await session.prompt("Generate a commit message for the following diff:\n\n" + diffText);
+            session.destroy?.();
+
+            if (genText && genText.trim()) {
+              msg.value = genText.trim();
+            } else {
+              toast('AI returned empty message');
+            }
+          } catch (err) {
+            console.error(err);
+            toast('Failed to generate: ' + err.message);
+          } finally {
+            aiBtn.disabled = false;
+            aiBtn.innerHTML = '✨ Generate';
+          }
+        });
+      }
+    });
+
+    btnRow.append(commitBtn, aiBtn);
+    commitBox.append(msg, btnRow);
     gitEl.append(commitBox);
 
     if (staged.length) gitEl.append(gitSection('Staged Changes', staged, true));

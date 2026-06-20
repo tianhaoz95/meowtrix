@@ -856,6 +856,15 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 .editor-git-msg:focus { border-color: var(--accent); }
 .editor-git-msg::placeholder { color: var(--text3); }
+.editor-git-commit-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.editor-git-commit-btns .editor-git-commitbtn {
+  margin-top: 0;
+  flex: 1;
+}
 .editor-git-commitbtn {
   width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; font-weight: 600; font-family: inherit;
   background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer;
@@ -863,6 +872,31 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 .editor-git-commitbtn:hover:not(:disabled) { background: var(--accent-hi); }
 .editor-git-commitbtn:disabled { opacity: 0.45; cursor: default; }
+.editor-git-aibtn {
+  flex: none;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border3);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.1s var(--ease);
+}
+.editor-git-aibtn:hover:not(:disabled) {
+  background: var(--bg5);
+  border-color: var(--border);
+}
+.editor-git-aibtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .editor-git-section { padding: 2px 0 6px; }
 .editor-git-sectionhead {
   display: flex; align-items: center; gap: 6px; padding: 8px 6px 4px 12px;
