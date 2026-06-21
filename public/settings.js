@@ -71,6 +71,7 @@ function populateControls(s) {
   document.getElementById('s-http-proxy').value = s.httpProxy || '';
   document.getElementById('s-https-proxy').value = s.httpsProxy || '';
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
+  document.getElementById('s-mobile-scrollbar').checked = s.mobileScrollbar !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
 
   const statusEl = document.getElementById('s-update-status');
@@ -228,6 +229,11 @@ function wireControls() {
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(e.target.checked);
   });
 
+  document.getElementById('s-mobile-scrollbar').addEventListener('change', async (e) => {
+    await saveSetting('mobileScrollbar', e.target.checked);
+    if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
+  });
+
   document.getElementById('s-auto-update').addEventListener('change', async (e) => {
     await saveSetting('autoUpdate', e.target.checked);
   });
@@ -309,6 +315,9 @@ function onSettingChanged(key) {
   if (key === 'uiMode') {
     if (typeof updateUiMode === 'function') updateUiMode();
   }
+  if (key === 'mobileScrollbar') {
+    if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
+  }
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
@@ -336,6 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTermSettings();
     if (typeof updateUiMode === 'function') updateUiMode();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
+    if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
     if (typeof setPetFace === 'function') setPetFace(s.petFace || 'cat');
     if (typeof setPetSpeed === 'function') setPetSpeed(s.petSpeed != null ? s.petSpeed : 3);
     if (typeof setPetStay === 'function') setPetStay(!!s.petStay);

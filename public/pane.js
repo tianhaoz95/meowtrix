@@ -330,6 +330,7 @@ function activateTab(pane, id) {
       if (pane.activeTab?.type === 'terminal' && pane.activeTab.fitAddon) {
         pane.activeTab.fitAddon.fit();
         pane.activeTab.term?.focus();
+        if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(pane.activeTab);
       }
     });
   }
@@ -367,14 +368,121 @@ function initTerminalTab(tab, existingPtyId) {
 
   if (window.WebLinksAddon) {
     const webLinksAddon = new window.WebLinksAddon.WebLinksAddon((event, uri) => {
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        const pane = paneOfTab(tab.tabEl);
-        if (pane) {
-          addTab(pane, 'browser', null, null, uri);
-          if (typeof saveSessionState === 'function') saveSessionState();
-        }
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Close any existing link menus
+      const existingMenu = document.querySelector('.term-link-menu');
+      if (existingMenu) {
+        existingMenu.remove();
       }
+
+      // Create the menu element
+      const menuEl = document.createElement('div');
+      menuEl.className = 'term-link-menu';
+      
+      menuEl.innerHTML = `
+        <div class="term-link-menu-header">Link Options</div>
+        <div class="term-link-menu-url" title="${uri}">${uri}</div>
+        <div class="term-link-menu-item" data-action="new-tab">
+          <span class="term-link-menu-item-icon">🌐</span>
+          <span>Open in browser tab</span>
+        </div>
+        <div class="term-link-menu-item" data-action="app-tab">
+          <span class="term-link-menu-item-icon">🐾</span>
+          <span>Open in Meowtrix tab</span>
+        </div>
+        <div class="term-link-menu-item" data-action="copy">
+          <span class="term-link-menu-item-icon">📋</span>
+          <span>Copy URL</span>
+        </div>
+      `;
+
+      // Position the menu
+      menuEl.style.position = 'fixed';
+      document.body.appendChild(menuEl);
+
+      const menuWidth = 240;
+      const menuHeight = 150;
+      let left = event.clientX;
+      let top = event.clientY;
+
+      if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 10;
+      }
+      if (top + menuHeight > window.innerHeight) {
+        top = window.innerHeight - menuHeight - 10;
+      }
+      left = Math.max(10, left);
+      top = Math.max(10, top);
+
+      menuEl.style.left = `${left}px`;
+      menuEl.style.top = `${top}px`;
+
+      const closeMenu = () => {
+        menuEl.remove();
+        document.removeEventListener('mousedown', onDocClick, true);
+        document.removeEventListener('touchstart', onDocClick, true);
+      };
+
+      const onDocClick = (e) => {
+        if (!menuEl.contains(e.target)) {
+          closeMenu();
+        }
+      };
+
+      // Add click handlers for menu items
+      menuEl.addEventListener('click', (e) => {
+        const item = e.target.closest('.term-link-menu-item');
+        if (!item) return;
+
+        const action = item.getAttribute('data-action');
+        if (action === 'new-tab') {
+          window.open(uri, '_blank', 'noopener,noreferrer');
+          closeMenu();
+        } else if (action === 'app-tab') {
+          const pane = paneOfTab(tab.tabEl);
+          if (pane) {
+            addTab(pane, 'browser', null, null, uri);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
+          closeMenu();
+        } else if (action === 'copy') {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(uri).then(() => {
+              item.innerHTML = '<span class="term-link-menu-item-icon">✓</span><span>Copied!</span>';
+              item.style.color = '#10b981'; // Green accent
+              setTimeout(closeMenu, 600);
+            }).catch(() => fallbackCopy(item));
+          } else {
+            fallbackCopy(item);
+          }
+        }
+      });
+
+      const fallbackCopy = (item) => {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = uri;
+          textarea.style.position = 'fixed';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          textarea.remove();
+          item.innerHTML = '<span class="term-link-menu-item-icon">✓</span><span>Copied!</span>';
+          item.style.color = '#10b981';
+          setTimeout(closeMenu, 600);
+        } catch (err) {
+          console.error('Failed to copy', err);
+          closeMenu();
+        }
+      };
+
+      setTimeout(() => {
+        document.addEventListener('mousedown', onDocClick, true);
+        document.addEventListener('touchstart', onDocClick, true);
+      }, 0);
     });
     term.loadAddon(webLinksAddon);
   }
@@ -386,13 +494,20 @@ function initTerminalTab(tab, existingPtyId) {
   const ptyId = existingPtyId || uid();
   tab.ptyId = ptyId;
 
-  const initPty = () => { fitAddon.fit(); createPty(ptyId, term, term.cols, term.rows); };
+  const initPty = () => {
+    fitAddon.fit();
+    createPty(ptyId, term, term.cols, term.rows);
+    if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
+  };
   // Small rAF delay ensures the terminal is sized before createPty
   requestAnimationFrame(initPty);
   // Web fonts load async; fitting with fallback metrics clips the bottom row,
   // so re-fit (which resizes the PTY too) once the real font is ready.
   if (document.fonts?.ready) document.fonts.ready.then(() => {
-    if (tab.viewEl.classList.contains('active')) fitAddon.fit();
+    if (tab.viewEl.classList.contains('active')) {
+      fitAddon.fit();
+      if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
+    }
   });
 
   // The `mtx` command prints OSC 5379 with an absolute path; intercept it here
@@ -470,10 +585,18 @@ function initTerminalTab(tab, existingPtyId) {
   term.onResize(({ cols, rows }) => wsSend({ type: 'pty:resize', id: ptyId, cols, rows }));
   term.onTitleChange(title => { if (title) tab.label.textContent = title; });
 
-  const ro = new ResizeObserver(() => { if (tab.viewEl.classList.contains('active')) fitAddon.fit(); });
+  const ro = new ResizeObserver(() => {
+    if (tab.viewEl.classList.contains('active')) {
+      fitAddon.fit();
+      if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
+    }
+  });
   ro.observe(tab.viewEl);
   tab.disposeTerminal = () => {
     ro.disconnect();
+    if (tab.mobileScrollDis) { tab.mobileScrollDis.dispose(); tab.mobileScrollDis = null; }
+    if (tab.mobileLfDis) { tab.mobileLfDis.dispose(); tab.mobileLfDis = null; }
+    if (tab.mobileResizeDis) { tab.mobileResizeDis.dispose(); tab.mobileResizeDis = null; }
     if (tab.acActive) closeAutocomplete(tab);
   };
 }
