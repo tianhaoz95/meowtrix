@@ -25,6 +25,51 @@ function updateRangeFill(el) {
   el.style.backgroundSize = pct + '% 100%';
 }
 
+// ── Top Menu Bar Clock ───────────────────────────────────────────────────────
+let clockIntervalId = null;
+
+function updateClock() {
+  const clockEl = document.getElementById('toolbar-clock');
+  if (!clockEl) return;
+  const timeStr = new Date().toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+  const timeEl = clockEl.querySelector('.clock-time');
+  if (timeEl) {
+    timeEl.textContent = timeStr;
+  } else {
+    clockEl.textContent = timeStr;
+  }
+}
+
+function startClock() {
+  if (clockIntervalId) return;
+  updateClock();
+  clockIntervalId = setInterval(updateClock, 1000);
+}
+
+function stopClock() {
+  if (clockIntervalId) {
+    clearInterval(clockIntervalId);
+    clockIntervalId = null;
+  }
+}
+
+function initClockVisibility() {
+  const showTime = currentSettings.showTimeInMenu !== false;
+  const clockEl = document.getElementById('toolbar-clock');
+  if (clockEl) {
+    if (showTime) {
+      clockEl.hidden = false;
+      startClock();
+    } else {
+      clockEl.hidden = true;
+      stopClock();
+    }
+  }
+}
+
 // ── Apply settings live ──────────────────────────────────────────────────────
 function applyTermSettings() {
   getAllPanes().forEach(p => p.tabs.forEach(t => {
@@ -72,6 +117,7 @@ function populateControls(s) {
   document.getElementById('s-https-proxy').value = s.httpsProxy || '';
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
   document.getElementById('s-mobile-scrollbar').checked = s.mobileScrollbar !== false;
+  document.getElementById('s-show-time').checked = s.showTimeInMenu !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
 
   const statusEl = document.getElementById('s-update-status');
@@ -234,6 +280,11 @@ function wireControls() {
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
   });
 
+  document.getElementById('s-show-time').addEventListener('change', async (e) => {
+    await saveSetting('showTimeInMenu', e.target.checked);
+    initClockVisibility();
+  });
+
   document.getElementById('s-auto-update').addEventListener('change', async (e) => {
     await saveSetting('autoUpdate', e.target.checked);
   });
@@ -328,6 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Server is source of truth for theme
   applyTheme(s.theme);
   if (typeof updateUiMode === 'function') updateUiMode();
+  initClockVisibility();
 
   document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('settings-close').addEventListener('click', closeSettings);
@@ -350,5 +402,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof setPetSpeed === 'function') setPetSpeed(s.petSpeed != null ? s.petSpeed : 3);
     if (typeof setPetStay === 'function') setPetStay(!!s.petStay);
     if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
+    initClockVisibility();
   });
 });

@@ -65,6 +65,7 @@ const DEFAULT_SETTINGS = {
   petY: null, // saved pet y position (px) when dragged
   uiMode: 'auto', // switch between desktop, mobile, or auto (responsive) UI mode
   mobileScrollbar: true, // show grabbable liquid glass scrollbar on mobile terminals
+  showTimeInMenu: true, // show current time in the top menu bar
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",

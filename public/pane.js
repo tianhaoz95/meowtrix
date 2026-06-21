@@ -292,7 +292,8 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     editorDir: null,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
-    consoleOpen: !!existingBrowserConsoleOpen
+    consoleOpen: !!existingBrowserConsoleOpen,
+    isCustomLabel: false
   };
   pane.tabs.push(tab);
 
@@ -583,7 +584,7 @@ function initTerminalTab(tab, existingPtyId) {
     if (out) sendTerminalInput(ptyId, out);
   });
   term.onResize(({ cols, rows }) => wsSend({ type: 'pty:resize', id: ptyId, cols, rows }));
-  term.onTitleChange(title => { if (title) tab.label.textContent = title; });
+  term.onTitleChange(title => { if (title && !tab.isCustomLabel) tab.label.textContent = title; });
 
   const ro = new ResizeObserver(() => {
     if (tab.viewEl.classList.contains('active')) {
@@ -797,8 +798,10 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     frame.src = window.DEMO_MODE ? url : toProxyUrl(url);
     if (hintEl) hintEl.classList.add('visible');
     urlInput.value = url;
-    try { label.textContent = new URL(url).hostname.replace('www.', ''); }
-    catch { label.textContent = 'Browser'; }
+    if (!tab.isCustomLabel) {
+      try { label.textContent = new URL(url).hostname.replace('www.', ''); }
+      catch { label.textContent = 'Browser'; }
+    }
     loadingBar.classList.add('active');
   };
 
@@ -811,7 +814,9 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
     if (hintEl) hintEl.classList.remove('visible');
     loadingBar.classList.remove('active');
     urlInput.value = '';
-    label.textContent = 'New Tab';
+    if (!tab.isCustomLabel) {
+      label.textContent = 'New Tab';
+    }
   };
 
   frame.addEventListener('load', () => {

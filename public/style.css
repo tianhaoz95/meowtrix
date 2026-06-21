@@ -341,6 +341,49 @@ button:focus-visible { border-radius: 8px; }
   position: relative; z-index: 10;
 }
 
+/* ── Toolbar Clock ── */
+.toolbar-clock {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow);
+  transition: all 0.2s var(--ease);
+  user-select: none;
+  z-index: 5;
+}
+.toolbar-clock:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: 0 2px 12px rgba(139,92,246,0.15);
+}
+.clock-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent);
+  animation: clock-pulse 1.5s infinite alternate;
+}
+@keyframes clock-pulse {
+  from { opacity: 0.4; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1.15); }
+}
+
+html.mobile-ui .toolbar-clock {
+  display: none !important;
+}
+
 #logo {
   display: flex; align-items: center; gap: 8px;
   user-select: none; text-decoration: none;
@@ -519,6 +562,10 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 #btn-settings .btn-text { display: none; }
 #btn-settings svg { transition: transform 0.25s var(--ease); }
 #btn-settings:hover svg { transform: rotate(45deg); }
+
+#btn-fullscreen svg { transition: transform 0.22s var(--ease); }
+#btn-fullscreen:hover svg { transform: scale(1.18); }
+
 
 #toolbar-group-extra {
   display: contents;

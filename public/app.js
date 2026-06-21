@@ -31,6 +31,7 @@ function captureWorkspaceState() {
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
           label: t.label?.textContent || null,
+          isCustomLabel: !!t.isCustomLabel,
         })),
       };
     } else if (el.classList.contains('split-container')) {
@@ -62,6 +63,7 @@ function restoreWorkspaceState(state) {
       node.tabs.forEach(tabState => {
         const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
+        if (tabState.isCustomLabel) tab.isCustomLabel = true;
       });
       if (node.activeTabId) activateTab(pane, node.activeTabId);
       el = pane.el;
@@ -540,6 +542,27 @@ async function checkOnDeviceModel() {
   }
 }
 
+// Toggle full screen mode across different browsers
+function toggleFullscreen() {
+  const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  if (!isFS) {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+      });
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   checkOnDeviceModel();
 
@@ -563,6 +586,34 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadInput.value = ''; // allow re-selecting the same file
   });
   document.getElementById('btn-close-pane').addEventListener('click', closeActivePane);
+
+  // ── Fullscreen ──
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+
+    const updateFullscreenUI = () => {
+      const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const icon = btnFullscreen.querySelector('.btn-icon');
+      const text = btnFullscreen.querySelector('.btn-text');
+      
+      const ENTER_FS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`;
+      const EXIT_FS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M4 14h6v6m10-6h-6v6M4 10h6V4m10 6h-6V4"></path></svg>`;
+      
+      if (icon) icon.innerHTML = isFS ? EXIT_FS_SVG : ENTER_FS_SVG;
+      if (text) text.textContent = isFS ? 'Exit Full' : 'Fullscreen';
+      btnFullscreen.title = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
+      
+      if (isFS) {
+        btnFullscreen.classList.add('active');
+      } else {
+        btnFullscreen.classList.remove('active');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', updateFullscreenUI);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+  }
 
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {

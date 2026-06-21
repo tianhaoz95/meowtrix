@@ -280,16 +280,7 @@ function initMobileMenu() {
 }
 
 function updateUiMode() {
-  const s = (typeof getSettings === 'function') ? getSettings() : {};
-  const mode = s.uiMode || 'auto';
-  let isMobile = false;
-  if (mode === 'mobile') {
-    isMobile = true;
-  } else if (mode === 'desktop') {
-    isMobile = false;
-  } else {
-    isMobile = window.innerWidth <= 640;
-  }
+  const isMobile = isMobileLike();
   document.documentElement.classList.toggle('mobile-ui', isMobile);
 
   // Fit active terminals if UI mode changed

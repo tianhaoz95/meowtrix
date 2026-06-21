@@ -19,6 +19,7 @@ if (window.DEMO_MODE) {
     termScrollback: 10000,
     shell: '/bin/bash (demo: in-browser JS REPL)',
     browserHomepage: '',
+    showTimeInMenu: true,
   };
   const lsGet = (k, fallback) => {
     try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); }
