@@ -167,6 +167,26 @@
           </div>
         </div>
         <div class="settings-section">
+          <div class="settings-section-title">Mobile Utility Keys</div>
+          <div id="s-mobile-keys-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto; padding-right: 4px;"></div>
+          <div style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="s-mobile-key-label" placeholder="Label (e.g. Ctrl+C)" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+              <select id="s-mobile-key-kind" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit; cursor: pointer;">
+                <option value="send">Send sequence</option>
+                <option value="mod">Modifier (sticky)</option>
+                <option value="combo">Combo (e.g. ctrl+c)</option>
+                <option value="hide">Hide Keyboard</option>
+              </select>
+              <input type="text" id="s-mobile-key-payload" placeholder="Payload (e.g. ctrl+c)" style="flex: 1.5; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <button id="btn-reset-mobile-keys" style="padding: 6px 12px; border-radius: 8px; background: var(--bg4); color: var(--text2); border: 1px solid var(--border); cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Reset Keys</button>
+              <button id="btn-add-mobile-key" style="padding: 6px 12px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Add Key</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
           <div class="settings-section-title">Updates</div>
           <div class="settings-row">
             <label for="s-auto-update">Check for updates automatically</label>

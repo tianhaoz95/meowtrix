@@ -160,6 +160,7 @@ function populateControls(s) {
   updateRangeFill(petSpeed);
   refreshPetAvailability();
   populateSavedCommandsList();
+  populateMobileKeysList();
 }
 
 function populateSavedCommandsList() {
@@ -197,6 +198,107 @@ function populateSavedCommandsList() {
     });
     
     row.append(left, delBtn);
+    listEl.appendChild(row);
+  });
+}
+
+function populateMobileKeysList() {
+  const listEl = document.getElementById('s-mobile-keys-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  
+  const keys = currentSettings.mobileKeys || [...DEFAULT_MOBILE_KEYS];
+  
+  keys.forEach((key, idx) => {
+    const row = document.createElement('div');
+    row.className = 'mobile-key-config-row';
+    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; background:var(--bg3); padding:6px 10px; border-radius:8px; border:1px solid var(--border3); font-size:12px; gap:8px; margin-bottom: 2px;';
+    
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex; align-items:center; gap:8px; min-width:0; flex:1;';
+    
+    const labelEl = document.createElement('span');
+    labelEl.style.cssText = 'font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+    labelEl.textContent = key.label;
+    
+    const badge = document.createElement('span');
+    let badgeBg = 'var(--bg4)';
+    let badgeColor = 'var(--text2)';
+    if (key.kind === 'send') {
+      badgeBg = 'rgba(16, 185, 129, 0.12)';
+      badgeColor = '#10b981';
+    } else if (key.kind === 'mod') {
+      badgeBg = 'rgba(245, 158, 11, 0.12)';
+      badgeColor = '#f59e0b';
+    } else if (key.kind === 'combo') {
+      badgeBg = 'rgba(139, 92, 246, 0.12)';
+      badgeColor = '#8b5cf6';
+    } else if (key.kind === 'hide') {
+      badgeBg = 'rgba(107, 114, 128, 0.12)';
+      badgeColor = '#9ca3af';
+    }
+    badge.style.cssText = `font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600; background:${badgeBg}; color:${badgeColor}; text-transform:uppercase;`;
+    badge.textContent = key.kind;
+    
+    const payloadEl = document.createElement('span');
+    payloadEl.style.cssText = 'color:var(--text3); font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 100px;';
+    payloadEl.textContent = key.payload;
+    
+    left.append(labelEl, badge, payloadEl);
+    
+    const right = document.createElement('div');
+    right.style.cssText = 'display:flex; align-items:center; gap:4px;';
+    
+    const upBtn = document.createElement('button');
+    upBtn.textContent = '↑';
+    upBtn.title = 'Move up';
+    upBtn.style.cssText = 'background:none; border:none; color:var(--text3); cursor:pointer; padding:2px 4px; font-size:12px; font-weight:bold;';
+    upBtn.disabled = idx === 0;
+    upBtn.addEventListener('click', async () => {
+      if (idx > 0) {
+        const temp = keys[idx];
+        keys[idx] = keys[idx - 1];
+        keys[idx - 1] = temp;
+        currentSettings.mobileKeys = keys;
+        await saveSetting('mobileKeys', keys);
+        populateMobileKeysList();
+        if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+      }
+    });
+    
+    const downBtn = document.createElement('button');
+    downBtn.textContent = '↓';
+    downBtn.title = 'Move down';
+    downBtn.style.cssText = 'background:none; border:none; color:var(--text3); cursor:pointer; padding:2px 4px; font-size:12px; font-weight:bold;';
+    downBtn.disabled = idx === keys.length - 1;
+    downBtn.addEventListener('click', async () => {
+      if (idx < keys.length - 1) {
+        const temp = keys[idx];
+        keys[idx] = keys[idx + 1];
+        keys[idx + 1] = temp;
+        currentSettings.mobileKeys = keys;
+        await saveSetting('mobileKeys', keys);
+        populateMobileKeysList();
+        if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+      }
+    });
+    
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete';
+    delBtn.style.cssText = 'background:none; border:none; color:var(--text3); cursor:pointer; padding:2px 6px; font-size:12px; border-radius:4px; font-weight:bold; transition: color 0.12s;';
+    delBtn.addEventListener('mouseenter', () => delBtn.style.color = '#f87171');
+    delBtn.addEventListener('mouseleave', () => delBtn.style.color = 'var(--text3)');
+    delBtn.addEventListener('click', async () => {
+      keys.splice(idx, 1);
+      currentSettings.mobileKeys = keys;
+      await saveSetting('mobileKeys', keys);
+      populateMobileKeysList();
+      if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+    });
+    
+    right.append(upBtn, downBtn, delBtn);
+    row.append(left, right);
     listEl.appendChild(row);
   });
 }
@@ -359,6 +461,44 @@ function wireControls() {
       populateSavedCommandsList();
     });
   }
+
+  const btnAddMobileKey = document.getElementById('btn-add-mobile-key');
+  if (btnAddMobileKey) {
+    btnAddMobileKey.addEventListener('click', async () => {
+      const labelInput = document.getElementById('s-mobile-key-label');
+      const kindSelect = document.getElementById('s-mobile-key-kind');
+      const payloadInput = document.getElementById('s-mobile-key-payload');
+      
+      const label = labelInput.value.trim();
+      const kind = kindSelect.value;
+      const payload = payloadInput.value.trim();
+      
+      if (!label) return;
+      
+      const keys = currentSettings.mobileKeys || [...DEFAULT_MOBILE_KEYS];
+      keys.push({ label, kind, payload });
+      currentSettings.mobileKeys = keys;
+      
+      await saveSetting('mobileKeys', keys);
+      
+      labelInput.value = '';
+      payloadInput.value = '';
+      
+      populateMobileKeysList();
+      if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+    });
+  }
+
+  const btnResetMobileKeys = document.getElementById('btn-reset-mobile-keys');
+  if (btnResetMobileKeys) {
+    btnResetMobileKeys.addEventListener('click', async () => {
+      if (!confirm('Reset mobile keys to defaults?')) return;
+      currentSettings.mobileKeys = [...DEFAULT_MOBILE_KEYS];
+      await saveSetting('mobileKeys', currentSettings.mobileKeys);
+      populateMobileKeysList();
+      if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+    });
+  }
 }
 
 function onSettingChanged(key) {
@@ -368,6 +508,9 @@ function onSettingChanged(key) {
   }
   if (key === 'mobileScrollbar') {
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
+  }
+  if (key === 'mobileKeys') {
+    if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
   }
 }
 
@@ -380,6 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(s.theme);
   if (typeof updateUiMode === 'function') updateUiMode();
   initClockVisibility();
+  if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
 
   document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('settings-close').addEventListener('click', closeSettings);
@@ -403,5 +547,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof setPetStay === 'function') setPetStay(!!s.petStay);
     if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
     initClockVisibility();
+    if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
   });
 });

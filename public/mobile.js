@@ -72,35 +72,169 @@ function sendToActiveTerm(data) {
   }
 }
 
+const DEFAULT_MOBILE_KEYS = [
+  { label: 'Esc', kind: 'send', payload: '\\x1b' },
+  { label: 'Tab', kind: 'send', payload: '\\t' },
+  { label: 'Ctrl', kind: 'mod', payload: 'ctrl' },
+  { label: 'Alt', kind: 'mod', payload: 'alt' },
+  { label: 'Cmd', kind: 'mod', payload: 'meta' },
+  { label: '~', kind: 'send', payload: '~' },
+  { label: '|', kind: 'send', payload: '|' },
+  { label: '/', kind: 'send', payload: '/' },
+  { label: '←', kind: 'send', payload: '\\x1b[D' },
+  { label: '↑', kind: 'send', payload: '\\x1b[A' },
+  { label: '↓', kind: 'send', payload: '\\x1b[B' },
+  { label: '→', kind: 'send', payload: '\\x1b[C' },
+  { label: 'Hide', kind: 'hide', payload: '' }
+];
+
+function unescapePayload(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\t/g, '\t')
+    .replace(/\\r/g, '\r')
+    .replace(/\\n/g, '\n')
+    .replace(/\\e/g, '\x1b');
+}
+
+function parseCombo(comboStr) {
+  if (typeof comboStr !== 'string') return '';
+  const parts = comboStr.toLowerCase().split('+').map(p => p.trim());
+  const modifiers = {
+    ctrl: parts.includes('ctrl') || parts.includes('control'),
+    alt: parts.includes('alt') || parts.includes('option'),
+    shift: parts.includes('shift'),
+    meta: parts.includes('meta') || parts.includes('cmd') || parts.includes('command')
+  };
+
+  const key = parts[parts.length - 1];
+  
+  let modVal = 1;
+  if (modifiers.shift) modVal += 1;
+  if (modifiers.alt) modVal += 2;
+  if (modifiers.ctrl) modVal += 4;
+  if (modifiers.meta) modVal += 8;
+
+  const specialKeys = {
+    up: 'A',
+    down: 'B',
+    right: 'C',
+    left: 'D',
+    home: 'H',
+    end: 'F'
+  };
+
+  if (key in specialKeys) {
+    if (modVal > 1) {
+      return `\x1b[1;${modVal}${specialKeys[key]}`;
+    } else {
+      return `\x1b[${specialKeys[key]}`;
+    }
+  }
+
+  const tildeKeys = {
+    pgup: '5',
+    pageup: '5',
+    pgdn: '6',
+    pagedown: '6',
+    del: '3',
+    delete: '3',
+    ins: '2',
+    insert: '2'
+  };
+
+  if (key in tildeKeys) {
+    if (modVal > 1) {
+      return `\x1b[${tildeKeys[key]};${modVal}~`;
+    } else {
+      return `\x1b[${tildeKeys[key]}~`;
+    }
+  }
+
+  if (/^f\d+$/.test(key)) {
+    const num = parseInt(key.slice(1));
+    if (num >= 1 && num <= 4) {
+      const letters = ['P', 'Q', 'R', 'S'];
+      if (modVal > 1) {
+        return `\x1b[1;${modVal}${letters[num - 1]}`;
+      } else {
+        return `\x1bO${letters[num - 1]}`;
+      }
+    } else if (num >= 5 && num <= 12) {
+      const codes = {
+        5: '15', 6: '17', 7: '18', 8: '19', 9: '20', 10: '21', 11: '23', 12: '24'
+      };
+      const code = codes[num];
+      if (modVal > 1) {
+        return `\x1b[${code};${modVal}~`;
+      } else {
+        return `\x1b[${code}~`;
+      }
+    }
+  }
+
+  if (key === 'tab') {
+    if (modifiers.shift) return '\x1b[Z';
+    return '\t';
+  }
+  if (key === 'enter' || key === 'return') {
+    return '\r';
+  }
+  if (key === 'esc' || key === 'escape') {
+    return '\x1b';
+  }
+  if (key === 'space') {
+    if (modifiers.ctrl) return '\x00';
+    if (modifiers.alt) return '\x1b ';
+    return ' ';
+  }
+  if (key === 'backspace') {
+    return '\x7f';
+  }
+
+  if (key.length === 1) {
+    let ch = key;
+    if (modifiers.ctrl) {
+      ch = ctrlEncode(ch);
+    }
+    if (modifiers.alt) {
+      ch = '\x1b' + ch;
+    }
+    return ch;
+  }
+
+  return '';
+}
+
 function buildKeyBar() {
   const bar = document.createElement('div');
   bar.id = 'mobile-keybar';
   bar.hidden = true;
+  document.body.appendChild(bar);
+  return bar;
+}
 
-  // [label, kind, payload]; kind 'send' = literal bytes, 'mod' = sticky modifier, 'hide' = dismiss keyboard
-  const keys = [
-    ['Esc', 'send', '\x1b'],
-    ['Tab', 'send', '\t'],
-    ['Ctrl', 'mod', 'ctrl'],
-    ['Alt', 'mod', 'alt'],
-    ['Cmd', 'mod', 'meta'],
-    ['~', 'send', '~'],
-    ['|', 'send', '|'],
-    ['/', 'send', '/'],
-    ['←', 'send', '\x1b[D'],
-    ['↑', 'send', '\x1b[A'],
-    ['↓', 'send', '\x1b[B'],
-    ['→', 'send', '\x1b[C'],
-    ['Hide', 'hide', ''],
-  ];
+function rebuildMobileKeyBar() {
+  const bar = document.getElementById('mobile-keybar');
+  if (!bar) return;
+  bar.innerHTML = '';
 
-  for (const [label, kind, payload] of keys) {
+  for (const k in modButtons) {
+    delete modButtons[k];
+  }
+
+  const s = (typeof getSettings === 'function') ? getSettings() : {};
+  const keys = s.mobileKeys || DEFAULT_MOBILE_KEYS;
+
+  for (const item of keys) {
+    const { label, kind, payload } = item;
     const btn = document.createElement('button');
     btn.className = 'keybar-btn' + (kind === 'mod' ? ' keybar-mod' : '') + (kind === 'hide' ? ' keybar-hide' : '');
     btn.textContent = label;
     if (kind === 'mod') modButtons[payload] = btn;
-    // Act on pointerdown + preventDefault so the terminal's textarea keeps focus
-    // and the soft keyboard doesn't dismiss when a bar key is tapped.
+
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       if (kind === 'mod') {
@@ -109,19 +243,22 @@ function buildKeyBar() {
         if (document.activeElement) {
           document.activeElement.blur();
         }
+      } else if (kind === 'combo') {
+        const bytes = parseCombo(payload);
+        if (bytes) sendToActiveTerm(bytes);
       } else {
-        sendToActiveTerm(payload);
+        sendToActiveTerm(unescapePayload(payload));
       }
     });
     bar.appendChild(btn);
   }
 
-  document.body.appendChild(bar);
-  return bar;
+  refreshModButtons();
 }
 
 function initMobileKeyBar() {
   const bar = buildKeyBar();
+  rebuildMobileKeyBar();
 
   // Ride just above the soft keyboard using visualViewport tracking.
   // Instead of translating with fixed positioning (which gets displaced by browser auto-scroll),

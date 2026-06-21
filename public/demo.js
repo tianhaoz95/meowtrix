@@ -20,6 +20,21 @@ if (window.DEMO_MODE) {
     shell: '/bin/bash (demo: in-browser JS REPL)',
     browserHomepage: '',
     showTimeInMenu: true,
+    mobileKeys: [
+      { label: 'Esc', kind: 'send', payload: '\\x1b' },
+      { label: 'Tab', kind: 'send', payload: '\\t' },
+      { label: 'Ctrl', kind: 'mod', payload: 'ctrl' },
+      { label: 'Alt', kind: 'mod', payload: 'alt' },
+      { label: 'Cmd', kind: 'mod', payload: 'meta' },
+      { label: '~', kind: 'send', payload: '~' },
+      { label: '|', kind: 'send', payload: '|' },
+      { label: '/', kind: 'send', payload: '/' },
+      { label: '←', kind: 'send', payload: '\\x1b[D' },
+      { label: '↑', kind: 'send', payload: '\\x1b[A' },
+      { label: '↓', kind: 'send', payload: '\\x1b[B' },
+      { label: '→', kind: 'send', payload: '\\x1b[C' },
+      { label: 'Hide', kind: 'hide', payload: '' }
+    ]
   };
   const lsGet = (k, fallback) => {
     try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); }

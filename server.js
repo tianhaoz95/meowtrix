@@ -70,7 +70,22 @@ const DEFAULT_SETTINGS = {
     "status": "git status",
     "log": "git log --oneline -n 10",
     "install": "npm install"
-  }
+  },
+  mobileKeys: [
+    { label: 'Esc', kind: 'send', payload: '\\x1b' },
+    { label: 'Tab', kind: 'send', payload: '\\t' },
+    { label: 'Ctrl', kind: 'mod', payload: 'ctrl' },
+    { label: 'Alt', kind: 'mod', payload: 'alt' },
+    { label: 'Cmd', kind: 'mod', payload: 'meta' },
+    { label: '~', kind: 'send', payload: '~' },
+    { label: '|', kind: 'send', payload: '|' },
+    { label: '/', kind: 'send', payload: '/' },
+    { label: '←', kind: 'send', payload: '\\x1b[D' },
+    { label: '↑', kind: 'send', payload: '\\x1b[A' },
+    { label: '↓', kind: 'send', payload: '\\x1b[B' },
+    { label: '→', kind: 'send', payload: '\\x1b[C' },
+    { label: 'Hide', kind: 'hide', payload: '' }
+  ]
 };
 
 function readSettings() {
