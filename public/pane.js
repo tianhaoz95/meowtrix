@@ -372,6 +372,24 @@ function initTerminalTab(tab, existingPtyId) {
       event.preventDefault();
       event.stopPropagation();
       
+      // Check if it's a 0.0.0.0 link to automatically open with selected host IP
+      let checkUri = uri;
+      if (!/^https?:\/\//i.test(checkUri)) {
+        checkUri = 'http://' + checkUri;
+      }
+      let parsed = null;
+      try {
+        parsed = new URL(checkUri);
+      } catch (e) {}
+
+      if (parsed && parsed.hostname === '0.0.0.0') {
+        const selectedIp = (typeof getSettings === 'function' ? getSettings().localServerIp : null) || '127.0.0.1';
+        parsed.hostname = selectedIp;
+        const newUri = parsed.toString();
+        window.open(newUri, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
       // Close any existing link menus
       const existingMenu = document.querySelector('.term-link-menu');
       if (existingMenu) {

@@ -329,17 +329,36 @@ function runAppShortcut(key) {
 // ── File transfer (client ↔ host) ────────────────────────────────────────────
 // Brief status toast, reused for upload progress and errors.
 let _toastTimer = null;
-function showToast(msg) {
+let _toastClickHandler = null;
+function showToast(msg, onClick) {
   let el = document.getElementById('mtx-toast');
   if (!el) {
     el = document.createElement('div');
     el.id = 'mtx-toast';
+    el.addEventListener('click', () => {
+      if (_toastClickHandler) {
+        _toastClickHandler();
+        el.classList.remove('visible');
+      }
+    });
     document.body.appendChild(el);
   }
   el.textContent = msg;
   el.classList.add('visible');
+
+  if (onClick) {
+    el.style.cursor = 'pointer';
+    _toastClickHandler = onClick;
+  } else {
+    el.style.cursor = 'default';
+    _toastClickHandler = null;
+  }
+
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('visible'), 3200);
+  _toastTimer = setTimeout(() => {
+    el.classList.remove('visible');
+    _toastClickHandler = null;
+  }, onClick ? 6000 : 3200);
 }
 
 // Download a host file to the browser. Called from the OSC 5379 handler
@@ -656,6 +675,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { passive: false });
 
+  const btnPorts = document.getElementById('btn-ports');
+  if (btnPorts) {
+    btnPorts.addEventListener('click', togglePortsPopover);
+  }
+
   initSession();
 
   window.addEventListener('beforeunload', () => {
@@ -668,3 +692,103 @@ document.addEventListener('DOMContentLoaded', () => {
     // The server notices our WS closing and hands the active session off.
   });
 });
+
+// ── Port Monitor Client Logic ────────────────────────────────────────────────
+let activePorts = [];
+
+function onPortsState(ports) {
+  activePorts = ports || [];
+  const btn = document.getElementById('btn-ports');
+  const countSpan = document.getElementById('ports-count');
+  if (btn && countSpan) {
+    countSpan.textContent = activePorts.length;
+    if (activePorts.length > 0) {
+      btn.removeAttribute('hidden');
+    } else {
+      btn.setAttribute('hidden', '');
+      const popover = document.querySelector('.ports-popover');
+      if (popover) popover.remove();
+    }
+  }
+}
+
+function onPortsNew(ports) {
+  ports.forEach(p => {
+    const localServerIp = (typeof getSettings === 'function' ? getSettings().localServerIp : null) || '127.0.0.1';
+    const targetUrl = `http://${localServerIp}:${p.port}`;
+    const cmdStr = p.command ? ` (${p.command})` : '';
+    showToast(`🚀 New server started on port ${p.port}${cmdStr}. Click to open.`, () => {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    });
+  });
+}
+
+function togglePortsPopover() {
+  const btn = document.getElementById('btn-ports');
+  if (!btn) return;
+  
+  const existing = document.querySelector('.ports-popover');
+  if (existing) {
+    existing.remove();
+    document.removeEventListener('click', onPortsDocClick, true);
+    return;
+  }
+  
+  const popover = document.createElement('div');
+  popover.className = 'ports-popover';
+  
+  let html = `<div class="ports-popover-header">Active Servers (${activePorts.length})</div>`;
+  if (activePorts.length === 0) {
+    html += `<div style="padding: 12px; font-size: 12px; color: var(--text3); text-align: center;">No active servers found</div>`;
+  } else {
+    activePorts.forEach(p => {
+      const localServerIp = (typeof getSettings === 'function' ? getSettings().localServerIp : null) || '127.0.0.1';
+      const targetUrl = `http://${localServerIp}:${p.port}`;
+      const desc = p.command ? `${p.command} (PID: ${p.pid})` : `Port ${p.port}`;
+      html += `
+        <div class="ports-popover-item" data-url="${targetUrl}">
+          <div class="ports-popover-info">
+            <span class="ports-popover-port">:${p.port}</span>
+            <span class="ports-popover-desc">${desc}</span>
+          </div>
+          <span class="ports-popover-action">Open</span>
+        </div>
+      `;
+    });
+  }
+  
+  popover.innerHTML = html;
+  document.body.appendChild(popover);
+  
+  const rect = btn.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + 6}px`;
+  const popoverWidth = 280;
+  let left = rect.left + (rect.width - popoverWidth) / 2;
+  if (left + popoverWidth > window.innerWidth) {
+    left = window.innerWidth - popoverWidth - 10;
+  }
+  popover.style.left = `${Math.max(10, left)}px`;
+  
+  popover.addEventListener('click', (e) => {
+    const item = e.target.closest('.ports-popover-item');
+    if (item) {
+      const url = item.getAttribute('data-url');
+      window.open(url, '_blank', 'noopener,noreferrer');
+      popover.remove();
+      document.removeEventListener('click', onPortsDocClick, true);
+    }
+  });
+  
+  setTimeout(() => {
+    document.addEventListener('click', onPortsDocClick, true);
+  }, 0);
+}
+
+function onPortsDocClick(e) {
+  const popover = document.querySelector('.ports-popover');
+  const btn = document.getElementById('btn-ports');
+  if (popover && !popover.contains(e.target) && (!btn || !btn.contains(e.target))) {
+    popover.remove();
+    document.removeEventListener('click', onPortsDocClick, true);
+  }
+}

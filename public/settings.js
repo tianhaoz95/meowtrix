@@ -113,6 +113,17 @@ function populateControls(s) {
   document.getElementById('s-scrollback').value = String(s.termScrollback);
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
+  const localServerIpSel = document.getElementById('s-local-server-ip');
+  if (localServerIpSel) {
+    const val = s.localServerIp || '127.0.0.1';
+    if (![...localServerIpSel.options].some(o => o.value === val)) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      localServerIpSel.appendChild(opt);
+    }
+    localServerIpSel.value = val;
+  }
   document.getElementById('s-http-proxy').value = s.httpProxy || '';
   document.getElementById('s-https-proxy').value = s.httpsProxy || '';
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
@@ -368,6 +379,7 @@ function wireControls() {
 
   s('s-shell', 'shell');
   s('s-homepage', 'browserHomepage');
+  s('s-local-server-ip', 'localServerIp');
   s('s-http-proxy', 'httpProxy');
   s('s-https-proxy', 'httpsProxy');
   s('s-ui-mode', 'uiMode');
@@ -514,8 +526,23 @@ function onSettingChanged(key) {
   }
 }
 
+let _networkIps = ['127.0.0.1'];
+async function initNetworkInterfaces() {
+  try {
+    const res = await fetch('/api/network-interfaces');
+    _networkIps = await res.json();
+    const sel = document.getElementById('s-local-server-ip');
+    if (sel) {
+      sel.innerHTML = _networkIps.map(ip => `<option value="${ip}">${ip}</option>`).join('');
+    }
+  } catch (e) {
+    console.error('Error fetching network interfaces:', e);
+  }
+}
+
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  await initNetworkInterfaces();
   const s = await loadSettings();
   populateControls(s);
   wireControls();

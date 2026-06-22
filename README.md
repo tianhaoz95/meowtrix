@@ -45,6 +45,33 @@ meowtrix
 
 And open `http://localhost:9123` in your browser.
 
+### Running with Docker (Isolated Testing)
+
+For testing Meowtrix without affecting a running production instance or to run in an isolated environment, you can run it inside a Docker container on a random, untaken host port:
+
+```bash
+./docker-run.sh
+```
+
+Or via npm:
+
+```bash
+npm run docker
+```
+
+This will automatically:
+1. Locate a random untaken port on your host.
+2. Build the Docker container image.
+3. Start the container in interactive mode.
+4. Mount the current directory to `/workspace` inside the container as the terminal's workspace.
+5. Create an isolated Docker volume (`meowtrix-dev-settings`) to persist settings/session layout without modifying your host's production `~/.meowtrix/` config.
+6. Automatically open the browser to the new testing instance.
+
+You can also pass a custom workspace path to mount:
+```bash
+./docker-run.sh /path/to/another/folder
+```
+
 ### Install as a service (auto-start on login)
 
 ```bash
