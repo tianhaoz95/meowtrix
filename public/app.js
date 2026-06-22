@@ -316,12 +316,30 @@ function closeActivePane() {
 
 // Run a Cmd/Ctrl app shortcut by its key. Shared by the keyboard handler and
 // the mobile key bar's Cmd modifier. Returns true if the key was handled.
-function runAppShortcut(key) {
+function runAppShortcut(key, e) {
   switch (key) {
     case '\\': if (activePane) splitPane(activePane, 'vertical'); return true;
     case '-':  if (activePane) splitPane(activePane, 'horizontal'); return true;
     case 't':  if (activePane) showTabTypePicker({ clientX: 60, clientY: 40 }, activePane); return true;
     case 'w':  if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); return true;
+    case 'b':
+    case 'B': {
+      // Toggle broadcast input.
+      // On macOS, Cmd+B (with or without Shift) toggles it.
+      // On non-macOS, Ctrl+Shift+B toggles it (to avoid conflicting with terminal Ctrl+B).
+      const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+      if (!e) { // Triggered from mobile sticky Cmd, no event object.
+        setBroadcastInput(!broadcastInput);
+        return true;
+      }
+      const isCmdB = isMac && e.metaKey && !e.ctrlKey;
+      const isCtrlShiftB = !isMac && e.ctrlKey && e.shiftKey;
+      if (isCmdB || isCtrlShiftB) {
+        setBroadcastInput(!broadcastInput);
+        return true;
+      }
+      return false;
+    }
     default:   return false;
   }
 }
@@ -595,9 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-split-h').addEventListener('click', () => {
     if (activePane) splitPane(activePane, 'horizontal');
   });
-  document.getElementById('btn-broadcast').addEventListener('click', () => {
-    setBroadcastInput(!broadcastInput);
-  });
+  const btnBroadcast = document.getElementById('btn-broadcast');
+  if (btnBroadcast) {
+    btnBroadcast.addEventListener('click', () => {
+      setBroadcastInput(!broadcastInput);
+    });
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+    btnBroadcast.title = `Broadcast input to all visible terminals (${isMac ? 'Cmd+B' : 'Ctrl+Shift+B'})`;
+  }
   const uploadInput = document.getElementById('upload-input');
   document.getElementById('btn-upload').addEventListener('click', () => uploadInput.click());
   uploadInput.addEventListener('change', () => {
@@ -637,7 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
     if (!(e.metaKey || e.ctrlKey)) return;
-    if (runAppShortcut(e.key)) e.preventDefault();
+    if (runAppShortcut(e.key, e)) e.preventDefault();
   });
 
   // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal.

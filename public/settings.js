@@ -70,6 +70,12 @@ function initClockVisibility() {
   }
 }
 
+function applyMenuButtonMode(mode) {
+  const m = mode || 'both';
+  document.body.setAttribute('data-menu-button-mode', m);
+  window.dispatchEvent(new Event('resize'));
+}
+
 // ── Apply settings live ──────────────────────────────────────────────────────
 function applyTermSettings() {
   getAllPanes().forEach(p => p.tabs.forEach(t => {
@@ -102,6 +108,7 @@ function populateControls(s) {
   }
   themeSel.value = s.theme;
   document.getElementById('s-ui-mode').value = s.uiMode || 'auto';
+  document.getElementById('s-menu-button-mode').value = s.menuButtonMode || 'both';
   const fontSize = document.getElementById('s-font-size');
   fontSize.value = s.termFontSize;
   document.getElementById('s-font-size-val').textContent = s.termFontSize;
@@ -383,6 +390,7 @@ function wireControls() {
   s('s-http-proxy', 'httpProxy');
   s('s-https-proxy', 'httpsProxy');
   s('s-ui-mode', 'uiMode');
+  s('s-menu-button-mode', 'menuButtonMode');
 
   document.getElementById('s-combo-fx').addEventListener('change', async (e) => {
     await saveSetting('comboFx', e.target.checked);
@@ -518,6 +526,9 @@ function onSettingChanged(key) {
   if (key === 'uiMode') {
     if (typeof updateUiMode === 'function') updateUiMode();
   }
+  if (key === 'menuButtonMode') {
+    applyMenuButtonMode(currentSettings.menuButtonMode);
+  }
   if (key === 'mobileScrollbar') {
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
   }
@@ -551,6 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof updateUiMode === 'function') updateUiMode();
   initClockVisibility();
   if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+  applyMenuButtonMode(s.menuButtonMode);
 
   document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('settings-close').addEventListener('click', closeSettings);
@@ -575,5 +587,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof setPetEnabled === 'function') setPetEnabled(!!s.petEnabled);
     initClockVisibility();
     if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+    applyMenuButtonMode(s.menuButtonMode);
   });
 });

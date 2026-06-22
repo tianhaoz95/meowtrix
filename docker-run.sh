@@ -82,15 +82,25 @@ echo ""
   fi
 ) &
 
+# Determine application directory (where the script itself is located)
+APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # Run Docker container
 # -p binds the random host port to container's 9123
+# -v mounts application code directory to /app
+# -v keeps container's node_modules (prevents overwriting by host node_modules)
 # -v mounts workspace directory
 # -v mounts named volume for settings persistence
 # -e MEOWTRIX_WORKSPACE configures server.js to use that path for home/cwd
+# -e HOTRELOAD=1 enables hot reload in server.js
 docker run --rm -it \
   -p "$PORT:9123" \
+  -v "$APP_DIR:/app" \
+  -v "/app/node_modules" \
   -v "$WORKSPACE_DIR:/workspace" \
   -v "meowtrix-dev-settings:/root/.meowtrix" \
   -e MEOWTRIX_WORKSPACE=/workspace \
-  -w /workspace \
-  meowtrix-dev
+  -e HOTRELOAD=1 \
+  meowtrix-dev \
+  bash start.sh
+

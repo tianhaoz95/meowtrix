@@ -12,6 +12,8 @@ let paletteCommands = []; // commands matching the current query
 let paletteIndex = 0;     // highlighted result
 let paletteMode = 'command'; // 'command' or 'rename'
 
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
 // Move the active tab within its pane (dir +1 next / -1 previous), wrapping.
 function cycleTab(dir) {
   const pane = activePane;
@@ -53,7 +55,7 @@ function buildCommands() {
     { icon: '▸', title: 'Next tab', keywords: 'switch cycle', run: () => cycleTab(1) },
     { icon: '◂', title: 'Previous tab', keywords: 'switch cycle', run: () => cycleTab(-1) },
     { icon: '⬚', title: 'Focus next pane', keywords: 'switch cycle', run: () => cyclePane(1) },
-    { icon: '📡', title: broadcastInput ? 'Turn off broadcast input' : 'Broadcast input to all terminals', keywords: 'sync', run: () => setBroadcastInput(!broadcastInput) },
+    { icon: '📡', title: broadcastInput ? 'Turn off broadcast input' : 'Broadcast input to all terminals', hint: isMac ? '⌘B' : 'Ctrl+Shift+B', keywords: 'sync', run: () => setBroadcastInput(!broadcastInput) },
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
@@ -243,7 +245,6 @@ function runCommand(i) {
 // Wire up the toolbar button and its hover tooltip (showing the platform's open
 // shortcut: ⌘K on macOS, Ctrl+Shift+P elsewhere). The tooltip is a styled CSS
 // chip driven by data-kbd — snappier and clearer than the native title.
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const paletteShortcut = isMac ? '⌘K' : 'Ctrl+Shift+P';
 const paletteBtn = document.getElementById('btn-palette');
 if (paletteBtn) {

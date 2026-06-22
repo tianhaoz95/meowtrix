@@ -208,6 +208,7 @@ Use `⌘` on macOS or `Ctrl` elsewhere.
 | `⌘-` | Split horizontal |
 | `⌘T` | New tab |
 | `⌘W` | Close tab |
+| `⌘B` / `Ctrl+Shift+B` | Toggle broadcast input |
 
 The **command palette** (`⌘K`, or `Ctrl/⌘+Shift+P`) is a fuzzy launcher for every action — splitting, new terminal/browser tabs, switching tabs and panes, broadcast input, theme switching, and settings. Type to filter, arrow keys to move, `Enter` to run.
 

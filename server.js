@@ -67,6 +67,7 @@ const DEFAULT_SETTINGS = {
   uiMode: 'auto', // switch between desktop, mobile, or auto (responsive) UI mode
   mobileScrollbar: true, // show grabbable liquid glass scrollbar on mobile terminals
   showTimeInMenu: true, // show current time in the top menu bar
+  menuButtonMode: 'both', // top menu bar button style: 'both', 'icon', or 'text'
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",
