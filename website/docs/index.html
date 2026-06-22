@@ -41,11 +41,16 @@
         <a href="#panes">Panes &amp; tabs</a>
         <a href="#terminals">Terminals</a>
         <a href="#browser">Browser panes</a>
+        <a href="#editor">Code editor &amp; Git</a>
         <a href="#broadcast">Broadcast input</a>
+        <a href="#schedules">Scheduled Enter (⏰)</a>
         <a href="#palette">Command palette</a>
         <a href="#settings">Settings &amp; themes</a>
         <a href="#sessions">Sessions &amp; devices</a>
         <a href="#mobile">On mobile</a>
+        <a href="#pet">Chat pet</a>
+        <a href="#combo">Keystroke combo FX</a>
+        <a href="#update">Self-updates</a>
         <a href="#shortcuts">Keyboard shortcuts</a>
       </div>
       <div class="group">
@@ -214,9 +219,27 @@ HOST=0.0.0.0 npm start</code></pre>
         <p>Some sites — Google, sign-in flows, heavily bot-protected pages — still won't embed. Use <strong>↗</strong> to open those in a real browser window. You can set a default homepage for new browser tabs in <a href="#settings">Settings</a>.</p>
       </section>
 
+      <section id="editor">
+        <h2>Code editor &amp; Git</h2>
+        <p>Meowtrix comes with a built-in code editor based on Monaco (the same core that powers VS Code). You can open a folder directly via the tab picker (<strong>+ → Code Editor</strong>), the command palette, or by typing <code>mtx code /path/to/dir</code> in any terminal.</p>
+        <ul>
+          <li><strong>File Tree Sidebar:</strong> Browse the directory structure of the host machine and click to open files. Unsaved changes are marked with a dot indicator.</li>
+          <li><strong>Markdown Preview:</strong> Opening a <code>.md</code> file reveals a <strong>Preview</strong> button in the editor. Toggle it to view a live, side-by-side formatted preview. A quick-copy button is available on code blocks inside the preview.</li>
+          <li><strong>HTML Preview:</strong> View your static HTML files directly as preview tabs.</li>
+          <li><strong>Source Control:</strong> If the opened folder is a git repository, a Source Control tab appears in the sidebar. You can review staged/unstaged changes, view side-by-side diffs, stage/unstage files, and perform commits, pushes, and pulls.</li>
+          <li><strong>AI-Powered Commit Messages:</strong> Click the AI generate button next to the commit message box to automatically write a descriptive commit message based on your staged diffs.</li>
+        </ul>
+      </section>
+
       <section id="broadcast">
         <h2>Broadcast input</h2>
         <p>Toggle the toolbar's <strong>📡 Broadcast</strong> button to mirror your keystrokes to every visible terminal at once — like iTerm2 broadcast or tmux <code>synchronize-panes</code>. Great for running the same command across several hosts side by side. Toggle it off to return to typing into just the focused terminal.</p>
+      </section>
+
+      <section id="schedules">
+        <h2>Scheduled Enter presses (⏰)</h2>
+        <p>When working with AI coding agents or long-running commands, you may hit usage quotas or time constraints. Scheduled Enter lets you type a command and schedule its execution for later.</p>
+        <p>Click the ⏰ button in the toolbar or open it via the command palette to set a delay (e.g. <code>5h 30m</code>) or a specific clock time. The target terminal will display a blurred countdown overlay and swallow input until the timer fires, writing an Enter character (<code>\r</code>) to the PTY. Because the timer lives server-side next to the shell processes, it will fire even if you close your browser tab or disconnect.</p>
       </section>
 
       <section id="palette">
@@ -244,6 +267,12 @@ HOST=0.0.0.0 npm start</code></pre>
             <tr><td>Scrollback</td><td>How many lines of history each terminal keeps.</td></tr>
             <tr><td>Shell</td><td>Which shell to spawn for new terminals (e.g. <code>/bin/zsh</code>).</td></tr>
             <tr><td>Default homepage</td><td>URL new browser tabs open to (blank shows a start page).</td></tr>
+            <tr><td>Auto update</td><td>Background-check the git clone for updates periodically.</td></tr>
+            <tr><td>Keystroke Combo FX</td><td>Toggle typing streak rewards (particle bursts, screen shake, edge glow, heat readouts).</td></tr>
+            <tr><td>Chat Pet Enabled</td><td>Enable the on-device AI chat pet (Mochi) that wanders around the workspace.</td></tr>
+            <tr><td>Chat Pet Face</td><td>Choose Mochi's appearance from 12 animal faces (Cat, Dog, Fox, Bunny, etc.).</td></tr>
+            <tr><td>Chat Pet Speed</td><td>Adjust wander speed (1 for lazy, up to 10 for zoomies).</td></tr>
+            <tr><td>Chat Pet Stay</td><td>Pin Mochi to a specific position (drag to place) rather than wandering.</td></tr>
           </tbody>
         </table>
         <p>The <strong>☀ / 🌙</strong> toolbar button cycles themes quickly. Settings are saved on the host under <code>~/.meowtrix/settings.json</code>.</p>
@@ -263,6 +292,36 @@ HOST=0.0.0.0 npm start</code></pre>
           <li><strong>Ctrl / Alt / Cmd are "sticky"</strong> — tap one, then tap a key to combine them (e.g. Ctrl + C), since mobile keyboards don't emit reliable key events.</li>
           <li><strong>Double-tap</strong> the terminal to trigger autocomplete (Tab).</li>
         </ul>
+      </section>
+
+      <section id="pet">
+        <h2>On-device Chat Pet</h2>
+        <p>Mochi is a tiny animal companion that wanders around your workspace. You can click on Mochi to open a chat dialog. Mochi replies instantly, keeping you company as you build.</p>
+        <ul>
+          <li><strong>On-device AI:</strong> All conversation is processed completely locally in your browser. Replies are generated by Chrome's on-device Gemini Nano model (via the Prompt API). No network requests are made, keeping your chats completely private.</li>
+          <li><strong>Customizable Faces:</strong> Go to settings to choose from 12 different faces for your pet: Cat, Dog, Fox, Bunny, Panda, Penguin, Frog, Chick, Ghost, Robot, Dragon, or Unicorn.</li>
+          <li><strong>Wander Controls:</strong> You can adjust Mochi's speed (1 for lazy, up to 10 for zoomies) or enable "Stay" to keep Mochi pinned to a specific location (simply drag Mochi anywhere on the screen).</li>
+        </ul>
+        <div class="callout">
+          <span class="ico">ℹ️</span>
+          <p>The Chat Pet requires Google Chrome with the experimental Prompt API / LanguageModel enabled. If your browser does not support it, the pet toggle in Settings will be disabled.</p>
+        </div>
+      </section>
+
+      <section id="combo">
+        <h2>Keystroke combo FX</h2>
+        <p>Celebrate your coding streaks! Keystroke Combo FX tracks your typing speed and streak length to drive dynamic, gamified visual effects in real time.</p>
+        <ul>
+          <li><strong>Tiers:</strong> As you type, your combo builds up through tiers: <em>HEATING UP</em>, <em>ON FIRE</em>, <em>BLAZING</em>, <em>INFERNO</em>, and <em>MELTDOWN</em>.</li>
+          <li><strong>Visual Feedback:</strong> A heat-tinted combo readout counts up in the bottom-right corner. Keystrokes produce particle bursts, the screen edges glow, and reaching the highest tiers triggers a screen-shake effect.</li>
+          <li><strong>Toggleable:</strong> If you find the effects distracting, you can toggle them off in the Settings panel.</li>
+        </ul>
+      </section>
+
+      <section id="update">
+        <h2>Self-updates</h2>
+        <p>Meowtrix handles updates directly from the web interface. The server periodically checks its git clone upstream status in the background. If a newer version is available, a non-intrusive update banner will appear at the top of the workspace.</p>
+        <p>Clicking <strong>Update &amp; Restart</strong> pulls the latest code (re-compiling native dependencies if needed) and restarts the server process. This is kept user-triggered because restarting the server terminates active PTY terminals, letting you choose the perfect moment to update.</p>
       </section>
 
       <section id="shortcuts">

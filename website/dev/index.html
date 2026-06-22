@@ -42,6 +42,9 @@
         <a href="#session">Session coordination</a>
         <a href="#workspace">Workspace state</a>
         <a href="#proxy">Embedding proxy</a>
+        <a href="#fs-git">FS &amp; Git APIs</a>
+        <a href="#schedules-timer">Schedules timer</a>
+        <a href="#self-update-flow">Self-updates flow</a>
       </div>
       <div class="group">
         <div class="group-title">The frontend</div>
@@ -80,17 +83,21 @@
       <section id="layout">
         <h2>Repository layout</h2>
         <pre><code>meowtrix/
-├── server.js              # the entire backend (HTTP + WebSocket + proxy)
+├── server.js              # backend (HTTP + WebSocket + PTYs + proxy + git/file APIs)
 ├── public/                # the frontend, served as-is
 │   ├── index.html         # script load order lives here
 │   ├── ws.js              # the single WebSocket + PTY callback map
 │   ├── pane.js            # pane/tab model, DnD, broadcast
+│   ├── editor.js          # Monaco text editor, file tree & Git client
 │   ├── layout.js          # splitting & draggable dividers
 │   ├── app.js             # session bootstrap, serialize/restore, shortcuts
 │   ├── mobile.js          # on-screen key bar, sticky modifiers
 │   ├── settings.js        # settings panel + live application
 │   ├── palette.js         # ⌘K command palette (fuzzy action launcher)
-│   ├── demo.js            # serverless demo backend (JS REPL + API shim)
+│   ├── schedule.js        # scheduled Enter overlay and cancellation
+│   ├── update.js          # self-update banner and API client
+│   ├── combo.js           # keystroke combo streak FX and canvas rendering
+│   ├── pet.js             # Chrome Gemini Nano on-device LLM chat companion
 │   └── style.css          # themes & layout
 ├── website/               # this project site (landing + docs + dev docs)
 ├── start.sh               # dev: nodemon + hot reload
@@ -149,19 +156,55 @@ npm start          # run the server on PORT (default 3000)
         <p>Google, sign-in flows, and heavily bot-protected sites still won't embed.</p>
       </section>
 
+      <section id="fs-git">
+        <h2>File System &amp; Git APIs</h2>
+        <p>The code editor is powered by client-side logic in <code>public/editor.js</code> communicating with Node-side APIs in <code>server.js</code>:</p>
+        <ul>
+          <li><strong>Directory listing &amp; Reads/Writes:</strong> Shipped over simple JSON endpoints (<code>/api/fs/list</code>, <code>/api/fs/read</code>, <code>/api/fs/write</code>). Because the user already has full terminal/shell access, file reads and writes run with the same host permissions as the server process.</li>
+          <li><strong>Git Operations:</strong> Backed by <code>/api/git/*</code> endpoints in the server that safely shell out using Node's <code>execFile</code> (avoiding the shell injection risks of <code>exec</code>). Endpoints include <code>status</code> (which runs <code>git status -z</code> and parses branch tracking, staged, and unstaged modifications), <code>filediff</code> (which yields HEAD, index, or worktree buffers), and POST actions for <code>stage</code>, <code>unstage</code>, <code>discard</code>, <code>commit</code>, <code>push</code>, and <code>pull</code>.</li>
+          <li><strong>AI Commit Message Generator:</strong> If a staged diff exists, the UI contacts the AI commit endpoint (using locally configured environment keys or fallback models) to generate a detailed commit description from the staged git diff.</li>
+        </ul>
+      </section>
+
+      <section id="schedules-timer">
+        <h2>Schedules Timer</h2>
+        <p>The scheduled Enter key press mechanism runs entirely server-side in <code>server.js</code> (the <code>schedules</code> Map, keyed by PTY ID). Living on the server allows timers to survive temporary browser disconnects or client reloads.</p>
+        <ul>
+          <li><strong>Creation:</strong> Client triggers timer setup via a WebSocket message <code>schedule:create {ptyId, fireAt}</code>. The server sets a <code>setTimeout</code> for that exact millisecond.</li>
+          <li><strong>Execution:</strong> When the timeout fires, the server writes a carriage return (<code>\r</code>) directly to the target PTY stream and deletes the schedule, broadcasting the updated schedules state back to all clients.</li>
+          <li><strong>Stateless Rendering:</strong> The frontend <code>public/schedule.js</code> registers for <code>schedule:state</code> broadcasts. It is a pure visual overlay layer that renders countdown clocks and blurs terminal input while a schedule is active, but stores no timer state itself.</li>
+        </ul>
+      </section>
+
+      <section id="self-update-flow">
+        <h2>Supervisor-Driven Self-Updates</h2>
+        <p>Self-updates are designed to run git-based updates seamlessly while protecting the running terminal processes:</p>
+        <ul>
+          <li><strong>Hourly Check:</strong> The server runs a background check against upstream git coordinates. When updates are found, it broadcasts <code>update:state</code> to all sockets.</li>
+          <li><strong>Clean Application:</strong> A POST request to <code>/api/update/apply</code> triggers a git pull. If dependencies have changed, a local install runs. The server then calls <code>process.exit(0)</code>.</li>
+          <li><strong>Supervisor:</strong> If installed as a launchd/systemd service (defining <code>MEOWTRIX_SUPERVISED=1</code>), the process manager automatically detects the clean exit and restarts the process using the fresh codebase. If run manually, the server exits and asks the user to restart it.</li>
+        </ul>
+      </section>
+
       <section id="modules">
         <h2>Frontend module map</h2>
-        <p>All files are global-scope and <strong>load order matters</strong>. In <code>index.html</code>: <code>demo.js</code> → <code>ws.js</code> → <code>pane.js</code> → <code>layout.js</code> → <code>app.js</code> → <code>mobile.js</code> → <code>settings.js</code>. Cross-file calls are plain function references (e.g. <code>wsSend</code>, <code>getAllPanes</code>, <code>applyStickyMods</code>), not imports.</p>
+        <p>All files are global-scope and <strong>load order matters</strong>. In <code>index.html</code>: <code>demo.js</code> → <code>ws.js</code> → <code>pane.js</code> → <code>editor.js</code> → <code>layout.js</code> → <code>app.js</code> → <code>mobile.js</code> → <code>settings.js</code> → <code>palette.js</code> → <code>schedule.js</code> → <code>update.js</code> → <code>combo.js</code> → <code>pet.js</code>. Cross-file calls are plain function references (e.g. <code>wsSend</code>, <code>getAllPanes</code>, <code>applyStickyMods</code>), not imports.</p>
         <table>
           <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
           <tbody>
             <tr><td><code>demo.js</code></td><td>Sets <code>window.DEMO_MODE</code> and, when on, provides the serverless backend (JS REPL + <code>localStorage</code> API shim). Loaded first so the flag exists before <code>ws.js</code> runs.</td></tr>
             <tr><td><code>ws.js</code></td><td>The single WebSocket, 1s auto-reconnect, and the <code>ptyCallbacks</code> map (ptyId → xterm Terminal). Queues <code>pty:create</code> calls made before the socket opens.</td></tr>
-            <tr><td><code>pane.js</code></td><td>Pane/tab model and registry, tab creation for terminals and browsers, drag-and-drop (HTML5 DnD for mouse + a Pointer-Events path for touch), and broadcast fan-out.</td></tr>
+            <tr><td><code>pane.js</code></td><td>Pane/tab model and registry, tab creation for terminals, browsers, and editor tabs, drag-and-drop tab movements.</td></tr>
+            <tr><td><code>editor.js</code></td><td>Code editor integration (Monaco, file sidebar, Markdown/HTML Preview, Git Source Control integration and AI commit messages).</td></tr>
             <tr><td><code>layout.js</code></td><td>Splitting panes and the draggable dividers. Splits are <em>flat</em>; sizes are unitless flex-grow ratios so they survive resizes.</td></tr>
             <tr><td><code>app.js</code></td><td>Session bootstrap/claim/handoff, workspace serialize/restore, keyboard shortcuts, double-click → autocomplete.</td></tr>
             <tr><td><code>mobile.js</code></td><td>On-screen key bar. Ctrl/Alt/Cmd are <em>sticky</em> modifiers applied at the PTY-input layer (<code>applyStickyMods</code>), not via synthetic key events.</td></tr>
-            <tr><td><code>settings.js</code></td><td>Settings panel and live application of font/scrollback/theme.</td></tr>
+            <tr><td><code>settings.js</code></td><td>Settings panel and live application of font/scrollback/theme, and checking LLM availability for the pet.</td></tr>
+            <tr><td><code>palette.js</code></td><td>Fuzzy command palette launcher for quick shortcuts and workflow commands.</td></tr>
+            <tr><td><code>schedule.js</code></td><td>UI controller for setting, countdown formatting, and cancelling scheduled Enter timers.</td></tr>
+            <tr><td><code>update.js</code></td><td>Stateless banner and status text rendering for the server self-update check.</td></tr>
+            <tr><td><code>combo.js</code></td><td>Keystroke combo counter, decays, streak metrics, canvas particle bursts and edge glows.</td></tr>
+            <tr><td><code>pet.js</code></td><td>Desktop pet assistant (Mochi) using Chrome Gemini Nano local Prompt API for chatbot functionality.</td></tr>
           </tbody>
         </table>
       </section>

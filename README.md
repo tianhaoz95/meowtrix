@@ -9,15 +9,20 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **Tiling panes & tabs** — split vertically or horizontally, drag dividers to resize; each pane holds multiple tabs
 - **Persistent terminals** — full PTY-backed shells via xterm.js that outlive the connection; refresh or reconnect and they reattach with replayed scrollback
 - **Embedded browser panes** — built-in browser with a server-side proxy that strips frame-blocking headers so otherwise un-embeddable pages render in a pane
-- **Code editor tabs** — a Monaco (VS Code) editor with a file tree rooted at a folder you choose; open one from the tab picker, the palette, or `mtx code /path/to/project` in a terminal. Cmd/Ctrl+S saves. Git repos also get a **Source Control** panel — stage/unstage, side-by-side diffs, commit, push/pull.
+- **Code editor tabs** — Monaco (VS Code) editor with file tree sidebar; features side-by-side live **Markdown Preview** (with toggle & quick copy for code blocks) and live **HTML Preview** in browser tabs. Git repos gain a **Source Control** panel (stage/unstage, side-by-side diffs, commit, push/pull) with **AI-powered commit message generation**.
+- **Scheduled Enter presses (⏰)** — queue an `Enter` key press for later (delay or clock time) to run commands automatically, e.g. when an agent usage quota resets. Timers live server-side next to the PTY to survive page reloads and disconnects.
+- **On-device AI Chat Pet (🐾)** — chat with Mochi, a customizable wandering desktop companion (choose from 12 animal faces) powered locally via Chrome's on-device LLM (Gemini Nano via Prompt API).
+- **Keystroke Combo FX** — level up your typing with streak rewards: particle bursts, screen shake, edge glow, and heat-tinted combo readouts.
+- **Self-updates** — background git check notifies you of updates via an in-app banner; trigger a pull and clean server restart directly from the UI.
 - **`mtx` host helper** — `mtx download <file>` pushes a host file to your browser as a download; `mtx code <dir>` opens that directory in a code-editor tab
 - **Cross-device sessions** — server-coordinated single active session; move the whole workspace between browsers and devices and your layout follows
-- **Command palette** — `⌘K` (or `Ctrl/⌘+Shift+P`) fuzzy launcher for every action: split, new tab, switch tabs/panes, broadcast, themes, settings
+- **Command palette** — `⌘K` (or `Ctrl/⌘+Shift+P`) fuzzy launcher for every action: split, new tab, switch tabs/panes, broadcast, themes, settings, schedules, self-update
 - **Localhost-first** — the manual launcher binds to `127.0.0.1` by default so it's not exposed to your network; opt into LAN/remote access explicitly (a `--service` install binds `0.0.0.0`) — see [Network access](#network-access--security)
 - **Broadcast input** — mirror keystrokes to every visible terminal at once (like tmux `synchronize-panes`)
 - **Mobile-ready** — on-screen key bar with sticky Ctrl/Alt/Cmd modifiers and double-tap autocomplete
 - **10 themes** — Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Bubblegum, Catppuccin, Cappuccino, Synthwave; terminals are themed to match
 - **No build step** — plain ES scripts served directly; settings & layout persist to `~/.meowtrix/`
+
 
 ## Prerequisites
 
