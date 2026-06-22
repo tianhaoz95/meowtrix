@@ -1267,7 +1267,7 @@ wss.on('connection', (ws) => {
           name: 'xterm-256color',
           cols: msg.cols || 80,
           rows: msg.rows || 24,
-          cwd: process.env.MEOWTRIX_WORKSPACE || process.env.HOME || process.cwd(),
+          cwd: msg.cwd || process.env.MEOWTRIX_WORKSPACE || process.env.HOME || process.cwd(),
           env: ptyEnv,
         });
         const entry = { proc, dataListeners: new Set(), buffer: '', cols: msg.cols || 80, rows: msg.rows || 24 };

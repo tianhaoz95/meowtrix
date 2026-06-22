@@ -88,16 +88,16 @@ function wsSend(obj) {
   }
 }
 
-function _sendCreate(id, cols, rows) {
-  wsSend({ type: 'pty:create', id, cols, rows });
+function _sendCreate(id, cols, rows, cwd) {
+  wsSend({ type: 'pty:create', id, cols, rows, cwd });
 }
 
-function createPty(id, term, cols, rows) {
+function createPty(id, term, cols, rows, cwd) {
   ptyCallbacks.set(id, term);
   if (wsReady) {
-    _sendCreate(id, cols, rows);
+    _sendCreate(id, cols, rows, cwd);
   } else {
-    pendingPtys.push([id, cols, rows]);
+    pendingPtys.push([id, cols, rows, cwd]);
   }
 }
 

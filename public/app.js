@@ -27,7 +27,7 @@ function captureWorkspaceState() {
           ptyId: t.ptyId || null,
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
           browserConsoleOpen: t.type === 'browser' ? !!t.consoleOpen : null,
-          editorDir: t.type === 'editor' ? t.editorDir : null,
+          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'terminal' ? t.terminalDir : null),
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
           label: t.label?.textContent || null,

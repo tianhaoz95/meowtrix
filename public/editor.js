@@ -1475,6 +1475,210 @@ function initEditorTab(tab, viewEl, dir) {
   // ── File tree (lazy-expanding) ──────────────────────────────────────────────
   function join(base, name) { return base.replace(/\/+$/, '') + '/' + name; }
 
+  function closeContextMenu() {
+    const menu = document.getElementById('editor-context-menu');
+    if (menu) {
+      menu.style.display = 'none';
+    }
+    document.querySelectorAll('.editor-tree-row.context-menu-active').forEach(el => {
+      el.classList.remove('context-menu-active');
+    });
+  }
+
+  function showContextMenu(e, rowEl, itemPath, itemType) {
+    closeContextMenu();
+    rowEl.classList.add('context-menu-active');
+
+    let menu = document.getElementById('editor-context-menu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'editor-context-menu';
+      menu.className = 'editor-context-menu';
+      document.body.appendChild(menu);
+    }
+
+    menu.innerHTML = '';
+    menu.style.display = 'block';
+
+    let relPath = itemPath;
+    if (dir && itemPath.startsWith(dir)) {
+      relPath = itemPath.substring(dir.length);
+      if (relPath.startsWith('/')) {
+        relPath = relPath.substring(1);
+      }
+      if (relPath === '') {
+        relPath = '.';
+      }
+    }
+
+    const items = [];
+
+    if (itemType === 'dir') {
+      items.push({
+        label: 'New File...',
+        icon: '📄+',
+        onClick: () => createInDir(itemPath, 'file')
+      });
+      items.push({
+        label: 'New Folder...',
+        icon: '📁+',
+        onClick: () => createInDir(itemPath, 'dir')
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Rename...',
+        icon: '✏️',
+        onClick: () => renameItem(itemPath)
+      });
+      items.push({
+        label: 'Delete',
+        icon: '🗑️',
+        onClick: () => deleteItem(itemPath)
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Open in Terminal',
+        icon: '⬛',
+        onClick: () => {
+          if (typeof activePane !== 'undefined' && activePane) {
+            addTab(activePane, 'terminal', undefined, undefined, undefined, itemPath);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
+        }
+      });
+      items.push({
+        label: 'Open in Editor',
+        icon: '📝',
+        onClick: () => {
+          if (typeof activePane !== 'undefined' && activePane) {
+            addTab(activePane, 'editor', undefined, undefined, undefined, itemPath);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
+        }
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Copy Relative Path',
+        icon: '🔗',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(relPath);
+            toast('Copied relative path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+      items.push({
+        label: 'Copy Absolute Path',
+        icon: '📋',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(itemPath);
+            toast('Copied absolute path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+    } else {
+      items.push({
+        label: 'Open File',
+        icon: '📖',
+        onClick: () => openFile(itemPath)
+      });
+      items.push({
+        label: 'Download File',
+        icon: '📥',
+        onClick: () => downloadFile(itemPath)
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Rename...',
+        icon: '✏️',
+        onClick: () => renameItem(itemPath)
+      });
+      items.push({
+        label: 'Delete',
+        icon: '🗑️',
+        onClick: () => deleteItem(itemPath)
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Copy Relative Path',
+        icon: '🔗',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(relPath);
+            toast('Copied relative path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+      items.push({
+        label: 'Copy Absolute Path',
+        icon: '📋',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(itemPath);
+            toast('Copied absolute path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+    }
+
+    items.forEach(item => {
+      if (item.type === 'divider') {
+        const div = document.createElement('div');
+        div.className = 'editor-context-menu-divider';
+        menu.appendChild(div);
+      } else {
+        const btn = document.createElement('div');
+        btn.className = 'editor-context-menu-item';
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'editor-context-menu-item-icon';
+        iconSpan.textContent = item.icon || '';
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'editor-context-menu-item-label';
+        labelSpan.textContent = item.label;
+        
+        btn.append(iconSpan, labelSpan);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeContextMenu();
+          item.onClick();
+        });
+        menu.appendChild(btn);
+      }
+    });
+
+    const menuWidth = 180;
+    const menuHeight = items.length * 28;
+    let left = e.clientX;
+    let top = e.clientY;
+    if (left + menuWidth > window.innerWidth) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+    if (top + menuHeight > window.innerHeight) {
+      top = window.innerHeight - menuHeight - 10;
+    }
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  }
+
+  const onDocumentClick = () => closeContextMenu();
+  const onDocumentContextMenu = () => closeContextMenu();
+  const onDocumentScroll = () => closeContextMenu();
+
+  document.addEventListener('click', onDocumentClick);
+  document.addEventListener('contextmenu', onDocumentContextMenu);
+  document.addEventListener('scroll', onDocumentScroll, { capture: true, passive: true });
+
   async function renderDir(dirPath, containerEl, depth) {
     let data;
     try {
@@ -1555,6 +1759,12 @@ function initEditorTab(tab, viewEl, dir) {
       row.append(icon, name, actions);
       containerEl.appendChild(row);
 
+      row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e, row, full, entry.type);
+      });
+
       if (entry.type === 'dir') {
         const childWrap = document.createElement('div');
         childWrap.hidden = true;
@@ -1607,6 +1817,10 @@ function initEditorTab(tab, viewEl, dir) {
   };
 
   tab.disposeEditor = () => {
+    document.removeEventListener('click', onDocumentClick);
+    document.removeEventListener('contextmenu', onDocumentContextMenu);
+    document.removeEventListener('scroll', onDocumentScroll, { capture: true });
+    closeContextMenu();
     ro.disconnect();
     editor?.dispose();
     diffEditor?.dispose();

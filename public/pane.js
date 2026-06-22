@@ -289,7 +289,8 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     fitAddon: null,
     ptyId: null,
     currentUrl: null,
-    editorDir: null,
+    editorDir: type === 'editor' ? existingDir : null,
+    terminalDir: type === 'terminal' ? existingDir : null,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
     consoleOpen: !!existingBrowserConsoleOpen,
@@ -515,7 +516,7 @@ function initTerminalTab(tab, existingPtyId) {
 
   const initPty = () => {
     fitAddon.fit();
-    createPty(ptyId, term, term.cols, term.rows);
+    createPty(ptyId, term, term.cols, term.rows, tab.terminalDir);
     if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
   };
   // Small rAF delay ensures the terminal is sized before createPty
