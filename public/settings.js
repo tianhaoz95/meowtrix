@@ -88,14 +88,109 @@ function applyTermSettings() {
 }
 
 // ── Panel open/close ─────────────────────────────────────────────────────────
+// ── Search settings ──────────────────────────────────────────────────────────
+function getRowSearchText(item) {
+  let texts = [];
+  texts.push(item.textContent);
+  
+  item.querySelectorAll('input').forEach(input => {
+    if (input.placeholder) texts.push(input.placeholder);
+  });
+  
+  item.querySelectorAll('select option').forEach(opt => {
+    texts.push(opt.textContent);
+  });
+  
+  return texts.join(' ').toLowerCase();
+}
+
+function triggerSettingsSearch() {
+  const searchInput = document.getElementById('settings-search');
+  const clearBtn = document.getElementById('settings-search-clear');
+  if (!searchInput) return;
+  
+  const query = searchInput.value.trim().toLowerCase();
+  
+  if (clearBtn) {
+    clearBtn.hidden = !query;
+  }
+  
+  const sections = document.querySelectorAll('.settings-section');
+  
+  if (!query) {
+    sections.forEach(section => {
+      if (section.dataset.prevOpen !== undefined) {
+        section.open = section.dataset.prevOpen === 'true';
+        delete section.dataset.prevOpen;
+      }
+      section.style.display = '';
+      
+      const items = section.querySelectorAll('.settings-row, #s-commands-list > div, #s-mobile-keys-list > div');
+      items.forEach(item => {
+        item.style.display = '';
+      });
+    });
+    return;
+  }
+  
+  sections.forEach(section => {
+    if (section.dataset.prevOpen === undefined) {
+      section.dataset.prevOpen = String(section.open);
+    }
+    
+    const titleEl = section.querySelector('.settings-section-title');
+    const titleText = titleEl ? titleEl.textContent.replace(/🐾|⚙/g, '').trim().toLowerCase() : '';
+    const sectionTitleMatches = titleText.includes(query);
+    
+    const items = section.querySelectorAll('.settings-row, #s-commands-list > div, #s-mobile-keys-list > div');
+    let hasMatchingItem = false;
+    
+    items.forEach(item => {
+      if (sectionTitleMatches) {
+        item.style.display = '';
+        hasMatchingItem = true;
+      } else {
+        const itemText = getRowSearchText(item);
+        if (itemText.includes(query)) {
+          item.style.display = '';
+          hasMatchingItem = true;
+        } else {
+          item.style.display = 'none';
+        }
+      }
+    });
+    
+    if (sectionTitleMatches || hasMatchingItem) {
+      section.style.display = '';
+      section.open = true;
+    } else {
+      section.style.display = 'none';
+    }
+  });
+}
+
+function clearSettingsSearch() {
+  const searchInput = document.getElementById('settings-search');
+  if (searchInput) {
+    searchInput.value = '';
+    triggerSettingsSearch();
+  }
+}
+
+// ── Panel open/close ─────────────────────────────────────────────────────────
 function openSettings() {
   document.getElementById('settings-panel').classList.add('open');
   document.getElementById('settings-overlay').classList.add('open');
   if (typeof syncSettingsUpdateStatus === 'function') syncSettingsUpdateStatus();
+  const searchInput = document.getElementById('settings-search');
+  if (searchInput) {
+    setTimeout(() => searchInput.focus(), 150);
+  }
 }
 function closeSettings() {
   document.getElementById('settings-panel').classList.remove('open');
   document.getElementById('settings-overlay').classList.remove('open');
+  clearSettingsSearch();
 }
 
 // ── Populate + wire controls ─────────────────────────────────────────────────
@@ -218,6 +313,7 @@ function populateSavedCommandsList() {
     row.append(left, delBtn);
     listEl.appendChild(row);
   });
+  if (typeof triggerSettingsSearch === 'function') triggerSettingsSearch();
 }
 
 function populateMobileKeysList() {
@@ -319,6 +415,7 @@ function populateMobileKeysList() {
     row.append(left, right);
     listEl.appendChild(row);
   });
+  if (typeof triggerSettingsSearch === 'function') triggerSettingsSearch();
 }
 
 // Enable/disable the pet toggle based on whether Chrome's on-device model is
@@ -564,6 +661,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
   applyMenuButtonMode(s.menuButtonMode);
 
+  const searchInput = document.getElementById('settings-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', triggerSettingsSearch);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (searchInput.value) {
+          clearSettingsSearch();
+          e.stopPropagation();
+        } else {
+          closeSettings();
+        }
+      }
+    });
+  }
+  const clearBtn = document.getElementById('settings-search-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      clearSettingsSearch();
+      searchInput.focus();
+    });
+  }
+
   document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('settings-close').addEventListener('click', closeSettings);
   document.getElementById('settings-overlay').addEventListener('click', closeSettings);
@@ -575,6 +694,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch('/api/settings/reset', { method: 'POST' });
     const s = await res.json();
     currentSettings = s;
+    clearSettingsSearch();
     populateControls(s);
     applyTheme(s.theme);
     applyTermSettings();
