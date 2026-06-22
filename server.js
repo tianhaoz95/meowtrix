@@ -1254,11 +1254,15 @@ wss.on('connection', (ws) => {
           break;
         }
         const shell = readSettings().shell || process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
+        const shellArgs = os.platform() === 'win32' ? [] : ['-l'];
         const ptyEnv = { ...process.env };
         delete ptyEnv.npm_config_prefix;
+        // Remove service-specific host bindings to let shell resolve hostname correctly
+        delete ptyEnv.HOST;
+        delete ptyEnv.HOSTNAME;
         // Expose the bundled `mtx` download command on PATH for every shell.
         ptyEnv.PATH = path.join(__dirname, 'bin') + path.delimiter + (ptyEnv.PATH || '');
-        const proc = pty.spawn(shell, [], {
+        const proc = pty.spawn(shell, shellArgs, {
           name: 'xterm-256color',
           cols: msg.cols || 80,
           rows: msg.rows || 24,
