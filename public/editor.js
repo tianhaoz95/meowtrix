@@ -263,7 +263,7 @@ function getFileIconSvg(filename, type, isOpen = false) {
 function initEditorTab(tab, viewEl, dir) {
   viewEl.classList.add('editor-view');
   tab.editorDir = dir || '';
-  if (dir && tab.label) tab.label.textContent = basename(dir);
+  if (dir && tab.label && !tab.isCustomLabel) tab.label.textContent = basename(dir);
 
   // ── DOM scaffold ───────────────────────────────────────────────────────────
   const sidebar = document.createElement('div');

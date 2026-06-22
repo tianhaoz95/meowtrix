@@ -39,6 +39,10 @@ function handleWsMessage(msg) {
     if (typeof onScheduleFired === 'function') onScheduleFired(msg.ptyId);
   } else if (msg.type === 'update:state') {
     if (typeof onUpdateState === 'function') onUpdateState(msg.info);
+  } else if (msg.type === 'ports:state') {
+    if (typeof onPortsState === 'function') onPortsState(msg.ports);
+  } else if (msg.type === 'ports:new') {
+    if (typeof onPortsNew === 'function') onPortsNew(msg.ports);
   }
 }
 

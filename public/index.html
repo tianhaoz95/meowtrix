@@ -18,6 +18,10 @@
         <span id="logo-icon">🐾</span>
         <span id="logo-text">Meow<span id="logo-trix">trix</span></span>
       </span>
+      <div id="toolbar-clock" class="toolbar-clock" hidden>
+        <span class="clock-dot"></span>
+        <span class="clock-time"></span>
+      </div>
       <div id="toolbar-actions">
         <button id="btn-palette" aria-label="Command palette"><span class="btn-icon">⌘</span><span class="btn-text">Commands</span></button>
         <button id="btn-menu" aria-label="More actions" class="mobile-only"><span class="btn-icon">☰</span></button>
@@ -29,6 +33,8 @@
           <button id="btn-upload" title="Upload file(s) to the host (~/meowtrix)"><span class="btn-icon">📤</span><span class="btn-text">Upload</span></button>
           <input type="file" id="upload-input" multiple hidden>
           <button id="btn-schedule" title="Schedule an Enter key press in the active terminal (for when your quota resets)"><span class="btn-icon">⏰</span><span class="btn-text">Schedule</span></button>
+          <button id="btn-ports" title="Active local servers" hidden><span class="btn-icon">🔌</span><span class="btn-text">Servers (<span id="ports-count">0</span>)</span></button>
+          <button id="btn-fullscreen" title="Enter fullscreen"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg></span><span class="btn-text">Fullscreen</span></button>
           <button id="btn-settings" title="Settings"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span><span class="btn-text">Settings</span></button>
         </div>
       </div>
@@ -55,133 +61,236 @@
           <button id="settings-close">✕</button>
         </div>
       </div>
+      <div id="settings-search-container">
+        <svg class="settings-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="settings-search" placeholder="Search settings..." autocomplete="off">
+        <button id="settings-search-clear" title="Clear search" hidden>✕</button>
+      </div>
       <div id="settings-body">
-        <div class="settings-section">
-          <div class="settings-section-title">Appearance</div>
-          <div class="settings-row">
-            <label for="s-theme">Theme</label>
-            <select id="s-theme">
-              <!-- options populated from THEMES (app.js) by settings.js -->
-              <option value="dark">Midnight</option>
-            </select>
-          </div>
-          <div class="settings-row">
-            <label for="s-ui-mode">Interface mode</label>
-            <select id="s-ui-mode">
-              <option value="auto">Auto (Responsive)</option>
-              <option value="desktop">Desktop</option>
-              <option value="mobile">Mobile</option>
-            </select>
-          </div>
-          <div class="settings-row">
-            <label for="s-font-size">Terminal font size</label>
-            <div class="settings-row-right">
-              <input type="range" id="s-font-size" min="10" max="20" step="1">
-              <span id="s-font-size-val"></span>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Appearance
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-theme">Theme</label>
+              <select id="s-theme">
+                <!-- options populated from THEMES (app.js) by settings.js -->
+                <option value="dark">Midnight</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label for="s-ui-mode">Interface mode</label>
+              <select id="s-ui-mode">
+                <option value="auto">Auto (Responsive)</option>
+                <option value="desktop">Desktop</option>
+                <option value="mobile">Mobile</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label for="s-menu-button-mode">Menu button style</label>
+              <select id="s-menu-button-mode">
+                <option value="both">Icon and Text</option>
+                <option value="icon">Icon only</option>
+                <option value="text">Text only</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label for="s-mobile-scrollbar">Mobile liquid scrollbar</label>
+              <input type="checkbox" id="s-mobile-scrollbar">
+            </div>
+            <div class="settings-row">
+              <label for="s-show-time">Show time in menu bar</label>
+              <input type="checkbox" id="s-show-time">
+            </div>
+            <div class="settings-row">
+              <label for="s-font-size">Terminal font size</label>
+              <div class="settings-row-right">
+                <input type="range" id="s-font-size" min="10" max="20" step="1">
+                <span id="s-font-size-val"></span>
+              </div>
+            </div>
+            <div class="settings-row">
+              <label for="s-font-family">Terminal font</label>
+              <select id="s-font-family">
+                <option value="Cascadia Code, monospace">Cascadia Code</option>
+                <option value="JetBrains Mono, monospace">JetBrains Mono</option>
+                <option value="Menlo, Monaco, monospace">Menlo / Monaco</option>
+                <option value="monospace">System monospace</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label for="s-combo-fx">Keystroke combo FX</label>
+              <input type="checkbox" id="s-combo-fx">
             </div>
           </div>
-          <div class="settings-row">
-            <label for="s-font-family">Terminal font</label>
-            <select id="s-font-family">
-              <option value="Cascadia Code, monospace">Cascadia Code</option>
-              <option value="JetBrains Mono, monospace">JetBrains Mono</option>
-              <option value="Menlo, Monaco, monospace">Menlo / Monaco</option>
-              <option value="monospace">System monospace</option>
-            </select>
-          </div>
-          <div class="settings-row">
-            <label for="s-combo-fx">Keystroke combo FX</label>
-            <input type="checkbox" id="s-combo-fx">
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title">Terminal</div>
-          <div class="settings-row">
-            <label for="s-shell">Shell</label>
-            <input type="text" id="s-shell" placeholder="/bin/zsh">
-          </div>
-          <div class="settings-row">
-            <label for="s-scrollback">Scrollback lines</label>
-            <select id="s-scrollback">
-              <option value="1000">1,000</option>
-              <option value="5000">5,000</option>
-              <option value="10000">10,000</option>
-              <option value="50000">50,000</option>
-            </select>
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title">Companion</div>
-          <div class="settings-row">
-            <label for="s-pet">Chat pet</label>
-            <input type="checkbox" id="s-pet">
-          </div>
-          <div class="settings-row">
-            <label for="s-pet-face">Pet look</label>
-            <select id="s-pet-face">
-              <!-- options populated from PET_FACES (pet.js) by settings.js -->
-            </select>
-          </div>
-          <div class="settings-row">
-            <label for="s-pet-stay">Stay put (drag to place)</label>
-            <input type="checkbox" id="s-pet-stay">
-          </div>
-          <div class="settings-row">
-            <label for="s-pet-speed">Movement speed</label>
-            <div class="settings-row-right">
-              <input type="range" id="s-pet-speed" min="1" max="10" step="1">
-              <span id="s-pet-speed-val"></span>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Terminal
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-shell">Shell</label>
+              <input type="text" id="s-shell" placeholder="/bin/zsh">
+            </div>
+            <div class="settings-row">
+              <label for="s-scrollback">Scrollback lines</label>
+              <select id="s-scrollback">
+                <option value="1000">1,000</option>
+                <option value="5000">5,000</option>
+                <option value="10000">10,000</option>
+                <option value="50000">50,000</option>
+              </select>
             </div>
           </div>
-          <p class="settings-note" id="s-pet-note" hidden></p>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title">Browser</div>
-          <div class="settings-row">
-            <label for="s-homepage">Default homepage</label>
-            <input type="text" id="s-homepage" placeholder="Blank = start page">
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title">Saved Commands</div>
-          <div id="s-commands-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 150px; overflow-y: auto; padding-right: 4px;"></div>
-          <div style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
-            <div style="display: flex; gap: 6px;">
-              <input type="text" id="s-command-id" placeholder="ID (e.g. status)" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
-              <input type="text" id="s-command-cmd" placeholder="Command" style="flex: 2; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Companion
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-pet">Chat pet</label>
+              <input type="checkbox" id="s-pet">
             </div>
-            <button id="btn-add-command" style="align-self: flex-end; padding: 6px 12px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Add Command</button>
+            <div class="settings-row">
+              <label for="s-pet-face">Pet look</label>
+              <select id="s-pet-face">
+                <!-- options populated from PET_FACES (pet.js) by settings.js -->
+              </select>
+            </div>
+            <div class="settings-row">
+              <label for="s-pet-stay">Stay put (drag to place)</label>
+              <input type="checkbox" id="s-pet-stay">
+            </div>
+            <div class="settings-row">
+              <label for="s-pet-speed">Movement speed</label>
+              <div class="settings-row-right">
+                <input type="range" id="s-pet-speed" min="1" max="10" step="1">
+                <span id="s-pet-speed-val"></span>
+              </div>
+            </div>
+            <p class="settings-note" id="s-pet-note" hidden></p>
           </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title">Updates</div>
-          <div class="settings-row">
-            <label for="s-auto-update">Check for updates automatically</label>
-            <input type="checkbox" id="s-auto-update">
-          </div>
-          <div class="settings-row">
-            <label for="s-http-proxy">HTTP Proxy (optional)</label>
-            <input type="text" id="s-http-proxy" placeholder="e.g. http://127.0.0.1:7890">
-          </div>
-          <div class="settings-row">
-            <label for="s-https-proxy">HTTPS Proxy (optional)</label>
-            <input type="text" id="s-https-proxy" placeholder="e.g. http://127.0.0.1:7890">
-          </div>
-          <div class="settings-row">
-            <label>Manual check</label>
-            <div class="settings-row-right">
-              <span id="s-update-status" style="font-size: 11px; color: var(--text3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-              <button id="btn-check-update">Check Now</button>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Browser & Local Servers
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-homepage">Default homepage</label>
+              <input type="text" id="s-homepage" placeholder="Blank = start page">
+            </div>
+            <div class="settings-row">
+              <label for="s-local-server-ip">Local server IP mapping</label>
+              <select id="s-local-server-ip">
+                <option value="127.0.0.1">127.0.0.1</option>
+              </select>
             </div>
           </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title">Support</div>
-          <div class="settings-row">
-            <label>Help & Feedback</label>
-            <button id="btn-feedback">Submit Feedback</button>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Saved Commands
+          </summary>
+          <div class="settings-section-content">
+            <div id="s-commands-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 150px; overflow-y: auto; padding-right: 4px;"></div>
+            <div style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="s-command-id" placeholder="ID (e.g. status)" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+                <input type="text" id="s-command-cmd" placeholder="Command" style="flex: 2; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+              </div>
+              <button id="btn-add-command" style="align-self: flex-end; padding: 6px 12px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Add Command</button>
+            </div>
           </div>
-        </div>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Mobile Utility Keys
+          </summary>
+          <div class="settings-section-content">
+            <div id="s-mobile-keys-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto; padding-right: 4px;"></div>
+            <div style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="s-mobile-key-label" placeholder="Label (e.g. Ctrl+C)" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+                <select id="s-mobile-key-kind" style="flex: 1; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit; cursor: pointer;">
+                  <option value="send">Send sequence</option>
+                  <option value="mod">Modifier (sticky)</option>
+                  <option value="combo">Combo (e.g. ctrl+c)</option>
+                  <option value="hide">Hide Keyboard</option>
+                </select>
+                <input type="text" id="s-mobile-key-payload" placeholder="Payload (e.g. ctrl+c)" style="flex: 1.5; min-width: 0; background: var(--bg3); border: 1px solid var(--border3); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;">
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button id="btn-reset-mobile-keys" style="padding: 6px 12px; border-radius: 8px; background: var(--bg4); color: var(--text2); border: 1px solid var(--border); cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Reset Keys</button>
+                <button id="btn-add-mobile-key" style="padding: 6px 12px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;">Add Key</button>
+              </div>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Updates
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-auto-update">Check for updates automatically</label>
+              <input type="checkbox" id="s-auto-update">
+            </div>
+            <div class="settings-row">
+              <label for="s-http-proxy">HTTP Proxy (optional)</label>
+              <input type="text" id="s-http-proxy" placeholder="e.g. http://127.0.0.1:7890">
+            </div>
+            <div class="settings-row">
+              <label for="s-https-proxy">HTTPS Proxy (optional)</label>
+              <input type="text" id="s-https-proxy" placeholder="e.g. http://127.0.0.1:7890">
+            </div>
+            <div class="settings-row">
+              <label>Manual check</label>
+              <div class="settings-row-right">
+                <span id="s-update-status" style="font-size: 11px; color: var(--text3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                <button id="btn-check-update">Check Now</button>
+              </div>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Support
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label>Help & Feedback</label>
+              <button id="btn-feedback">Submit Feedback</button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>

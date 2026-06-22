@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { URL } = require('url');
-const { execFile } = require('child_process');
+const { execFile, exec } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +48,7 @@ app.get('/', (req, res) => {
 const SETTINGS_FILE = path.join(os.homedir(), '.meowtrix', 'settings.json');
 const DEFAULT_SETTINGS = {
   theme: 'dark',
+  localServerIp: '127.0.0.1',
   termFontSize: 13,
   termFontFamily: 'Cascadia Code, JetBrains Mono, Menlo, Monaco, monospace',
   termScrollback: 10000,
@@ -64,11 +65,29 @@ const DEFAULT_SETTINGS = {
   petX: null, // saved pet x position (px) when dragged
   petY: null, // saved pet y position (px) when dragged
   uiMode: 'auto', // switch between desktop, mobile, or auto (responsive) UI mode
+  mobileScrollbar: true, // show grabbable liquid glass scrollbar on mobile terminals
+  showTimeInMenu: true, // show current time in the top menu bar
+  menuButtonMode: 'both', // top menu bar button style: 'both', 'icon', or 'text'
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",
     "install": "npm install"
-  }
+  },
+  mobileKeys: [
+    { label: 'Esc', kind: 'send', payload: '\\x1b' },
+    { label: 'Tab', kind: 'send', payload: '\\t' },
+    { label: 'Ctrl', kind: 'mod', payload: 'ctrl' },
+    { label: 'Alt', kind: 'mod', payload: 'alt' },
+    { label: 'Cmd', kind: 'mod', payload: 'meta' },
+    { label: '~', kind: 'send', payload: '~' },
+    { label: '|', kind: 'send', payload: '|' },
+    { label: '/', kind: 'send', payload: '/' },
+    { label: '←', kind: 'send', payload: '\\x1b[D' },
+    { label: '↑', kind: 'send', payload: '\\x1b[A' },
+    { label: '↓', kind: 'send', payload: '\\x1b[B' },
+    { label: '→', kind: 'send', payload: '\\x1b[C' },
+    { label: 'Hide', kind: 'hide', payload: '' }
+  ]
 };
 
 function readSettings() {
@@ -97,6 +116,19 @@ app.post('/api/settings', (req, res) => {
 app.post('/api/settings/reset', (req, res) => {
   writeSettings({ ...DEFAULT_SETTINGS });
   res.json({ ...DEFAULT_SETTINGS });
+});
+
+app.get('/api/network-interfaces', (req, res) => {
+  const interfaces = os.networkInterfaces();
+  const ips = ['127.0.0.1'];
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name]) {
+      if ((net.family === 'IPv4' || net.family === 4) && !net.internal) {
+        ips.push(net.address);
+      }
+    }
+  }
+  res.json(Array.from(new Set(ips)));
 });
 
 // ── Session state persistence ────────────────────────────────────────────────
@@ -162,8 +194,8 @@ app.get('/api/download', (req, res) => {
 const EDITOR_MAX_FILE = 2 * 1024 * 1024; // refuse to open files larger than this
 
 // Home directory — used as the default starting point for the editor's folder
-// picker / path autocomplete.
-app.get('/api/fs/home', (req, res) => res.json({ home: os.homedir() }));
+// picker / path autocomplete. Supports MEOWTRIX_WORKSPACE environment variable.
+app.get('/api/fs/home', (req, res) => res.json({ home: process.env.MEOWTRIX_WORKSPACE || os.homedir() }));
 
 // List a directory: dirs first, then files, each alphabetical (case-insensitive).
 app.get('/api/fs/list', (req, res) => {
@@ -1167,6 +1199,8 @@ wss.on('connection', (ws) => {
     // …and on whatever the last update check found, so a fresh page shows the
     // "update available" banner without waiting for the next periodic check.
     if (lastUpdateInfo) ws.send(JSON.stringify(updateStatePayload()));
+    ws.send(JSON.stringify({ type: 'ports:state', ports: lastPorts }));
+    startPortMonitoring();
   }
 
   ws.on('message', (raw) => {
@@ -1221,15 +1255,19 @@ wss.on('connection', (ws) => {
           break;
         }
         const shell = readSettings().shell || process.env.SHELL || (os.platform() === 'win32' ? 'cmd.exe' : 'bash');
+        const shellArgs = os.platform() === 'win32' ? [] : ['-l'];
         const ptyEnv = { ...process.env };
         delete ptyEnv.npm_config_prefix;
+        // Remove service-specific host bindings to let shell resolve hostname correctly
+        delete ptyEnv.HOST;
+        delete ptyEnv.HOSTNAME;
         // Expose the bundled `mtx` download command on PATH for every shell.
         ptyEnv.PATH = path.join(__dirname, 'bin') + path.delimiter + (ptyEnv.PATH || '');
-        const proc = pty.spawn(shell, [], {
+        const proc = pty.spawn(shell, shellArgs, {
           name: 'xterm-256color',
           cols: msg.cols || 80,
           rows: msg.rows || 24,
-          cwd: process.env.HOME || process.cwd(),
+          cwd: process.env.MEOWTRIX_WORKSPACE || process.env.HOME || process.cwd(),
           env: ptyEnv,
         });
         const entry = { proc, dataListeners: new Set(), buffer: '', cols: msg.cols || 80, rows: msg.rows || 24 };
@@ -1472,6 +1510,156 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// ── Port monitoring ──────────────────────────────────────────────────────────
+let portMonitorInterval = null;
+let lastPorts = []; // Array of { port, ip, command, pid }
+
+function parseLsofOutput(stdout) {
+  const lines = stdout.trim().split('\n');
+  const portMap = new Map();
+  // Skip header
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    if (parts.length >= 9) {
+      const name = parts[parts.length - 2]; // e.g. "*:9123" or "127.0.0.1:5432"
+      const match = name.match(/:(\d+)$/);
+      if (match) {
+        const port = parseInt(match[1], 10);
+        if (port === Number(PORT)) continue; // Ignore Meowtrix port itself
+        
+        const hostPart = name.substring(0, name.lastIndexOf(':'));
+        const ip = hostPart === '*' || hostPart === '[::]' ? '0.0.0.0' : hostPart;
+        const command = parts[0];
+        const pid = parseInt(parts[1], 10);
+        
+        if (portMap.has(port)) {
+          const existing = portMap.get(port);
+          if (existing.ip === '127.0.0.1' || existing.ip === '::1') {
+            portMap.set(port, { port, ip, command, pid });
+          }
+        } else {
+          portMap.set(port, { port, ip, command, pid });
+        }
+      }
+    }
+  }
+  return Array.from(portMap.values());
+}
+
+function parseSsOutput(stdout) {
+  const lines = stdout.trim().split('\n');
+  const portMap = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    if (parts.length >= 4) {
+      const localAddressPort = parts[3];
+      const lastColon = localAddressPort.lastIndexOf(':');
+      if (lastColon !== -1) {
+        const portStr = localAddressPort.substring(lastColon + 1);
+        const hostPart = localAddressPort.substring(0, lastColon);
+        const port = parseInt(portStr, 10);
+        if (!isNaN(port) && port !== Number(PORT)) {
+          const ip = hostPart === '*' || hostPart === '[::]' || hostPart === '::' || hostPart === '' ? '0.0.0.0' : hostPart;
+          let command = '';
+          let pid = null;
+          const usersField = parts.find(p => p.startsWith('users:'));
+          if (usersField) {
+            const match = usersField.match(/pid=(\d+)/);
+            if (match) pid = parseInt(match[1], 10);
+            const cmdMatch = usersField.match(/"([^"]+)"/);
+            if (cmdMatch) command = cmdMatch[1];
+          }
+          if (portMap.has(port)) {
+            const existing = portMap.get(port);
+            if (existing.ip === '127.0.0.1' || existing.ip === '::1') {
+              portMap.set(port, { port, ip, command, pid });
+            }
+          } else {
+            portMap.set(port, { port, ip, command, pid });
+          }
+        }
+      }
+    }
+  }
+  return Array.from(portMap.values());
+}
+
+function getListeningPorts() {
+  return new Promise((resolve) => {
+    exec('lsof -iTCP -sTCP:LISTEN -P -n', (err, stdout) => {
+      if (err) {
+        exec('ss -tlnp', (err2, stdout2) => {
+          if (err2) {
+            resolve([]);
+            return;
+          }
+          resolve(parseSsOutput(stdout2));
+        });
+        return;
+      }
+      resolve(parseLsofOutput(stdout));
+    });
+  });
+}
+
+function broadcastPorts(portsList) {
+  const payload = JSON.stringify({ type: 'ports:state', ports: portsList });
+  for (const c of sessionClients) {
+    if (c.readyState === c.OPEN) c.send(payload);
+  }
+}
+
+function startPortMonitoring() {
+  if (portMonitorInterval) return;
+  
+  getListeningPorts().then(ports => {
+    lastPorts = ports;
+  }).catch(() => {});
+
+  portMonitorInterval = setInterval(async () => {
+    if (sessionClients.size === 0) {
+      stopPortMonitoring();
+      return;
+    }
+    try {
+      const currentPorts = await getListeningPorts();
+      
+      const newPorts = currentPorts.filter(cp => !lastPorts.some(lp => lp.port === cp.port));
+      
+      if (newPorts.length > 0) {
+        const payload = JSON.stringify({ type: 'ports:new', ports: newPorts });
+        for (const c of sessionClients) {
+          if (c.readyState === c.OPEN) c.send(payload);
+        }
+      }
+      
+      const listChanged = currentPorts.length !== lastPorts.length ||
+        currentPorts.some((cp, idx) => {
+          const lp = lastPorts[idx];
+          return !lp || lp.port !== cp.port || lp.command !== cp.command;
+        });
+
+      if (listChanged) {
+        lastPorts = currentPorts;
+        broadcastPorts(currentPorts);
+      }
+    } catch (e) {
+      console.error('Error monitoring ports:', e);
+    }
+  }, 2000);
+}
+
+function stopPortMonitoring() {
+  if (portMonitorInterval) {
+    clearInterval(portMonitorInterval);
+    portMonitorInterval = null;
+  }
+}
 
 // ── Network binding ──────────────────────────────────────────────────────────
 // A Meowtrix server hands whoever can reach it a real shell on the host, so by

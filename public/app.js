@@ -31,6 +31,7 @@ function captureWorkspaceState() {
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
           label: t.label?.textContent || null,
+          isCustomLabel: !!t.isCustomLabel,
         })),
       };
     } else if (el.classList.contains('split-container')) {
@@ -62,6 +63,7 @@ function restoreWorkspaceState(state) {
       node.tabs.forEach(tabState => {
         const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
+        if (tabState.isCustomLabel) tab.isCustomLabel = true;
       });
       if (node.activeTabId) activateTab(pane, node.activeTabId);
       el = pane.el;
@@ -314,12 +316,30 @@ function closeActivePane() {
 
 // Run a Cmd/Ctrl app shortcut by its key. Shared by the keyboard handler and
 // the mobile key bar's Cmd modifier. Returns true if the key was handled.
-function runAppShortcut(key) {
+function runAppShortcut(key, e) {
   switch (key) {
     case '\\': if (activePane) splitPane(activePane, 'vertical'); return true;
     case '-':  if (activePane) splitPane(activePane, 'horizontal'); return true;
     case 't':  if (activePane) showTabTypePicker({ clientX: 60, clientY: 40 }, activePane); return true;
     case 'w':  if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); return true;
+    case 'b':
+    case 'B': {
+      // Toggle broadcast input.
+      // On macOS, Cmd+B (with or without Shift) toggles it.
+      // On non-macOS, Ctrl+Shift+B toggles it (to avoid conflicting with terminal Ctrl+B).
+      const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+      if (!e) { // Triggered from mobile sticky Cmd, no event object.
+        setBroadcastInput(!broadcastInput);
+        return true;
+      }
+      const isCmdB = isMac && e.metaKey && !e.ctrlKey;
+      const isCtrlShiftB = !isMac && e.ctrlKey && e.shiftKey;
+      if (isCmdB || isCtrlShiftB) {
+        setBroadcastInput(!broadcastInput);
+        return true;
+      }
+      return false;
+    }
     default:   return false;
   }
 }
@@ -327,17 +347,36 @@ function runAppShortcut(key) {
 // ── File transfer (client ↔ host) ────────────────────────────────────────────
 // Brief status toast, reused for upload progress and errors.
 let _toastTimer = null;
-function showToast(msg) {
+let _toastClickHandler = null;
+function showToast(msg, onClick) {
   let el = document.getElementById('mtx-toast');
   if (!el) {
     el = document.createElement('div');
     el.id = 'mtx-toast';
+    el.addEventListener('click', () => {
+      if (_toastClickHandler) {
+        _toastClickHandler();
+        el.classList.remove('visible');
+      }
+    });
     document.body.appendChild(el);
   }
   el.textContent = msg;
   el.classList.add('visible');
+
+  if (onClick) {
+    el.style.cursor = 'pointer';
+    _toastClickHandler = onClick;
+  } else {
+    el.style.cursor = 'default';
+    _toastClickHandler = null;
+  }
+
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('visible'), 3200);
+  _toastTimer = setTimeout(() => {
+    el.classList.remove('visible');
+    _toastClickHandler = null;
+  }, onClick ? 6000 : 3200);
 }
 
 // Download a host file to the browser. Called from the OSC 5379 handler
@@ -540,6 +579,27 @@ async function checkOnDeviceModel() {
   }
 }
 
+// Toggle full screen mode across different browsers
+function toggleFullscreen() {
+  const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  if (!isFS) {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+      });
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   checkOnDeviceModel();
 
@@ -553,9 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-split-h').addEventListener('click', () => {
     if (activePane) splitPane(activePane, 'horizontal');
   });
-  document.getElementById('btn-broadcast').addEventListener('click', () => {
-    setBroadcastInput(!broadcastInput);
-  });
+  const btnBroadcast = document.getElementById('btn-broadcast');
+  if (btnBroadcast) {
+    btnBroadcast.addEventListener('click', () => {
+      setBroadcastInput(!broadcastInput);
+    });
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+    btnBroadcast.title = `Broadcast input to all visible terminals (${isMac ? 'Cmd+B' : 'Ctrl+Shift+B'})`;
+  }
   const uploadInput = document.getElementById('upload-input');
   document.getElementById('btn-upload').addEventListener('click', () => uploadInput.click());
   uploadInput.addEventListener('change', () => {
@@ -564,10 +629,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-close-pane').addEventListener('click', closeActivePane);
 
+  // ── Fullscreen ──
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+
+    const updateFullscreenUI = () => {
+      const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const icon = btnFullscreen.querySelector('.btn-icon');
+      const text = btnFullscreen.querySelector('.btn-text');
+      
+      const ENTER_FS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`;
+      const EXIT_FS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M4 14h6v6m10-6h-6v6M4 10h6V4m10 6h-6V4"></path></svg>`;
+      
+      if (icon) icon.innerHTML = isFS ? EXIT_FS_SVG : ENTER_FS_SVG;
+      if (text) text.textContent = isFS ? 'Exit Full' : 'Fullscreen';
+      btnFullscreen.title = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
+      
+      if (isFS) {
+        btnFullscreen.classList.add('active');
+      } else {
+        btnFullscreen.classList.remove('active');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', updateFullscreenUI);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+  }
+
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
     if (!(e.metaKey || e.ctrlKey)) return;
-    if (runAppShortcut(e.key)) e.preventDefault();
+    if (runAppShortcut(e.key, e)) e.preventDefault();
   });
 
   // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal.
@@ -605,6 +698,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { passive: false });
 
+  const btnPorts = document.getElementById('btn-ports');
+  if (btnPorts) {
+    btnPorts.addEventListener('click', togglePortsPopover);
+  }
+
   initSession();
 
   window.addEventListener('beforeunload', () => {
@@ -617,3 +715,103 @@ document.addEventListener('DOMContentLoaded', () => {
     // The server notices our WS closing and hands the active session off.
   });
 });
+
+// ── Port Monitor Client Logic ────────────────────────────────────────────────
+let activePorts = [];
+
+function onPortsState(ports) {
+  activePorts = ports || [];
+  const btn = document.getElementById('btn-ports');
+  const countSpan = document.getElementById('ports-count');
+  if (btn && countSpan) {
+    countSpan.textContent = activePorts.length;
+    if (activePorts.length > 0) {
+      btn.removeAttribute('hidden');
+    } else {
+      btn.setAttribute('hidden', '');
+      const popover = document.querySelector('.ports-popover');
+      if (popover) popover.remove();
+    }
+  }
+}
+
+function onPortsNew(ports) {
+  ports.forEach(p => {
+    const localServerIp = (typeof getSettings === 'function' ? getSettings().localServerIp : null) || '127.0.0.1';
+    const targetUrl = `http://${localServerIp}:${p.port}`;
+    const cmdStr = p.command ? ` (${p.command})` : '';
+    showToast(`🚀 New server started on port ${p.port}${cmdStr}. Click to open.`, () => {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    });
+  });
+}
+
+function togglePortsPopover() {
+  const btn = document.getElementById('btn-ports');
+  if (!btn) return;
+  
+  const existing = document.querySelector('.ports-popover');
+  if (existing) {
+    existing.remove();
+    document.removeEventListener('click', onPortsDocClick, true);
+    return;
+  }
+  
+  const popover = document.createElement('div');
+  popover.className = 'ports-popover';
+  
+  let html = `<div class="ports-popover-header">Active Servers (${activePorts.length})</div>`;
+  if (activePorts.length === 0) {
+    html += `<div style="padding: 12px; font-size: 12px; color: var(--text3); text-align: center;">No active servers found</div>`;
+  } else {
+    activePorts.forEach(p => {
+      const localServerIp = (typeof getSettings === 'function' ? getSettings().localServerIp : null) || '127.0.0.1';
+      const targetUrl = `http://${localServerIp}:${p.port}`;
+      const desc = p.command ? `${p.command} (PID: ${p.pid})` : `Port ${p.port}`;
+      html += `
+        <div class="ports-popover-item" data-url="${targetUrl}">
+          <div class="ports-popover-info">
+            <span class="ports-popover-port">:${p.port}</span>
+            <span class="ports-popover-desc">${desc}</span>
+          </div>
+          <span class="ports-popover-action">Open</span>
+        </div>
+      `;
+    });
+  }
+  
+  popover.innerHTML = html;
+  document.body.appendChild(popover);
+  
+  const rect = btn.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + 6}px`;
+  const popoverWidth = 280;
+  let left = rect.left + (rect.width - popoverWidth) / 2;
+  if (left + popoverWidth > window.innerWidth) {
+    left = window.innerWidth - popoverWidth - 10;
+  }
+  popover.style.left = `${Math.max(10, left)}px`;
+  
+  popover.addEventListener('click', (e) => {
+    const item = e.target.closest('.ports-popover-item');
+    if (item) {
+      const url = item.getAttribute('data-url');
+      window.open(url, '_blank', 'noopener,noreferrer');
+      popover.remove();
+      document.removeEventListener('click', onPortsDocClick, true);
+    }
+  });
+  
+  setTimeout(() => {
+    document.addEventListener('click', onPortsDocClick, true);
+  }, 0);
+}
+
+function onPortsDocClick(e) {
+  const popover = document.querySelector('.ports-popover');
+  const btn = document.getElementById('btn-ports');
+  if (popover && !popover.contains(e.target) && (!btn || !btn.contains(e.target))) {
+    popover.remove();
+    document.removeEventListener('click', onPortsDocClick, true);
+  }
+}

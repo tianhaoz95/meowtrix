@@ -10,6 +10,9 @@ let paletteInput = null;  // search box
 let paletteList = null;   // results container
 let paletteCommands = []; // commands matching the current query
 let paletteIndex = 0;     // highlighted result
+let paletteMode = 'command'; // 'command' or 'rename'
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 // Move the active tab within its pane (dir +1 next / -1 previous), wrapping.
 function cycleTab(dir) {
@@ -39,14 +42,24 @@ function buildCommands() {
     { icon: '🌐', title: 'New browser tab', keywords: 'web add', run: () => { if (activePane) { addTab(activePane, 'browser'); saveSessionState(); } } },
     { icon: '📝', title: 'New code editor tab', keywords: 'edit code vscode monaco add', run: async () => { if (!activePane) return; const dir = await promptForFolder(); if (dir) { addTab(activePane, 'editor', undefined, undefined, undefined, dir); saveSessionState(); } } },
     { icon: '✕', title: 'Close current tab', hint: '⌘W', run: () => { if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); } },
+    { icon: '✏️', title: 'Rename current tab', keywords: 'title name label retitle rename', keepOpen: true, run: () => {
+      if (!activePane?.activeTab) return;
+      paletteMode = 'rename';
+      paletteInput.placeholder = 'Enter new tab name…';
+      paletteInput.value = activePane.activeTab.label.textContent;
+      paletteInput.focus();
+      paletteInput.select();
+      renderRenameHint();
+    } },
     { icon: '🗑', title: 'Close current pane', keywords: 'remove', run: closeActivePane },
     { icon: '▸', title: 'Next tab', keywords: 'switch cycle', run: () => cycleTab(1) },
     { icon: '◂', title: 'Previous tab', keywords: 'switch cycle', run: () => cycleTab(-1) },
     { icon: '⬚', title: 'Focus next pane', keywords: 'switch cycle', run: () => cyclePane(1) },
-    { icon: '📡', title: broadcastInput ? 'Turn off broadcast input' : 'Broadcast input to all terminals', keywords: 'sync', run: () => setBroadcastInput(!broadcastInput) },
+    { icon: '📡', title: broadcastInput ? 'Turn off broadcast input' : 'Broadcast input to all terminals', hint: isMac ? '⌘B' : 'Ctrl+Shift+B', keywords: 'sync', run: () => setBroadcastInput(!broadcastInput) },
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
+    { icon: '⛶', title: (document.fullscreenElement || document.webkitFullscreenElement) ? 'Exit fullscreen' : 'Enter fullscreen', keywords: 'fullscreen maximize zoom window screen', run: () => toggleFullscreen() },
     { icon: '💬', title: 'Submit feedback', keywords: 'feedback support bug issue feature request report github', run: () => window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank') },
     { icon: '⬇', title: 'Check for updates', keywords: 'upgrade version git pull', run: () => { if (typeof checkForUpdateNow === 'function') checkForUpdateNow(); } },
     { icon: '🔥', title: (typeof isComboFxEnabled === 'function' && isComboFxEnabled()) ? 'Turn off keystroke combo FX' : 'Turn on keystroke combo FX',
@@ -118,7 +131,55 @@ function updateActive() {
   paletteList.children[paletteIndex]?.scrollIntoView({ block: 'nearest' });
 }
 
+function renderRenameHint() {
+  paletteList.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'palette-item active';
+  row.innerHTML = `<span class="palette-ico">✏️</span><span class="palette-title"></span>`;
+  const val = paletteInput.value.trim();
+  row.querySelector('.palette-title').textContent = val ? `Rename tab to "${val}"` : 'Clear tab name (reset to default)';
+  
+  const hint = document.createElement('span');
+  hint.className = 'palette-hint';
+  hint.textContent = 'Enter to save · Esc to cancel';
+  row.appendChild(hint);
+  
+  paletteCommands = [{
+    run: () => {
+      const activeTab = activePane?.activeTab;
+      if (activeTab) {
+        const newName = paletteInput.value.trim();
+        if (newName) {
+          activeTab.label.textContent = newName;
+          activeTab.isCustomLabel = true;
+        } else {
+          activeTab.isCustomLabel = false;
+          if (activeTab.type === 'terminal') {
+            activeTab.label.textContent = activeTab.term?.title || 'Terminal';
+          } else if (activeTab.type === 'editor') {
+            activeTab.label.textContent = activeTab.editorDir ? basename(activeTab.editorDir) : 'Editor';
+          } else if (activeTab.type === 'browser') {
+            if (activeTab.currentUrl) {
+              try { activeTab.label.textContent = new URL(activeTab.currentUrl).hostname.replace('www.', ''); }
+              catch { activeTab.label.textContent = 'Browser'; }
+            } else {
+              activeTab.label.textContent = 'New Tab';
+            }
+          }
+        }
+        if (typeof saveSessionState === 'function') saveSessionState();
+      }
+    }
+  }];
+  paletteIndex = 0;
+  paletteList.appendChild(row);
+}
+
 function filterCommands() {
+  if (paletteMode === 'rename') {
+    renderRenameHint();
+    return;
+  }
   const all = buildCommands();
   const q = paletteInput.value.trim();
   paletteCommands = all
@@ -157,6 +218,8 @@ function openPalette() {
   // Don't open over the inactive-session overlay — its actions wouldn't apply.
   if (typeof isActiveSession !== 'undefined' && !isActiveSession) return;
   if (!paletteEl) buildPalette();
+  paletteMode = 'command';
+  paletteInput.placeholder = 'Type a command…';
   paletteEl.hidden = false;
   paletteInput.value = '';
   filterCommands();
@@ -171,14 +234,17 @@ function closePalette() {
 
 function runCommand(i) {
   const cmd = paletteCommands[i];
-  closePalette();
-  if (cmd) try { cmd.run(); } catch (err) { console.error('Command failed:', err); }
+  if (cmd && cmd.keepOpen) {
+    try { cmd.run(); } catch (err) { console.error('Command failed:', err); }
+  } else {
+    closePalette();
+    if (cmd) try { cmd.run(); } catch (err) { console.error('Command failed:', err); }
+  }
 }
 
 // Wire up the toolbar button and its hover tooltip (showing the platform's open
 // shortcut: ⌘K on macOS, Ctrl+Shift+P elsewhere). The tooltip is a styled CSS
 // chip driven by data-kbd — snappier and clearer than the native title.
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const paletteShortcut = isMac ? '⌘K' : 'Ctrl+Shift+P';
 const paletteBtn = document.getElementById('btn-palette');
 if (paletteBtn) {
