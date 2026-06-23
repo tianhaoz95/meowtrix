@@ -298,7 +298,7 @@ function populateSavedCommandsList() {
     
     const idEl = document.createElement('span');
     idEl.style.cssText = 'font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
-    idEl.textContent = '@' + id;
+    idEl.textContent = '!' + id;
     
     const cmdEl = document.createElement('span');
     cmdEl.style.cssText = 'color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:monospace;';
@@ -576,7 +576,7 @@ function wireControls() {
     btnAdd.addEventListener('click', async () => {
       const idInput = document.getElementById('s-command-id');
       const cmdInput = document.getElementById('s-command-cmd');
-      const id = idInput.value.trim().replace(/^@/, '');
+      const id = idInput.value.trim().replace(/^[!@]/, '');
       const cmd = cmdInput.value.trim();
       if (!id || !cmd) return;
       

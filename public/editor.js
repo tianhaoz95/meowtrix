@@ -51,6 +51,22 @@ function ensureMarked() {
   return _markedPromise;
 }
 
+function populateLanguageSelect(monaco, selectEl) {
+  selectEl.innerHTML = '';
+  const languages = monaco.languages.getLanguages().sort((a, b) => {
+    const nameA = (a.aliases && a.aliases[0] ? a.aliases[0] : a.id).toLowerCase();
+    const nameB = (b.aliases && b.aliases[0] ? b.aliases[0] : b.id).toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+  
+  for (const lang of languages) {
+    const opt = document.createElement('option');
+    opt.value = lang.id;
+    opt.textContent = lang.aliases && lang.aliases[0] ? lang.aliases[0] : lang.id;
+    selectEl.appendChild(opt);
+  }
+}
+
 function isMarkdownFile(filePath) {
   if (!filePath) return false;
   const ext = filePath.split('.').pop().toLowerCase();
@@ -184,7 +200,8 @@ function getFileIconSvg(filename, type, isOpen = false) {
       <circle cx="6" cy="5" r="0.8" fill="#f05032"/>
     `);
   }
-  if (filename === 'dockerfile' || filename === 'docker-compose.yml') {
+  const lowerFilename = filename.toLowerCase();
+  if (lowerFilename === 'dockerfile' || lowerFilename.startsWith('dockerfile.') || lowerFilename === 'docker-compose.yml') {
     return getFileSvg('#2496ed', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="5" font-weight="800" fill="#2496ed" text-anchor="middle">DK</text>`);
   }
 
@@ -462,6 +479,46 @@ function initEditorTab(tab, viewEl, dir) {
 
   const treeEl = document.createElement('div');
   treeEl.className = 'editor-tree';
+  treeEl.addEventListener('contextmenu', (e) => {
+    if (!e.target.closest('.editor-tree-row')) {
+      e.preventDefault();
+      e.stopPropagation();
+      showContextMenu(e, null);
+    }
+  });
+  treeEl.addEventListener('dragenter', (e) => {
+    if (e.target === treeEl) {
+      const dragSource = window.dragSourcePath;
+      if (dragSource && isValidMove(dragSource, dir)) {
+        treeEl.classList.add('drag-hover');
+      }
+    }
+  });
+  treeEl.addEventListener('dragover', (e) => {
+    if (e.target === treeEl) {
+      const dragSource = window.dragSourcePath;
+      if (dragSource && isValidMove(dragSource, dir)) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      }
+    }
+  });
+  treeEl.addEventListener('dragleave', (e) => {
+    if (e.target === treeEl) {
+      treeEl.classList.remove('drag-hover');
+    }
+  });
+  treeEl.addEventListener('drop', async (e) => {
+    if (e.target === treeEl) {
+      treeEl.classList.remove('drag-hover');
+      const dragSource = window.dragSourcePath;
+      if (dragSource && isValidMove(dragSource, dir)) {
+        e.preventDefault();
+        const targetPath = join(dir, basename(dragSource));
+        await moveItem(dragSource, targetPath);
+      }
+    }
+  });
   const gitEl = document.createElement('div');
   gitEl.className = 'editor-git';
   gitEl.hidden = true;
@@ -553,8 +610,34 @@ function initEditorTab(tab, viewEl, dir) {
 
   markdownToggleWrap.append(btnEdit, btnPreview);
 
+  const statusbar = document.createElement('div');
+  statusbar.className = 'editor-statusbar';
+  statusbar.style.display = 'none';
+
+  const langSelectWrap = document.createElement('div');
+  langSelectWrap.className = 'editor-statusbar-item editor-lang-select-wrap';
+  const langLabel = document.createElement('span');
+  langLabel.className = 'editor-lang-label';
+  langLabel.textContent = 'Plain Text';
+  const langSelect = document.createElement('select');
+  langSelect.className = 'editor-lang-select';
+
+  langSelect.addEventListener('change', () => {
+    if (!activePath) return;
+    const st = open.get(activePath);
+    if (!st || !st.model) return;
+    ensureMonaco().then(monaco => {
+      monaco.editor.setModelLanguage(st.model, langSelect.value);
+      const selectedOpt = langSelect.options[langSelect.selectedIndex];
+      langLabel.textContent = selectedOpt ? selectedOpt.textContent : langSelect.value;
+    });
+  });
+
+  langSelectWrap.append(langLabel, langSelect);
+  statusbar.appendChild(langSelectWrap);
+
   body.append(monacoHost, markdownPreviewHost, diffWrap, markdownToggleWrap);
-  main.append(fileTabs, body);
+  main.append(fileTabs, body, statusbar);
 
   viewEl.append(sidebar, resizer, main);
 
@@ -657,12 +740,106 @@ function initEditorTab(tab, viewEl, dir) {
     }
   }
 
+  function updateOpenTabsAfterMove(oldPath, newPath) {
+    if (open.has(oldPath)) {
+      const st = open.get(oldPath);
+      open.delete(oldPath);
+      
+      st.tabEl.title = newPath;
+      const newName = basename(newPath);
+      const labelEl = st.tabEl.querySelector('span:not(.editor-filetab-dot):not(.editor-filetab-close)');
+      if (labelEl) labelEl.textContent = newName;
+      
+      st.tabEl.onclick = () => setActive(newPath);
+      const closeEl = st.tabEl.querySelector('.editor-filetab-close');
+      if (closeEl) {
+        closeEl.onclick = (e) => { e.stopPropagation(); closeFile(newPath); };
+      }
+      
+      open.set(newPath, st);
+      if (activePath === oldPath) {
+        activePath = newPath;
+      }
+    } else {
+      const prefix = oldPath + '/';
+      for (const openPath of [...open.keys()]) {
+        if (openPath.startsWith(prefix)) {
+          const suffix = openPath.substring(oldPath.length);
+          const newOpenPath = newPath + suffix;
+          
+          const st = open.get(openPath);
+          open.delete(openPath);
+          
+          st.tabEl.title = newOpenPath;
+          const newName = basename(newOpenPath);
+          const labelEl = st.tabEl.querySelector('span:not(.editor-filetab-dot):not(.editor-filetab-close)');
+          if (labelEl) labelEl.textContent = newName;
+          
+          st.tabEl.onclick = () => setActive(newOpenPath);
+          const closeEl = st.tabEl.querySelector('.editor-filetab-close');
+          if (closeEl) {
+            closeEl.onclick = (e) => { e.stopPropagation(); closeFile(newOpenPath); };
+          }
+          
+          open.set(newOpenPath, st);
+          if (activePath === openPath) {
+            activePath = newOpenPath;
+          }
+        }
+      }
+    }
+
+    if (tab.editorExpandedDirs) {
+      const prefix = oldPath + '/';
+      for (const expPath of [...tab.editorExpandedDirs]) {
+        if (expPath === oldPath) {
+          tab.editorExpandedDirs.delete(oldPath);
+          tab.editorExpandedDirs.add(newPath);
+        } else if (expPath.startsWith(prefix)) {
+          const suffix = expPath.substring(oldPath.length);
+          tab.editorExpandedDirs.delete(expPath);
+          tab.editorExpandedDirs.add(newPath + suffix);
+        }
+      }
+    }
+  }
+
+  function isValidMove(src, destDir) {
+    if (!src || !destDir) return false;
+    const srcParent = src.substring(0, src.lastIndexOf('/'));
+    if (srcParent === destDir) return false;
+    if (src === destDir) return false;
+    if (destDir.startsWith(src + '/')) return false;
+    return true;
+  }
+
+  async function moveItem(itemPath, targetPath) {
+    if (itemPath === targetPath) return;
+    const name = basename(itemPath);
+    try {
+      const res = await fetch('/api/fs/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldPath: itemPath, newPath: targetPath })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || 'Failed to move');
+      } else {
+        toast(`Moved ${name} to ${basename(targetPath) || 'root'}`);
+        updateOpenTabsAfterMove(itemPath, targetPath);
+        refreshFiles();
+      }
+    } catch (err) {
+      toast('Failed to move');
+    }
+  }
+
   async function renameItem(itemPath) {
     const oldName = basename(itemPath);
     const newName = await showPrompt(`Rename ${oldName}`, `Enter new name...`, oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     
-    // Construct new path
     const lastSlash = itemPath.lastIndexOf('/');
     const parentDir = lastSlash >= 0 ? itemPath.slice(0, lastSlash) : '';
     const newPath = parentDir ? join(parentDir, newName.trim()) : newName.trim();
@@ -678,26 +855,7 @@ function initEditorTab(tab, viewEl, dir) {
         toast(data.error || 'Failed to rename');
       } else {
         toast(`Renamed to ${newName}`);
-        if (open.has(itemPath)) {
-          const st = open.get(itemPath);
-          open.delete(itemPath);
-          
-          st.tabEl.title = newPath;
-          const labelEl = st.tabEl.querySelector('span:not(.editor-filetab-dot):not(.editor-filetab-close)');
-          if (labelEl) labelEl.textContent = newName.trim();
-          
-          st.tabEl.onclick = () => setActive(newPath);
-          const closeEl = st.tabEl.querySelector('.editor-filetab-close');
-          if (closeEl) {
-            closeEl.onclick = (e) => { e.stopPropagation(); closeFile(newPath); };
-          }
-          
-          open.set(newPath, st);
-          
-          if (activePath === itemPath) {
-            activePath = newPath;
-          }
-        }
+        updateOpenTabsAfterMove(itemPath, newPath);
         refreshFiles();
       }
     } catch (err) {
@@ -812,8 +970,19 @@ function initEditorTab(tab, viewEl, dir) {
   // ── Git diff overlay ─────────────────────────────────────────────────────────
   let diffEditor = null, diffModels = null, diffCurrent = null;
   function langFromPath(monaco, p) {
-    const ext = '.' + p.split('.').pop().toLowerCase();
-    for (const l of monaco.languages.getLanguages()) if ((l.extensions || []).includes(ext)) return l.id;
+    const filename = p.split('/').pop().split('\\').pop();
+    const lowerFilename = filename.toLowerCase();
+    
+    // Check exact or prefix match for Dockerfile
+    if (lowerFilename === 'dockerfile' || lowerFilename.startsWith('dockerfile.')) {
+      return 'dockerfile';
+    }
+    
+    const ext = filename.includes('.') ? '.' + filename.split('.').pop().toLowerCase() : '';
+    for (const l of monaco.languages.getLanguages()) {
+      if (l.filenames && l.filenames.map(f => f.toLowerCase()).includes(lowerFilename)) return l.id;
+      if (ext && (l.extensions || []).includes(ext)) return l.id;
+    }
     return 'plaintext';
   }
   function closeDiff() {
@@ -1505,12 +1674,14 @@ function initEditorTab(tab, viewEl, dir) {
     if (!st) {
       editor?.setModel(null);
       markdownPreviewHost.hidden = true;
+      statusbar.style.display = 'none';
       return;
     }
 
     if (isPreviewable && st.previewActive) {
       monacoHost.hidden = true;
       markdownPreviewHost.hidden = false;
+      statusbar.style.display = 'none';
       if (isMarkdownFile(p)) {
         markdownPreviewHost.classList.remove('is-html');
         renderMarkdownContent(st);
@@ -1523,6 +1694,13 @@ function initEditorTab(tab, viewEl, dir) {
       markdownPreviewHost.hidden = true;
       markdownPreviewHost.classList.remove('is-html');
       editor?.setModel(st.model);
+      
+      statusbar.style.display = 'flex';
+      const modelLang = st.model.getLanguageId();
+      langSelect.value = modelLang;
+      const selectedOpt = langSelect.options[langSelect.selectedIndex];
+      langLabel.textContent = selectedOpt ? selectedOpt.textContent : modelLang;
+      
       if (st.viewState) editor?.restoreViewState(st.viewState);
       if (editor) editor.focus();
       if (line !== null && editor) {
@@ -1577,6 +1755,9 @@ function initEditorTab(tab, viewEl, dir) {
     } catch { toast('Could not open file'); return; }
 
     const monaco = await ensureMonaco();
+    if (langSelect.options.length === 0) {
+      populateLanguageSelect(monaco, langSelect);
+    }
     if (!editor) {
       placeholder.style.display = 'none';
       editor = monaco.editor.create(monacoHost, {
@@ -1588,8 +1769,9 @@ function initEditorTab(tab, viewEl, dir) {
       });
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveActive());
     }
-    // Model URI carries the filename so Monaco auto-detects the language.
-    const model = monaco.editor.createModel(data.content, undefined, monaco.Uri.file(filePath));
+    // Resolve the language explicitly to support extension-less files and trigger lazy loading
+    const lang = langFromPath(monaco, filePath);
+    const model = monaco.editor.createModel(data.content, lang, monaco.Uri.file(filePath));
     model.onDidChangeContent(() => markDirty(filePath, true));
 
     const tabEl = document.createElement('div');
@@ -1626,7 +1808,9 @@ function initEditorTab(tab, viewEl, dir) {
 
   function showContextMenu(e, rowEl, itemPath, itemType) {
     closeContextMenu();
-    rowEl.classList.add('context-menu-active');
+    if (rowEl) {
+      rowEl.classList.add('context-menu-active');
+    }
 
     let menu = document.getElementById('editor-context-menu');
     if (!menu) {
@@ -1639,9 +1823,13 @@ function initEditorTab(tab, viewEl, dir) {
     menu.innerHTML = '';
     menu.style.display = 'block';
 
-    let relPath = itemPath;
-    if (dir && itemPath.startsWith(dir)) {
-      relPath = itemPath.substring(dir.length);
+    const isRoot = !rowEl || !itemPath || itemPath === dir;
+    const path = isRoot ? dir : itemPath;
+    const type = isRoot ? 'dir' : itemType;
+
+    let relPath = path;
+    if (dir && path.startsWith(dir)) {
+      relPath = path.substring(dir.length);
       if (relPath.startsWith('/')) {
         relPath = relPath.substring(1);
       }
@@ -1652,7 +1840,41 @@ function initEditorTab(tab, viewEl, dir) {
 
     const items = [];
 
-    if (itemType === 'dir') {
+    if (isRoot) {
+      items.push({
+        label: 'New File...',
+        icon: '📄+',
+        onClick: () => createInDir(path, 'file')
+      });
+      items.push({
+        label: 'New Folder...',
+        icon: '📁+',
+        onClick: () => createInDir(path, 'dir')
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Open in Terminal',
+        icon: '⬛',
+        onClick: () => {
+          if (typeof activePane !== 'undefined' && activePane) {
+            addTab(activePane, 'terminal', undefined, undefined, undefined, path);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
+        }
+      });
+      items.push({
+        label: 'Copy Absolute Path',
+        icon: '📋',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(path);
+            toast('Copied absolute path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+    } else if (type === 'dir') {
       items.push({
         label: 'New File...',
         icon: '📄+',
@@ -1844,6 +2066,59 @@ function initEditorTab(tab, viewEl, dir) {
       const row = document.createElement('div');
       row.className = 'editor-tree-row ' + (entry.type === 'dir' ? 'is-dir' : 'is-file');
       row.style.paddingLeft = (depth * 14 + 6) + 'px';
+      row.draggable = true;
+
+      row.addEventListener('dragstart', (e) => {
+        e.stopPropagation();
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', full);
+        window.dragSourcePath = full;
+        sidebar.classList.add('is-dragging');
+      });
+
+      row.addEventListener('dragend', (e) => {
+        e.stopPropagation();
+        window.dragSourcePath = null;
+        sidebar.classList.remove('is-dragging');
+        document.querySelectorAll('.editor-tree-row.drag-hover').forEach(el => el.classList.remove('drag-hover'));
+        treeEl.classList.remove('drag-hover');
+      });
+
+      row.addEventListener('dragenter', (e) => {
+        e.stopPropagation();
+        const dragSource = window.dragSourcePath;
+        const destDir = entry.type === 'dir' ? full : dirPath;
+        if (dragSource && isValidMove(dragSource, destDir)) {
+          row.classList.add('drag-hover');
+        }
+      });
+
+      row.addEventListener('dragover', (e) => {
+        e.stopPropagation();
+        const dragSource = window.dragSourcePath;
+        const destDir = entry.type === 'dir' ? full : dirPath;
+        if (dragSource && isValidMove(dragSource, destDir)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
+      });
+
+      row.addEventListener('dragleave', (e) => {
+        e.stopPropagation();
+        row.classList.remove('drag-hover');
+      });
+
+      row.addEventListener('drop', async (e) => {
+        e.stopPropagation();
+        row.classList.remove('drag-hover');
+        const dragSource = window.dragSourcePath;
+        const destDir = entry.type === 'dir' ? full : dirPath;
+        if (dragSource && isValidMove(dragSource, destDir)) {
+          e.preventDefault();
+          const targetPath = join(destDir, basename(dragSource));
+          await moveItem(dragSource, targetPath);
+        }
+      });
       
       const icon = document.createElement('span');
       icon.className = 'editor-tree-icon';
@@ -1853,62 +2128,7 @@ function initEditorTab(tab, viewEl, dir) {
       name.className = 'editor-tree-name';
       name.textContent = entry.name;
       
-      // Inline actions on hover
-      const actions = document.createElement('div');
-      actions.className = 'editor-tree-row-actions';
-
-      if (entry.type === 'dir') {
-        const addFile = document.createElement('button');
-        addFile.className = 'editor-tree-row-action';
-        addFile.innerHTML = '📄+';
-        addFile.title = 'New File';
-        addFile.addEventListener('click', (e) => {
-          e.stopPropagation();
-          createInDir(full, 'file');
-        });
-
-        const addFolder = document.createElement('button');
-        addFolder.className = 'editor-tree-row-action';
-        addFolder.innerHTML = '📁+';
-        addFolder.title = 'New Folder';
-        addFolder.addEventListener('click', (e) => {
-          e.stopPropagation();
-          createInDir(full, 'dir');
-        });
-
-        actions.append(addFile, addFolder);
-      } else {
-        const download = document.createElement('button');
-        download.className = 'editor-tree-row-action';
-        download.innerHTML = '📥';
-        download.title = 'Download File';
-        download.addEventListener('click', (e) => {
-          e.stopPropagation();
-          downloadFile(full);
-        });
-        actions.append(download);
-      }
-
-      const renameBtn = document.createElement('button');
-      renameBtn.className = 'editor-tree-row-action';
-      renameBtn.innerHTML = '✏️';
-      renameBtn.title = 'Rename';
-      renameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        renameItem(full);
-      });
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'editor-tree-row-action';
-      deleteBtn.innerHTML = '🗑️';
-      deleteBtn.title = 'Delete';
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteItem(full);
-      });
-
-      actions.append(renameBtn, deleteBtn);
-      row.append(icon, name, actions);
+      row.append(icon, name);
       containerEl.appendChild(row);
 
       row.addEventListener('contextmenu', (e) => {

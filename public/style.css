@@ -40,6 +40,11 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   --term-bg:   #0a0a0e;
   --term-fg:   #ededf2;
 
+  /* Custom Logo Gradient: Indigo-Purple-Cyan */
+  --logo-grad-start: #ff007a;
+  --logo-grad-mid: #7928ca;
+  --logo-grad-end: #00dfd8;
+
   /* Frosted-glass surfaces (toolbar, panels, popovers) */
   --glass:        rgba(16,16,22,0.66);
   --glass-strong: rgba(13,13,18,0.82);
@@ -73,6 +78,11 @@ html[data-theme="light"] {
   --tab-bg:    #ffffff;
   --term-bg:   #ffffff;
   --term-fg:   #16161d;
+
+  /* Custom Logo Gradient: Soft Sunset Coral-Gold-Rose */
+  --logo-grad-start: #ff4e50;
+  --logo-grad-mid: #f9d423;
+  --logo-grad-end: #e0467e;
 
   --glass:        rgba(255,255,255,0.7);
   --glass-strong: rgba(255,255,255,0.86);
@@ -109,6 +119,11 @@ html[data-theme="ocean"] {
   --term-fg:   #e3f0fb;
   --glass:        rgba(13,22,35,0.66);
   --glass-strong: rgba(10,17,25,0.82);
+
+  /* Custom Logo Gradient: Marine Aurora Mint-Cyan-Blue */
+  --logo-grad-start: #00ff87;
+  --logo-grad-mid: #60efff;
+  --logo-grad-end: #0061ff;
 }
 
 /* ── Matrix — near-black with neon green (hacker terminal) ── */
@@ -135,6 +150,11 @@ html[data-theme="matrix"] {
   --term-fg:   #c9ffd2;
   --glass:        rgba(7,11,7,0.66);
   --glass-strong: rgba(5,8,5,0.84);
+
+  /* Custom Logo Gradient: Matrix Hacker Green-Emerald-Cyan */
+  --logo-grad-start: #39ff14;
+  --logo-grad-mid: #00ff87;
+  --logo-grad-end: #00e5ff;
 }
 
 /* ── Ember — warm charcoal with amber (cozy, low-light) ── */
@@ -161,6 +181,11 @@ html[data-theme="ember"] {
   --term-fg:   #f8ece0;
   --glass:        rgba(24,19,16,0.66);
   --glass-strong: rgba(18,15,13,0.83);
+
+  /* Custom Logo Gradient: Volcanic Ember Red-Orange-Gold */
+  --logo-grad-start: #ff3300;
+  --logo-grad-mid: #ffaa00;
+  --logo-grad-end: #ffd000;
 }
 
 /* ── Sakura — soft light with rose (bright, gentle) ── */
@@ -190,6 +215,11 @@ html[data-theme="sakura"] {
   --shadow:    0 1px 2px rgba(61,38,48,0.07);
   --shadow-md: 0 10px 30px -8px rgba(61,38,48,0.16);
   --shadow-lg: 0 28px 70px -16px rgba(61,38,48,0.22);
+
+  /* Custom Logo Gradient: Blossom Pink-Magenta-Peach */
+  --logo-grad-start: #ff758c;
+  --logo-grad-mid: #ff7eb3;
+  --logo-grad-end: #fda085;
 }
 
 /* ── Bubblegum — candy pastels, soft and cute ── */
@@ -219,6 +249,11 @@ html[data-theme="bubblegum"] {
   --shadow:    0 1px 2px rgba(91,42,74,0.07);
   --shadow-md: 0 10px 30px -8px rgba(91,42,74,0.16);
   --shadow-lg: 0 28px 70px -16px rgba(91,42,74,0.22);
+
+  /* Custom Logo Gradient: Cotton Candy Pink-Violet-Cyan */
+  --logo-grad-start: #ff007f;
+  --logo-grad-mid: #7f00ff;
+  --logo-grad-end: #00f2fe;
 }
 
 /* ── Catppuccin — the beloved soft-mocha pastel palette (Mocha flavor) ── */
@@ -245,6 +280,11 @@ html[data-theme="catppuccin"] {
   --term-fg:   #cdd6f4;
   --glass:        rgba(24,24,37,0.66);
   --glass-strong: rgba(17,17,27,0.84);
+
+  /* Custom Logo Gradient: Catppuccin Pink-Mauve-Blue */
+  --logo-grad-start: #f5c2e7;
+  --logo-grad-mid: #cba6f7;
+  --logo-grad-end: #89b4fa;
 }
 
 /* ── Cappuccino — warm creamy coffee tones, cozy ── */
@@ -274,6 +314,11 @@ html[data-theme="cappuccino"] {
   --shadow:    0 1px 2px rgba(74,55,40,0.08);
   --shadow-md: 0 10px 30px -8px rgba(74,55,40,0.18);
   --shadow-lg: 0 28px 70px -16px rgba(74,55,40,0.24);
+
+  /* Custom Logo Gradient: Cappuccino Chocolate-Peach-Cream */
+  --logo-grad-start: #b5838d;
+  --logo-grad-mid: #e5989b;
+  --logo-grad-end: #ffb5a7;
 }
 
 /* ── Synthwave — retro neon, magenta→cyan on deep purple ── */
@@ -300,6 +345,11 @@ html[data-theme="synthwave"] {
   --term-fg:   #f5e6ff;
   --glass:        rgba(23,7,48,0.66);
   --glass-strong: rgba(15,4,32,0.84);
+
+  /* Custom Logo Gradient: Retro Synthwave HotPink-Purple-LaserCyan */
+  --logo-grad-start: #ff007f;
+  --logo-grad-mid: #9b51e0;
+  --logo-grad-end: #34e7e4;
 }
 
 body, html {
@@ -390,34 +440,83 @@ html.mobile-ui .toolbar-clock {
 #logo {
   display: flex; align-items: center; gap: 8px;
   user-select: none; text-decoration: none;
+  transition: all 0.25s var(--ease);
 }
 #logo-icon {
-  font-size: 17px; line-height: 1;
-  filter: drop-shadow(0 0 8px var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 2px 8px var(--accent2));
+  transition: all 0.3s var(--ease);
+}
+#logo:hover #logo-icon {
+  filter: drop-shadow(0 2px 14px var(--accent));
+  transform: scale(1.08);
+}
+#logo-icon svg {
+  display: block;
+  flex-shrink: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes logo-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-12deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(4deg); }
+}
+#logo:hover .logo-svg {
+  animation: logo-wiggle 0.6s ease-in-out;
 }
 #logo-text {
-  font-size: 16px; font-weight: 800; letter-spacing: -0.4px;
+  font-size: 17px; font-weight: 850; letter-spacing: -0.5px;
   color: var(--text); font-family: inherit;
+  display: flex; align-items: center;
 }
 .logo-letter {
   cursor: pointer;
-  transition: opacity 0.2s, color 0.2s, text-shadow 0.2s;
-  opacity: 0.55;
-  display: inline-block;
-}
-.logo-letter:hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 0.85;
   color: var(--text);
+  display: inline-block;
+  position: relative;
+  padding: 0 1px;
+}
+.logo-letter:hover {
+  opacity: 1;
+  color: var(--accent-hi);
+  transform: translateY(-1px) scale(1.08);
 }
 .logo-letter.active {
   opacity: 1;
-  color: var(--accent-hi) !important;
-  text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent2);
+  background: linear-gradient(135deg, var(--logo-grad-start), var(--logo-grad-mid));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+  filter: drop-shadow(0 2px 4px var(--accent2));
+}
+.logo-letter::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s var(--ease);
+}
+.logo-letter.active::after {
+  transform: translateX(-50%) scaleX(1);
+  background: linear-gradient(90deg, var(--logo-grad-start), var(--logo-grad-end));
+  box-shadow: 0 0 6px var(--logo-grad-mid);
 }
 #logo-separator {
-  color: var(--text3);
-  font-size: 14px;
-  margin-left: 2px;
+  color: var(--border3);
+  font-size: 13px;
+  font-weight: 300;
+  margin: 0 4px;
+  opacity: 0.8;
   user-select: none;
 }
 #workspace-badge {
@@ -426,25 +525,41 @@ html.mobile-ui .toolbar-clock {
   background: var(--bg3);
   border: 1px solid var(--border);
   color: var(--text2);
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
-  margin-left: 4px;
+  margin-left: 2px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s var(--ease);
   white-space: nowrap;
   user-select: none;
+  backdrop-filter: blur(4px);
 }
 #workspace-badge:hover {
-  background: var(--bg4);
+  background: var(--accent-soft);
   border-color: var(--accent);
   color: var(--text);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+  transform: translateY(-0.5px);
 }
 #logo-trix {
-  background: linear-gradient(90deg, var(--accent), var(--accent-hi));
-  -webkit-background-clip: text; background-clip: text;
+  background: linear-gradient(90deg, 
+    var(--logo-grad-start) 0%, 
+    var(--logo-grad-mid) 50%, 
+    var(--logo-grad-end) 100%
+  );
+  background-size: 200% auto;
+  animation: logo-shine 5s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  font-weight: 850;
+  margin-left: 0.5px;
+  display: inline-block;
 }
-#logo svg { flex-shrink: 0; filter: drop-shadow(0 0 4px rgba(139,92,246,0.5)); }
+@keyframes logo-shine {
+  to { background-position: 200% center; }
+}
+#logo svg { flex-shrink: 0; }
 
 #toolbar-actions { display: flex; align-items: center; gap: 6px; }
 
@@ -978,6 +1093,51 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .editor-placeholder {
   position: absolute; inset: 0; display: flex; align-items: center;
   justify-content: center; color: var(--text3); font-size: 13px;
+}
+
+.editor-statusbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  height: 24px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--text3);
+  user-select: none;
+  flex: none;
+}
+.editor-statusbar-item {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+  cursor: pointer;
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.editor-statusbar-item:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+.editor-lang-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.editor-lang-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+.editor-lang-label {
+  font-family: inherit;
+  font-size: 11px;
+  pointer-events: none;
 }
 
 /* Slim scrollbars inside the editor chrome (the tree & file-tab strip). */
@@ -2843,33 +3003,6 @@ body.resizing-console iframe {
 
 /* Tree row actions */
 .editor-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.editor-tree-row-actions {
-  display: none;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-  margin-left: auto;
-}
-.editor-tree-row:hover .editor-tree-row-actions {
-  display: flex;
-}
-.editor-tree-row-action {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text3);
-  padding: 1px 3px;
-  border-radius: 3px;
-  font-size: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.1s var(--ease), color 0.1s var(--ease);
-}
-.editor-tree-row-action:hover {
-  background: var(--bg3);
-  color: var(--text);
-}
 
 /* Search panel */
 .editor-search { flex: 1; overflow: auto; display: flex; flex-direction: column; }
@@ -3219,6 +3352,22 @@ body[data-menu-button-mode="text"] #toolbar button {
 .zoom-indicator:hover {
   background: var(--bg4);
   color: var(--text);
+}
+
+/* Drag and Drop File Move in Editor Sidebar */
+.editor-sidebar.is-dragging .editor-tree-row * {
+  pointer-events: none;
+}
+.editor-tree-row.drag-hover {
+  background: var(--accent2) !important;
+  outline: 1px dashed var(--accent);
+}
+.editor-tree.drag-hover {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+.editor-tree-row.dragging {
+  opacity: 0.4;
 }
 
 
