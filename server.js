@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { URL } = require('url');
-const { execFile, exec } = require('child_process');
+const { execFile, exec, execSync } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
@@ -68,6 +68,7 @@ const DEFAULT_SETTINGS = {
   mobileScrollbar: true, // show grabbable liquid glass scrollbar on mobile terminals
   showTimeInMenu: true, // show current time in the top menu bar
   menuButtonMode: 'both', // top menu bar button style: 'both', 'icon', or 'text'
+  editorMinimap: true, // show minimap in code editor tab
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",
@@ -247,9 +248,15 @@ app.put('/api/fs/write', (req, res) => {
 app.post('/api/fs/create', (req, res) => {
   const { path: dirPath, name, type } = req.body || {};
   if (!dirPath || !name || !type) return res.status(400).json({ error: 'Missing path, name, or type' });
-  const baseName = path.basename(name).trim();
-  if (!baseName || baseName === '.' || baseName === '..') return res.status(400).json({ error: 'Invalid name' });
-  const target = path.join(path.resolve(dirPath), baseName);
+
+  const resolvedDirPath = path.resolve(dirPath);
+  const target = path.resolve(resolvedDirPath, name.trim());
+
+  // Guard: ensure the target is within the specified directory path to prevent directory traversal
+  if (!target.startsWith(resolvedDirPath + path.sep) && target !== resolvedDirPath) {
+    return res.status(403).json({ error: 'Access denied: Target path must be within the directory' });
+  }
+
   if (fs.existsSync(target)) return res.status(409).json({ error: 'Already exists' });
 
   if (type === 'dir') {
@@ -258,9 +265,13 @@ app.post('/api/fs/create', (req, res) => {
       res.json({ ok: true, path: target });
     });
   } else {
-    fs.writeFile(target, '', (err) => {
+    // Ensure parent directory exists for nested files
+    fs.mkdir(path.dirname(target), { recursive: true }, (err) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ ok: true, path: target });
+      fs.writeFile(target, '', (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true, path: target });
+      });
     });
   }
 });
@@ -1179,6 +1190,36 @@ function armSchedule(ptyId, fireAt) {
   schedules.set(ptyId, { fireAt, timer });
 }
 
+function getPtyCwd(pid) {
+  if (!pid) return null;
+  try {
+    if (os.platform() === 'darwin') {
+      const output = execSync(`lsof -p ${pid} -a -d cwd -Fn`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 500
+      });
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('n/')) {
+          const resolved = line.substring(2).trim();
+          if (resolved && fs.existsSync(resolved)) {
+            return resolved;
+          }
+        }
+      }
+    } else if (os.platform() === 'linux') {
+      const resolved = fs.readlinkSync(`/proc/${pid}/cwd`);
+      if (resolved && fs.existsSync(resolved)) {
+        return resolved;
+      }
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  return null;
+}
+
 function attachPtyToWs(id, ptyEntry, ws) {
   const listener = (data) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:data', id, data }));
@@ -1263,11 +1304,20 @@ wss.on('connection', (ws) => {
         delete ptyEnv.HOSTNAME;
         // Expose the bundled `mtx` download command on PATH for every shell.
         ptyEnv.PATH = path.join(__dirname, 'bin') + path.delimiter + (ptyEnv.PATH || '');
+
+        let initialCwd = msg.cwd;
+        if (!initialCwd && msg.inheritFromPtyId) {
+          const parentPty = ptys.get(msg.inheritFromPtyId);
+          if (parentPty && parentPty.proc && parentPty.proc.pid) {
+            initialCwd = getPtyCwd(parentPty.proc.pid);
+          }
+        }
+
         const proc = pty.spawn(shell, shellArgs, {
           name: 'xterm-256color',
           cols: msg.cols || 80,
           rows: msg.rows || 24,
-          cwd: process.env.MEOWTRIX_WORKSPACE || process.env.HOME || process.cwd(),
+          cwd: initialCwd || process.env.MEOWTRIX_WORKSPACE || process.env.HOME || process.cwd(),
           env: ptyEnv,
         });
         const entry = { proc, dataListeners: new Set(), buffer: '', cols: msg.cols || 80, rows: msg.rows || 24 };
@@ -1316,6 +1366,42 @@ wss.on('connection', (ws) => {
         if (clearSchedule(msg.id)) broadcastSchedules();
         break;
       }
+      case 'fs:watch': {
+        const watchPath = msg.path;
+        if (!watchPath) break;
+        if (!ws.fsWatchers) ws.fsWatchers = new Map();
+        if (ws.fsWatchers.has(watchPath)) break;
+        try {
+          const resolved = path.resolve(watchPath);
+          if (fs.existsSync(resolved)) {
+            const watcher = fs.watch(resolved, { recursive: true }, (eventType, filename) => {
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'fs:change', path: watchPath, eventType, filename }));
+              }
+            });
+            watcher.on('error', (err) => {
+              console.warn(`[Watcher Error] ${resolved}:`, err);
+              if (ws.fsWatchers && ws.fsWatchers.has(watchPath)) {
+                try { watcher.close(); } catch (e) {}
+                ws.fsWatchers.delete(watchPath);
+              }
+            });
+            ws.fsWatchers.set(watchPath, watcher);
+          }
+        } catch (e) {
+          console.warn(`[Watcher Start Fail] ${watchPath}:`, e);
+        }
+        break;
+      }
+      case 'fs:unwatch': {
+        const unwatchPath = msg.path;
+        if (unwatchPath && ws.fsWatchers && ws.fsWatchers.has(unwatchPath)) {
+          const watcher = ws.fsWatchers.get(unwatchPath);
+          try { watcher.close(); } catch (e) {}
+          ws.fsWatchers.delete(unwatchPath);
+        }
+        break;
+      }
     }
   });
 
@@ -1324,6 +1410,13 @@ wss.on('connection', (ws) => {
     attached.forEach(cleanup => cleanup());
     attached.clear();
     sessionClients.delete(ws);
+    // Clean up file watchers
+    if (ws.fsWatchers) {
+      for (const watcher of ws.fsWatchers.values()) {
+        try { watcher.close(); } catch (e) {}
+      }
+      ws.fsWatchers.clear();
+    }
     // If the active session's socket dropped, hand off to the most recently
     // connected remaining client so the others aren't stranded on the overlay.
     if (ws.tabId && ws.tabId === activeTabId) {

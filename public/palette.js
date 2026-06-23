@@ -59,6 +59,10 @@ function buildCommands() {
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
+    { icon: '🔍+', title: 'Zoom in active tab', hint: 'Ctrl+Shift++', keywords: 'zoom in enlarge scale text font active increase', run: () => { if (typeof zoomActiveTab === 'function') zoomActiveTab(0.1); } },
+    { icon: '🔍-', title: 'Zoom out active tab', hint: 'Ctrl+Shift+-', keywords: 'zoom out shrink scale text font active decrease', run: () => { if (typeof zoomActiveTab === 'function') zoomActiveTab(-0.1); } },
+    { icon: '🔍0', title: 'Reset zoom of active tab', hint: 'Ctrl+Shift+0', keywords: 'zoom reset normal scale text font active standard default', run: () => { if (typeof resetActiveTabZoom === 'function') resetActiveTabZoom(); } },
+    { icon: '⤢', title: (typeof maximizedPane !== 'undefined' && maximizedPane) ? 'Restore layout' : 'Maximize active tab', keywords: 'maximize pane tab window scale focus zoom center hide splits', run: () => { if (activePane) toggleMaximizePane(activePane); } },
     { icon: '⛶', title: (document.fullscreenElement || document.webkitFullscreenElement) ? 'Exit fullscreen' : 'Enter fullscreen', keywords: 'fullscreen maximize zoom window screen', run: () => toggleFullscreen() },
     { icon: '💬', title: 'Submit feedback', keywords: 'feedback support bug issue feature request report github', run: () => window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank') },
     { icon: '⬇', title: 'Check for updates', keywords: 'upgrade version git pull', run: () => { if (typeof checkForUpdateNow === 'function') checkForUpdateNow(); } },
@@ -79,6 +83,37 @@ function buildCommands() {
   THEMES.forEach(t => cmds.push({
     icon: t.icon, title: `Theme: ${t.label}`, keywords: 'color appearance', run: () => setTheme(t.id),
   }));
+
+  // Workspaces navigation and renaming commands
+  cmds.push({ icon: '◀', title: 'Previous workspace', hint: 'Ctrl+Alt+[', keywords: 'workspace prev backward swap switch', run: () => {
+    if (typeof switchWorkspace === 'function') switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4);
+  } });
+  cmds.push({ icon: '▶', title: 'Next workspace', hint: 'Ctrl+Alt+]', keywords: 'workspace next forward swap switch', run: () => {
+    if (typeof switchWorkspace === 'function') switchWorkspace((activeWorkspaceIndex + 1) % 4);
+  } });
+  cmds.push({ icon: '✏️', title: 'Rename current workspace', keywords: 'workspace title name label retitle rename', keepOpen: true, run: () => {
+    paletteMode = 'renameWorkspace';
+    paletteInput.placeholder = 'Enter new workspace name…';
+    paletteInput.value = currentWorkspaces[activeWorkspaceIndex].name;
+    paletteInput.focus();
+    paletteInput.select();
+    renderRenameWorkspaceHint();
+  } });
+
+  if (typeof currentWorkspaces !== 'undefined') {
+    currentWorkspaces.forEach((ws, idx) => {
+      cmds.push({
+        icon: '🐾',
+        title: `Switch to ${ws.name}`,
+        hint: `Ctrl+Alt+${idx + 1}`,
+        keywords: `workspace switch select jump ${ws.name}`,
+        run: () => {
+          if (typeof switchWorkspace === 'function') switchWorkspace(idx);
+        }
+      });
+    });
+  }
+
   return cmds;
 }
 
@@ -175,9 +210,38 @@ function renderRenameHint() {
   paletteList.appendChild(row);
 }
 
+function renderRenameWorkspaceHint() {
+  paletteList.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'palette-item active';
+  row.innerHTML = `<span class="palette-ico">✏️</span><span class="palette-title"></span>`;
+  const val = paletteInput.value.trim();
+  row.querySelector('.palette-title').textContent = val ? `Rename workspace to "${val}"` : `Clear workspace name (reset to Workspace ${activeWorkspaceIndex + 1})`;
+  
+  const hint = document.createElement('span');
+  hint.className = 'palette-hint';
+  hint.textContent = 'Enter to save · Esc to cancel';
+  row.appendChild(hint);
+  
+  paletteCommands = [{
+    run: () => {
+      const newName = paletteInput.value.trim();
+      currentWorkspaces[activeWorkspaceIndex].name = newName || `Workspace ${activeWorkspaceIndex + 1}`;
+      if (typeof updateWorkspaceUI === 'function') updateWorkspaceUI();
+      if (typeof saveSessionState === 'function') saveSessionState();
+    }
+  }];
+  paletteIndex = 0;
+  paletteList.appendChild(row);
+}
+
 function filterCommands() {
   if (paletteMode === 'rename') {
     renderRenameHint();
+    return;
+  }
+  if (paletteMode === 'renameWorkspace') {
+    renderRenameWorkspaceHint();
     return;
   }
   const all = buildCommands();

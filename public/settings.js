@@ -80,10 +80,16 @@ function applyMenuButtonMode(mode) {
 function applyTermSettings() {
   getAllPanes().forEach(p => p.tabs.forEach(t => {
     if (!t.term) return;
-    t.term.options.fontSize = currentSettings.termFontSize;
+    t.term.options.fontSize = Math.round((currentSettings.termFontSize || 13) * (t.zoomLevel || 1.0));
     t.term.options.fontFamily = currentSettings.termFontFamily;
     t.term.options.scrollback = currentSettings.termScrollback;
     if (t.fitAddon) t.fitAddon.fit();
+  }));
+}
+
+function applyEditorSettings() {
+  getAllPanes().forEach(p => p.tabs.forEach(t => {
+    if (typeof t.updateMinimap === 'function') t.updateMinimap();
   }));
 }
 
@@ -232,6 +238,7 @@ function populateControls(s) {
   document.getElementById('s-mobile-scrollbar').checked = s.mobileScrollbar !== false;
   document.getElementById('s-show-time').checked = s.showTimeInMenu !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
+  document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
 
   const statusEl = document.getElementById('s-update-status');
   if (statusEl) {
@@ -508,6 +515,11 @@ function wireControls() {
     await saveSetting('autoUpdate', e.target.checked);
   });
 
+  document.getElementById('s-editor-minimap').addEventListener('change', async (e) => {
+    await saveSetting('editorMinimap', e.target.checked);
+    onSettingChanged('editorMinimap', e.target.checked);
+  });
+
   const btnCheckUpdate = document.getElementById('btn-check-update');
   if (btnCheckUpdate) {
     btnCheckUpdate.addEventListener('click', async () => {
@@ -609,7 +621,7 @@ function wireControls() {
   const btnResetMobileKeys = document.getElementById('btn-reset-mobile-keys');
   if (btnResetMobileKeys) {
     btnResetMobileKeys.addEventListener('click', async () => {
-      if (!confirm('Reset mobile keys to defaults?')) return;
+      if (!await showConfirm('Reset Mobile Keys', 'Reset mobile keys to defaults?')) return;
       currentSettings.mobileKeys = [...DEFAULT_MOBILE_KEYS];
       await saveSetting('mobileKeys', currentSettings.mobileKeys);
       populateMobileKeysList();
@@ -631,6 +643,9 @@ function onSettingChanged(key) {
   }
   if (key === 'mobileKeys') {
     if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
+  }
+  if (key === 'editorMinimap') {
+    applyEditorSettings();
   }
 }
 
@@ -690,7 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank');
   });
   document.getElementById('settings-reset').addEventListener('click', async () => {
-    if (!confirm('Reset all settings to defaults?')) return;
+    if (!await showConfirm('Reset Settings', 'Reset all settings to defaults?')) return;
     const res = await fetch('/api/settings/reset', { method: 'POST' });
     const s = await res.json();
     currentSettings = s;
@@ -698,6 +713,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateControls(s);
     applyTheme(s.theme);
     applyTermSettings();
+    applyEditorSettings();
     if (typeof updateUiMode === 'function') updateUiMode();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();

@@ -260,10 +260,147 @@ function getFileIconSvg(filename, type, isOpen = false) {
   }
 }
 
+function showPrompt(title, placeholder, defaultValue = '') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'folder-prompt-overlay';
+    const box = document.createElement('div');
+    box.className = 'folder-prompt';
+    
+    const titleEl = document.createElement('div');
+    titleEl.className = 'folder-prompt-title';
+    titleEl.textContent = title;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'folder-prompt-input';
+    input.placeholder = placeholder;
+    input.value = defaultValue;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+
+    const row = document.createElement('div');
+    row.className = 'folder-prompt-actions';
+    
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel';
+    
+    const ok = document.createElement('button');
+    ok.textContent = 'OK';
+    ok.className = 'primary';
+    
+    row.append(cancel, ok);
+    box.append(titleEl, input, row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    input.focus();
+    if (defaultValue) {
+      input.setSelectionRange(0, defaultValue.length);
+    }
+
+    const close = (val) => {
+      overlay.remove();
+      resolve(val);
+    };
+
+    cancel.onclick = () => close(null);
+    ok.onclick = () => {
+      const val = input.value.trim();
+      close(val || null);
+    };
+
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = input.value.trim();
+        close(val || null);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        close(null);
+      }
+    };
+    
+    overlay.onclick = (e) => {
+      if (e.target === overlay) close(null);
+    };
+  });
+}
+
+function showConfirm(title, message, okText = 'OK', cancelText = 'Cancel') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'folder-prompt-overlay';
+    const box = document.createElement('div');
+    box.className = 'folder-prompt';
+    
+    const titleEl = document.createElement('div');
+    titleEl.className = 'folder-prompt-title';
+    titleEl.textContent = title;
+
+    const messageEl = document.createElement('div');
+    messageEl.style.fontSize = '13px';
+    messageEl.style.color = 'var(--text2)';
+    messageEl.style.marginBottom = '16px';
+    messageEl.style.lineHeight = '1.4';
+    messageEl.textContent = message;
+
+    const row = document.createElement('div');
+    row.className = 'folder-prompt-actions';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelText;
+    
+    const okBtn = document.createElement('button');
+    okBtn.textContent = okText;
+    okBtn.className = 'primary';
+    
+    row.append(cancelBtn, okBtn);
+    box.append(titleEl, messageEl, row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    okBtn.focus();
+
+    const cleanupAndResolve = (val) => {
+      window.removeEventListener('keydown', handleKeyDown);
+      overlay.remove();
+      resolve(val);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        cleanupAndResolve(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cleanupAndResolve(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    cancelBtn.onclick = () => cleanupAndResolve(false);
+    okBtn.onclick = () => cleanupAndResolve(true);
+    
+    overlay.onclick = (e) => {
+      if (e.target === overlay) cleanupAndResolve(false);
+    };
+  });
+}
+
 function initEditorTab(tab, viewEl, dir) {
   viewEl.classList.add('editor-view');
   tab.editorDir = dir || '';
   if (dir && tab.label && !tab.isCustomLabel) tab.label.textContent = basename(dir);
+
+  if (!tab.editorExpandedDirs) {
+    tab.editorExpandedDirs = new Set();
+  }
+
+  if (dir) {
+    wsSend({ type: 'fs:watch', path: dir });
+  }
 
   // ── DOM scaffold ───────────────────────────────────────────────────────────
   const sidebar = document.createElement('div');
@@ -497,7 +634,7 @@ function initEditorTab(tab, viewEl, dir) {
   // ── CRUD Helpers ─────────────────────────────────────────────────────────────
   async function createInDir(parentPath, type) {
     const label = type === 'dir' ? 'folder' : 'file';
-    const name = prompt(`Enter new ${label} name:`);
+    const name = await showPrompt(`New ${type === 'dir' ? 'Folder' : 'File'}`, `Enter new ${label} name...`);
     if (!name || !name.trim()) return;
     try {
       const res = await fetch('/api/fs/create', {
@@ -522,7 +659,7 @@ function initEditorTab(tab, viewEl, dir) {
 
   async function renameItem(itemPath) {
     const oldName = basename(itemPath);
-    const newName = prompt(`Rename ${oldName} to:`, oldName);
+    const newName = await showPrompt(`Rename ${oldName}`, `Enter new name...`, oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     
     // Construct new path
@@ -570,7 +707,7 @@ function initEditorTab(tab, viewEl, dir) {
 
   async function deleteItem(itemPath) {
     const name = basename(itemPath);
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!await showConfirm('Delete', `Are you sure you want to delete ${name}?`)) return;
     try {
       const res = await fetch('/api/fs/delete?path=' + encodeURIComponent(itemPath), {
         method: 'DELETE'
@@ -700,7 +837,8 @@ function initEditorTab(tab, viewEl, dir) {
     if (!diffEditor) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
-        renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
+        renderSideBySide: diffSideBySide, fontSize: Math.round(13 * (tab.zoomLevel || 1.0)), scrollBeyondLastLine: false,
+        minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
       });
     }
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
@@ -732,7 +870,8 @@ function initEditorTab(tab, viewEl, dir) {
     if (!diffEditor) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
-        renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
+        renderSideBySide: diffSideBySide, fontSize: Math.round(13 * (tab.zoomLevel || 1.0)), scrollBeyondLastLine: false,
+        minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
       });
     }
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
@@ -833,7 +972,7 @@ function initEditorTab(tab, viewEl, dir) {
       const untracked = f.x === '?';
       acts.append(iconBtn('↺', 'Discard', async (e) => {
         e.stopPropagation();
-        if (!confirm(`Discard changes to ${f.path}?`)) return;
+        if (!await showConfirm('Discard Changes', `Discard changes to ${f.path}?`)) return;
         if (await gitAction('/api/git/discard', { root: dir, path: abs, untracked })) {
           if (diffCurrent && diffCurrent.path === abs) closeDiff();
           refreshGit();
@@ -1037,7 +1176,7 @@ function initEditorTab(tab, viewEl, dir) {
             createItem.addEventListener('click', async (createEvent) => {
               createEvent.stopPropagation();
               dropdownMenu.hidden = true;
-              const newBranch = prompt('Enter new branch name:');
+              const newBranch = await showPrompt('Create Branch', 'Enter new branch name...');
               if (!newBranch || !newBranch.trim()) return;
               toast(`Creating branch ${newBranch.trim()}...`);
               try {
@@ -1443,8 +1582,8 @@ function initEditorTab(tab, viewEl, dir) {
       editor = monaco.editor.create(monacoHost, {
         theme: monacoTheme(),
         automaticLayout: false,
-        fontSize: 13,
-        minimap: { enabled: true },
+        fontSize: Math.round(13 * (tab.zoomLevel || 1.0)),
+        minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
         scrollBeyondLastLine: false,
       });
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveActive());
@@ -1474,6 +1613,223 @@ function initEditorTab(tab, viewEl, dir) {
 
   // ── File tree (lazy-expanding) ──────────────────────────────────────────────
   function join(base, name) { return base.replace(/\/+$/, '') + '/' + name; }
+
+  function closeContextMenu() {
+    const menu = document.getElementById('editor-context-menu');
+    if (menu) {
+      menu.style.display = 'none';
+    }
+    document.querySelectorAll('.editor-tree-row.context-menu-active').forEach(el => {
+      el.classList.remove('context-menu-active');
+    });
+  }
+
+  function showContextMenu(e, rowEl, itemPath, itemType) {
+    closeContextMenu();
+    rowEl.classList.add('context-menu-active');
+
+    let menu = document.getElementById('editor-context-menu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'editor-context-menu';
+      menu.className = 'editor-context-menu';
+      document.body.appendChild(menu);
+    }
+
+    menu.innerHTML = '';
+    menu.style.display = 'block';
+
+    let relPath = itemPath;
+    if (dir && itemPath.startsWith(dir)) {
+      relPath = itemPath.substring(dir.length);
+      if (relPath.startsWith('/')) {
+        relPath = relPath.substring(1);
+      }
+      if (relPath === '') {
+        relPath = '.';
+      }
+    }
+
+    const items = [];
+
+    if (itemType === 'dir') {
+      items.push({
+        label: 'New File...',
+        icon: '📄+',
+        onClick: () => createInDir(itemPath, 'file')
+      });
+      items.push({
+        label: 'New Folder...',
+        icon: '📁+',
+        onClick: () => createInDir(itemPath, 'dir')
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Rename...',
+        icon: '✏️',
+        onClick: () => renameItem(itemPath)
+      });
+      items.push({
+        label: 'Delete',
+        icon: '🗑️',
+        onClick: () => deleteItem(itemPath)
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Open in Terminal',
+        icon: '⬛',
+        onClick: () => {
+          if (typeof activePane !== 'undefined' && activePane) {
+            addTab(activePane, 'terminal', undefined, undefined, undefined, itemPath);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
+        }
+      });
+      items.push({
+        label: 'Open in Editor',
+        icon: '📝',
+        onClick: () => {
+          if (typeof activePane !== 'undefined' && activePane) {
+            addTab(activePane, 'editor', undefined, undefined, undefined, itemPath);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
+        }
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Copy Relative Path',
+        icon: '🔗',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(relPath);
+            toast('Copied relative path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+      items.push({
+        label: 'Copy Absolute Path',
+        icon: '📋',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(itemPath);
+            toast('Copied absolute path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+    } else {
+      items.push({
+        label: 'Open File',
+        icon: '📖',
+        onClick: () => openFile(itemPath)
+      });
+      items.push({
+        label: 'Download File',
+        icon: '📥',
+        onClick: () => downloadFile(itemPath)
+      });
+      items.push({ type: 'divider' });
+      const lastSlash = itemPath.lastIndexOf('/');
+      const parentPath = lastSlash >= 0 ? itemPath.slice(0, lastSlash) : itemPath;
+      items.push({
+        label: 'New File...',
+        icon: '📄+',
+        onClick: () => createInDir(parentPath, 'file')
+      });
+      items.push({
+        label: 'New Folder...',
+        icon: '📁+',
+        onClick: () => createInDir(parentPath, 'dir')
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Rename...',
+        icon: '✏️',
+        onClick: () => renameItem(itemPath)
+      });
+      items.push({
+        label: 'Delete',
+        icon: '🗑️',
+        onClick: () => deleteItem(itemPath)
+      });
+      items.push({ type: 'divider' });
+      items.push({
+        label: 'Copy Relative Path',
+        icon: '🔗',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(relPath);
+            toast('Copied relative path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+      items.push({
+        label: 'Copy Absolute Path',
+        icon: '📋',
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(itemPath);
+            toast('Copied absolute path to clipboard');
+          } catch (err) {
+            toast('Failed to copy path');
+          }
+        }
+      });
+    }
+
+    items.forEach(item => {
+      if (item.type === 'divider') {
+        const div = document.createElement('div');
+        div.className = 'editor-context-menu-divider';
+        menu.appendChild(div);
+      } else {
+        const btn = document.createElement('div');
+        btn.className = 'editor-context-menu-item';
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'editor-context-menu-item-icon';
+        iconSpan.textContent = item.icon || '';
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'editor-context-menu-item-label';
+        labelSpan.textContent = item.label;
+        
+        btn.append(iconSpan, labelSpan);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeContextMenu();
+          item.onClick();
+        });
+        menu.appendChild(btn);
+      }
+    });
+
+    const menuWidth = 180;
+    const menuHeight = items.length * 28;
+    let left = e.clientX;
+    let top = e.clientY;
+    if (left + menuWidth > window.innerWidth) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+    if (top + menuHeight > window.innerHeight) {
+      top = window.innerHeight - menuHeight - 10;
+    }
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  }
+
+  const onDocumentClick = () => closeContextMenu();
+  const onDocumentContextMenu = () => closeContextMenu();
+  const onDocumentScroll = () => closeContextMenu();
+
+  document.addEventListener('click', onDocumentClick);
+  document.addEventListener('contextmenu', onDocumentContextMenu);
+  document.addEventListener('scroll', onDocumentScroll, { capture: true, passive: true });
 
   async function renderDir(dirPath, containerEl, depth) {
     let data;
@@ -1555,16 +1911,36 @@ function initEditorTab(tab, viewEl, dir) {
       row.append(icon, name, actions);
       containerEl.appendChild(row);
 
+      row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e, row, full, entry.type);
+      });
+
       if (entry.type === 'dir') {
         const childWrap = document.createElement('div');
-        childWrap.hidden = true;
+        childWrap.hidden = !tab.editorExpandedDirs.has(full);
         let loaded = false;
         containerEl.appendChild(childWrap);
+
+        if (tab.editorExpandedDirs.has(full)) {
+          loaded = true;
+          icon.innerHTML = getFileIconSvg(entry.name, entry.type, true);
+          renderDir(full, childWrap, depth + 1);
+        }
+
         row.addEventListener('click', async () => {
           const show = childWrap.hidden;
           childWrap.hidden = !show;
           icon.innerHTML = getFileIconSvg(entry.name, entry.type, show);
-          if (show && !loaded) { loaded = true; await renderDir(full, childWrap, depth + 1); }
+          if (show) {
+            tab.editorExpandedDirs.add(full);
+            if (typeof saveSessionState === 'function') saveSessionState();
+            if (!loaded) { loaded = true; await renderDir(full, childWrap, depth + 1); }
+          } else {
+            tab.editorExpandedDirs.delete(full);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
         });
       } else {
         treeRows.set(full, row);
@@ -1606,11 +1982,123 @@ function initEditorTab(tab, viewEl, dir) {
     if (diffEditor) diffEditor.updateOptions({ theme: monacoTheme() });
   };
 
+  tab.updateMinimap = () => {
+    const isMinimapEnabled = (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false;
+    if (editor) editor.updateOptions({ minimap: { enabled: isMinimapEnabled } });
+    if (diffEditor) diffEditor.updateOptions({ minimap: { enabled: isMinimapEnabled } });
+  };
+
+  let changeTimeout = null;
+  const changedFiles = new Set();
+
+  async function reloadActiveFile() {
+    if (!activePath) return;
+    const st = open.get(activePath);
+    if (!st || st.dirty) return;
+    try {
+      const res = await fetch('/api/fs/read?path=' + encodeURIComponent(activePath));
+      const data = await res.json();
+      if (res.ok && data && typeof data.content === 'string') {
+        const currentVal = st.model.getValue();
+        if (currentVal !== data.content) {
+          const state = editor ? editor.saveViewState() : null;
+          st.model.setValue(data.content);
+          if (state && editor) editor.restoreViewState(state);
+          markDirty(activePath, false);
+          if (st.previewActive) {
+            if (isMarkdownFile(activePath)) renderMarkdownContent(st);
+            else if (isHtmlFile(activePath)) renderHtmlContent(st);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to auto-reload changed file:', e);
+    }
+  }
+
+  tab.handleFsChange = (eventType, filename) => {
+    if (changeTimeout) clearTimeout(changeTimeout);
+    if (filename) changedFiles.add(filename);
+    changeTimeout = setTimeout(() => {
+      refreshFiles();
+      if (!gitEl.hidden && !gitBtn.hidden) {
+        refreshGit();
+      }
+      if (activePath && !open.get(activePath)?.dirty) {
+        const activeRel = activePath.startsWith(dir) 
+          ? activePath.slice(dir.length).replace(/^\/+/, '')
+          : null;
+        let activeChanged = false;
+        for (const f of changedFiles) {
+          const normalizedF = f.replace(/\\/g, '/');
+          if (activeRel && (normalizedF === activeRel || activeRel.endsWith('/' + normalizedF))) {
+            activeChanged = true;
+            break;
+          }
+        }
+        if (activeChanged) {
+          reloadActiveFile();
+        }
+      }
+      changedFiles.clear();
+    }, 300);
+  };
+
+  tab.zoom = (zoomLevel) => {
+    tab.zoomLevel = zoomLevel;
+    const fs = Math.round(13 * zoomLevel);
+    if (editor) {
+      editor.updateOptions({ fontSize: fs });
+    }
+    if (diffEditor) {
+      diffEditor.updateOptions({ fontSize: fs });
+    }
+    if (markdownPreviewHost) {
+      markdownPreviewHost.style.zoom = zoomLevel;
+    }
+  };
+  if (tab.zoomLevel) {
+    tab.zoom(tab.zoomLevel);
+  }
+
   tab.disposeEditor = () => {
+    document.removeEventListener('click', onDocumentClick);
+    document.removeEventListener('contextmenu', onDocumentContextMenu);
+    document.removeEventListener('scroll', onDocumentScroll, { capture: true });
+    closeContextMenu();
     ro.disconnect();
     editor?.dispose();
     diffEditor?.dispose();
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
     open.forEach(st => st.model.dispose());
+    if (dir) {
+      wsSend({ type: 'fs:unwatch', path: dir });
+    }
   };
 }
+
+function rewatchAllEditors() {
+  if (typeof getAllPanes !== 'function') return;
+  for (const pane of getAllPanes()) {
+    for (const tab of pane.tabs) {
+      if (tab.type === 'editor' && tab.editorDir) {
+        wsSend({ type: 'fs:watch', path: tab.editorDir });
+      }
+    }
+  }
+}
+window.rewatchAllEditors = rewatchAllEditors;
+
+function onFsChange(watchPath, eventType, filename) {
+  if (typeof getAllPanes !== 'function') return;
+  for (const pane of getAllPanes()) {
+    for (const tab of pane.tabs) {
+      if (tab.type === 'editor' && tab.editorDir === watchPath) {
+        if (typeof tab.handleFsChange === 'function') {
+          tab.handleFsChange(eventType, filename);
+        }
+      }
+    }
+  }
+}
+window.onFsChange = onFsChange;

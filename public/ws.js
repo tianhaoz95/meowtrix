@@ -43,6 +43,8 @@ function handleWsMessage(msg) {
     if (typeof onPortsState === 'function') onPortsState(msg.ports);
   } else if (msg.type === 'ports:new') {
     if (typeof onPortsNew === 'function') onPortsNew(msg.ports);
+  } else if (msg.type === 'fs:change') {
+    if (typeof onFsChange === 'function') onFsChange(msg.path, msg.eventType, msg.filename);
   }
 }
 
@@ -88,16 +90,16 @@ function wsSend(obj) {
   }
 }
 
-function _sendCreate(id, cols, rows) {
-  wsSend({ type: 'pty:create', id, cols, rows });
+function _sendCreate(id, cols, rows, cwd, inheritFromPtyId) {
+  wsSend({ type: 'pty:create', id, cols, rows, cwd, inheritFromPtyId });
 }
 
-function createPty(id, term, cols, rows) {
+function createPty(id, term, cols, rows, cwd, inheritFromPtyId) {
   ptyCallbacks.set(id, term);
   if (wsReady) {
-    _sendCreate(id, cols, rows);
+    _sendCreate(id, cols, rows, cwd, inheritFromPtyId);
   } else {
-    pendingPtys.push([id, cols, rows]);
+    pendingPtys.push([id, cols, rows, cwd, inheritFromPtyId]);
   }
 }
 

@@ -1,6 +1,7 @@
 let activePane = null;
 let tabCounter = 0;
 const paneRegistry = new Map();
+let maximizedPane = null;
 
 // ── Broadcast input ──────────────────────────────────────────────────────────
 // When on, keystrokes from any terminal are mirrored to every *visible* terminal
@@ -60,7 +61,7 @@ function paneUnderPoint(x, y) {
 function onTabPointerDown(e, tab) {
   // Mouse/pen keep using native HTML5 DnD; only hijack touch.
   if (e.pointerType !== 'touch') return;
-  if (e.target.closest('.tab-close')) return; // let close taps through
+  if (e.target.closest('.tab-close, .tab-maximize')) return; // let close and maximize taps through
   touchDrag = { tab, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, active: false };
 }
 
@@ -148,6 +149,13 @@ function moveTab(srcPane, tabId, destPane, refEl) {
   const order = [...destPane.tabBar.querySelectorAll('.tab')];
   destPane.tabs.splice(order.indexOf(tab.tabEl), 0, tab);
 
+  const maxBtn = tab.tabEl.querySelector('.tab-maximize');
+  if (maxBtn) {
+    const isDestMax = destPane.el.classList.contains('maximized');
+    maxBtn.textContent = isDestMax ? '⤣' : '⤢';
+    maxBtn.title = isDestMax ? 'Restore layout' : 'Maximize tab';
+  }
+
   if (srcPane !== destPane) {
     if (srcPane.tabs.length) activateTab(srcPane, srcPane.tabs[Math.max(0, idx - 1)].id);
     else { srcPane.activeTab = null; collapseEmptyPane(srcPane); }
@@ -163,6 +171,9 @@ function moveTab(srcPane, tabId, destPane, refEl) {
 
 // Remove an emptied pane and collapse its split, keeping at least one pane.
 function collapseEmptyPane(pane) {
+  if (typeof maximizedPane !== 'undefined' && maximizedPane === pane) {
+    toggleMaximizePane(pane);
+  }
   if (getAllPanes().length <= 1) return;
   const paneEl = pane.el;
   const parent = paneEl.parentElement;
@@ -210,6 +221,62 @@ function getTermTheme() {
   };
 }
 
+function toggleMaximizePane(pane) {
+  if (maximizedPane === pane) {
+    // Restore
+    pane.el.classList.remove('maximized');
+    document.body.classList.remove('has-maximized-pane');
+    maximizedPane = null;
+    
+    // Update all maximize buttons in this pane
+    pane.tabs.forEach(t => {
+      const btn = t.tabEl.querySelector('.tab-maximize');
+      if (btn) {
+        btn.textContent = '⤢';
+        btn.title = 'Maximize tab';
+      }
+    });
+  } else {
+    // If another pane was maximized, restore it first
+    if (maximizedPane) {
+      const oldPane = maximizedPane;
+      oldPane.el.classList.remove('maximized');
+      oldPane.tabs.forEach(t => {
+        const btn = t.tabEl.querySelector('.tab-maximize');
+        if (btn) {
+          btn.textContent = '⤢';
+          btn.title = 'Maximize tab';
+        }
+      });
+    }
+    
+    // Maximize
+    pane.el.classList.add('maximized');
+    document.body.classList.add('has-maximized-pane');
+    maximizedPane = pane;
+    
+    // Update all maximize buttons in this pane
+    pane.tabs.forEach(t => {
+      const btn = t.tabEl.querySelector('.tab-maximize');
+      if (btn) {
+        btn.textContent = '⤣';
+        btn.title = 'Restore layout';
+      }
+    });
+  }
+
+  // Trigger resize observer / fit for all panes to adjust xterm/monaco sizes
+  requestAnimationFrame(() => {
+    getAllPanes().forEach(p => {
+      const tab = p.activeTab;
+      if (tab?.fitAddon) tab.fitAddon.fit();
+      if (tab?.type === 'editor' && typeof tab.onActivate === 'function') {
+        tab.onActivate();
+      }
+    });
+  });
+}
+
 function createPane() {
   const el = document.createElement('div');
   el.className = 'pane';
@@ -248,7 +315,7 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen, existingEditorExpandedDirs, existingZoomLevel) {
   const id = existingId || uid();
 
   const viewEl = document.createElement('div');
@@ -263,6 +330,23 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   icon.textContent = type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : '🌐';
   const label = document.createElement('span');
   label.textContent = type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : 'Browser';
+
+  const isMaximized = pane.el.classList.contains('maximized');
+  const maxBtn = document.createElement('span');
+  maxBtn.className = 'tab-maximize';
+  maxBtn.textContent = isMaximized ? '⤣' : '⤢';
+  maxBtn.title = isMaximized ? 'Restore layout' : 'Maximize tab';
+  maxBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const p = paneOfTab(tabEl);
+    if (p) {
+      if (p.activeTab?.id !== id) {
+        activateTab(p, id);
+      }
+      toggleMaximizePane(p);
+    }
+  });
+
   const closeBtn = document.createElement('span');
   closeBtn.className = 'tab-close';
   closeBtn.textContent = '✕';
@@ -270,7 +354,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   // Handlers resolve the pane from the DOM at event time, so they keep working
   // after the tab is dragged into a different pane.
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); });
-  tabEl.append(icon, label, closeBtn);
+  tabEl.append(icon, label, maxBtn, closeBtn);
   tabEl.addEventListener('click', () => {
     if (Date.now() < suppressTabClickUntil) return; // ignore click synthesized after a touch drag
     const p = paneOfTab(tabEl); if (p) activateTab(p, id);
@@ -289,11 +373,14 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     fitAddon: null,
     ptyId: null,
     currentUrl: null,
-    editorDir: null,
+    editorDir: type === 'editor' ? existingDir : null,
+    terminalDir: type === 'terminal' ? existingDir : null,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
     consoleOpen: !!existingBrowserConsoleOpen,
-    isCustomLabel: false
+    isCustomLabel: false,
+    editorExpandedDirs: type === 'editor' ? new Set(existingEditorExpandedDirs || []) : null,
+    zoomLevel: existingZoomLevel || 1.0
   };
   pane.tabs.push(tab);
 
@@ -315,6 +402,8 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   if (type === 'terminal') initTerminalTab(tab, existingPtyId);
   else if (type === 'editor') initEditorTab(tab, viewEl, existingDir);
   else initBrowserTab(tab, viewEl, label, existingUrl);
+
+  createZoomControls(tab);
 
   activateTab(pane, id);
   return tab;
@@ -351,6 +440,12 @@ function closeTab(pane, id) {
   tab.tabEl.remove();
   pane.tabs.splice(idx, 1);
   if (pane.tabs.length) activateTab(pane, pane.tabs[Math.max(0, idx - 1)].id);
+  
+  if (pane.tabs.length === 0) {
+    if (typeof maximizedPane !== 'undefined' && maximizedPane === pane) {
+      toggleMaximizePane(pane);
+    }
+  }
   saveSessionState();
 }
 
@@ -359,7 +454,7 @@ function initTerminalTab(tab, existingPtyId) {
   const s = getSettings();
   const term = new Terminal({
     theme: getTermTheme(),
-    fontSize: s.termFontSize || 13,
+    fontSize: Math.round((s.termFontSize || 13) * (tab.zoomLevel || 1.0)),
     fontFamily: s.termFontFamily || '"Cascadia Code", "JetBrains Mono", Menlo, Monaco, monospace',
     cursorBlink: true,
     scrollback: s.termScrollback || 10000,
@@ -513,9 +608,30 @@ function initTerminalTab(tab, existingPtyId) {
   const ptyId = existingPtyId || uid();
   tab.ptyId = ptyId;
 
+  // Find active terminal to inherit directory from
+  let inheritFromPtyId = null;
+  if (!existingPtyId) {
+    let activeTerm = null;
+    if (typeof activePane !== 'undefined' && activePane && activePane.activeTab && activePane.activeTab.type === 'terminal') {
+      activeTerm = activePane.activeTab;
+    } else {
+      if (typeof getAllPanes === 'function') {
+        for (const p of getAllPanes()) {
+          if (p.activeTab && p.activeTab.type === 'terminal') {
+            activeTerm = p.activeTab;
+            break;
+          }
+        }
+      }
+    }
+    if (activeTerm && activeTerm.ptyId) {
+      inheritFromPtyId = activeTerm.ptyId;
+    }
+  }
+
   const initPty = () => {
     fitAddon.fit();
-    createPty(ptyId, term, term.cols, term.rows);
+    createPty(ptyId, term, term.cols, term.rows, tab.terminalDir, inheritFromPtyId);
     if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
   };
   // Small rAF delay ensures the terminal is sized before createPty
@@ -611,6 +727,14 @@ function initTerminalTab(tab, existingPtyId) {
     }
   });
   ro.observe(tab.viewEl);
+  tab.zoom = (zoomLevel) => {
+    tab.zoomLevel = zoomLevel;
+    const baseFontSize = (getSettings().termFontSize || 13);
+    term.options.fontSize = Math.round(baseFontSize * zoomLevel);
+    if (tab.fitAddon) {
+      tab.fitAddon.fit();
+    }
+  };
   tab.disposeTerminal = () => {
     ro.disconnect();
     if (tab.mobileScrollDis) { tab.mobileScrollDis.dispose(); tab.mobileScrollDis = null; }
@@ -875,6 +999,15 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   fwdBtn.addEventListener('click', () => { try { frame.contentWindow.history.forward(); } catch {} });
   reloadBtn.addEventListener('click', () => { if (tab.currentUrl) navigate(tab.currentUrl); });
   extBtn.addEventListener('click', () => { if (tab.currentUrl) window.open(tab.currentUrl, '_blank'); });
+
+  tab.zoom = (zoomLevel) => {
+    tab.zoomLevel = zoomLevel;
+    frame.style.zoom = zoomLevel;
+    startEl.style.zoom = zoomLevel;
+  };
+  if (tab.zoomLevel) {
+    tab.zoom(tab.zoomLevel);
+  }
 }
 
 // Find a live terminal tab by its PTY id (used by reconnect restore + schedules).
@@ -1443,4 +1576,90 @@ function handleAutocompleteData(tab, data) {
     return;
   }
   closeAutocomplete(tab);
+}
+
+function adjustZoom(tab, delta) {
+  const current = tab.zoomLevel || 1.0;
+  const target = Math.min(2.5, Math.max(0.5, Math.round((current + delta) * 10) / 10));
+  setTabZoom(tab, target);
+}
+
+function resetZoom(tab) {
+  setTabZoom(tab, 1.0);
+}
+
+function setTabZoom(tab, level) {
+  tab.zoomLevel = level;
+  if (typeof tab.zoom === 'function') {
+    tab.zoom(level);
+  }
+  const indicator = tab.viewEl?.querySelector('.zoom-indicator');
+  if (indicator) {
+    indicator.textContent = Math.round(level * 100) + '%';
+  }
+}
+
+function zoomActiveTab(delta) {
+  const tab = activePane?.activeTab;
+  if (!tab) return;
+  adjustZoom(tab, delta);
+  if (typeof saveSessionState === 'function') {
+    saveSessionState();
+  }
+}
+
+function resetActiveTabZoom() {
+  const tab = activePane?.activeTab;
+  if (!tab) return;
+  resetZoom(tab);
+  if (typeof saveSessionState === 'function') {
+    saveSessionState();
+  }
+}
+
+function createZoomControls(tab) {
+  const container = document.createElement('div');
+  container.className = 'zoom-controls';
+
+  const btnMinus = document.createElement('button');
+  btnMinus.className = 'zoom-btn minus';
+  btnMinus.textContent = '−';
+  btnMinus.title = 'Zoom out (Ctrl+Shift+-)';
+
+  const indicator = document.createElement('span');
+  indicator.className = 'zoom-indicator';
+  indicator.textContent = Math.round((tab.zoomLevel || 1.0) * 100) + '%';
+  indicator.title = 'Click to reset zoom (Ctrl+Shift+0)';
+
+  const btnPlus = document.createElement('button');
+  btnPlus.className = 'zoom-btn plus';
+  btnPlus.textContent = '+';
+  btnPlus.title = 'Zoom in (Ctrl+Shift++)';
+
+  container.append(btnMinus, indicator, btnPlus);
+
+  container.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  btnMinus.addEventListener('click', (e) => {
+    e.stopPropagation();
+    adjustZoom(tab, -0.1);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
+
+  btnPlus.addEventListener('click', (e) => {
+    e.stopPropagation();
+    adjustZoom(tab, 0.1);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
+
+  indicator.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetZoom(tab);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
+
+  tab.viewEl.appendChild(container);
 }
