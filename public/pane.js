@@ -1,6 +1,7 @@
 let activePane = null;
 let tabCounter = 0;
 const paneRegistry = new Map();
+let maximizedPane = null;
 
 // ── Broadcast input ──────────────────────────────────────────────────────────
 // When on, keystrokes from any terminal are mirrored to every *visible* terminal
@@ -60,7 +61,7 @@ function paneUnderPoint(x, y) {
 function onTabPointerDown(e, tab) {
   // Mouse/pen keep using native HTML5 DnD; only hijack touch.
   if (e.pointerType !== 'touch') return;
-  if (e.target.closest('.tab-close')) return; // let close taps through
+  if (e.target.closest('.tab-close, .tab-maximize')) return; // let close and maximize taps through
   touchDrag = { tab, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, active: false };
 }
 
@@ -148,6 +149,13 @@ function moveTab(srcPane, tabId, destPane, refEl) {
   const order = [...destPane.tabBar.querySelectorAll('.tab')];
   destPane.tabs.splice(order.indexOf(tab.tabEl), 0, tab);
 
+  const maxBtn = tab.tabEl.querySelector('.tab-maximize');
+  if (maxBtn) {
+    const isDestMax = destPane.el.classList.contains('maximized');
+    maxBtn.textContent = isDestMax ? '⤣' : '⤢';
+    maxBtn.title = isDestMax ? 'Restore layout' : 'Maximize tab';
+  }
+
   if (srcPane !== destPane) {
     if (srcPane.tabs.length) activateTab(srcPane, srcPane.tabs[Math.max(0, idx - 1)].id);
     else { srcPane.activeTab = null; collapseEmptyPane(srcPane); }
@@ -163,6 +171,9 @@ function moveTab(srcPane, tabId, destPane, refEl) {
 
 // Remove an emptied pane and collapse its split, keeping at least one pane.
 function collapseEmptyPane(pane) {
+  if (typeof maximizedPane !== 'undefined' && maximizedPane === pane) {
+    toggleMaximizePane(pane);
+  }
   if (getAllPanes().length <= 1) return;
   const paneEl = pane.el;
   const parent = paneEl.parentElement;
@@ -208,6 +219,62 @@ function getTermTheme() {
     cursorAccent: bg,
     selectionBackground: v('--accent2', 'rgba(139,92,246,0.3)'),
   };
+}
+
+function toggleMaximizePane(pane) {
+  if (maximizedPane === pane) {
+    // Restore
+    pane.el.classList.remove('maximized');
+    document.body.classList.remove('has-maximized-pane');
+    maximizedPane = null;
+    
+    // Update all maximize buttons in this pane
+    pane.tabs.forEach(t => {
+      const btn = t.tabEl.querySelector('.tab-maximize');
+      if (btn) {
+        btn.textContent = '⤢';
+        btn.title = 'Maximize tab';
+      }
+    });
+  } else {
+    // If another pane was maximized, restore it first
+    if (maximizedPane) {
+      const oldPane = maximizedPane;
+      oldPane.el.classList.remove('maximized');
+      oldPane.tabs.forEach(t => {
+        const btn = t.tabEl.querySelector('.tab-maximize');
+        if (btn) {
+          btn.textContent = '⤢';
+          btn.title = 'Maximize tab';
+        }
+      });
+    }
+    
+    // Maximize
+    pane.el.classList.add('maximized');
+    document.body.classList.add('has-maximized-pane');
+    maximizedPane = pane;
+    
+    // Update all maximize buttons in this pane
+    pane.tabs.forEach(t => {
+      const btn = t.tabEl.querySelector('.tab-maximize');
+      if (btn) {
+        btn.textContent = '⤣';
+        btn.title = 'Restore layout';
+      }
+    });
+  }
+
+  // Trigger resize observer / fit for all panes to adjust xterm/monaco sizes
+  requestAnimationFrame(() => {
+    getAllPanes().forEach(p => {
+      const tab = p.activeTab;
+      if (tab?.fitAddon) tab.fitAddon.fit();
+      if (tab?.type === 'editor' && typeof tab.onActivate === 'function') {
+        tab.onActivate();
+      }
+    });
+  });
 }
 
 function createPane() {
@@ -263,6 +330,23 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   icon.textContent = type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : '🌐';
   const label = document.createElement('span');
   label.textContent = type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : 'Browser';
+
+  const isMaximized = pane.el.classList.contains('maximized');
+  const maxBtn = document.createElement('span');
+  maxBtn.className = 'tab-maximize';
+  maxBtn.textContent = isMaximized ? '⤣' : '⤢';
+  maxBtn.title = isMaximized ? 'Restore layout' : 'Maximize tab';
+  maxBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const p = paneOfTab(tabEl);
+    if (p) {
+      if (p.activeTab?.id !== id) {
+        activateTab(p, id);
+      }
+      toggleMaximizePane(p);
+    }
+  });
+
   const closeBtn = document.createElement('span');
   closeBtn.className = 'tab-close';
   closeBtn.textContent = '✕';
@@ -270,7 +354,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   // Handlers resolve the pane from the DOM at event time, so they keep working
   // after the tab is dragged into a different pane.
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); });
-  tabEl.append(icon, label, closeBtn);
+  tabEl.append(icon, label, maxBtn, closeBtn);
   tabEl.addEventListener('click', () => {
     if (Date.now() < suppressTabClickUntil) return; // ignore click synthesized after a touch drag
     const p = paneOfTab(tabEl); if (p) activateTab(p, id);
@@ -352,6 +436,12 @@ function closeTab(pane, id) {
   tab.tabEl.remove();
   pane.tabs.splice(idx, 1);
   if (pane.tabs.length) activateTab(pane, pane.tabs[Math.max(0, idx - 1)].id);
+  
+  if (pane.tabs.length === 0) {
+    if (typeof maximizedPane !== 'undefined' && maximizedPane === pane) {
+      toggleMaximizePane(pane);
+    }
+  }
   saveSessionState();
 }
 
@@ -514,9 +604,30 @@ function initTerminalTab(tab, existingPtyId) {
   const ptyId = existingPtyId || uid();
   tab.ptyId = ptyId;
 
+  // Find active terminal to inherit directory from
+  let inheritFromPtyId = null;
+  if (!existingPtyId) {
+    let activeTerm = null;
+    if (typeof activePane !== 'undefined' && activePane && activePane.activeTab && activePane.activeTab.type === 'terminal') {
+      activeTerm = activePane.activeTab;
+    } else {
+      if (typeof getAllPanes === 'function') {
+        for (const p of getAllPanes()) {
+          if (p.activeTab && p.activeTab.type === 'terminal') {
+            activeTerm = p.activeTab;
+            break;
+          }
+        }
+      }
+    }
+    if (activeTerm && activeTerm.ptyId) {
+      inheritFromPtyId = activeTerm.ptyId;
+    }
+  }
+
   const initPty = () => {
     fitAddon.fit();
-    createPty(ptyId, term, term.cols, term.rows, tab.terminalDir);
+    createPty(ptyId, term, term.cols, term.rows, tab.terminalDir, inheritFromPtyId);
     if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
   };
   // Small rAF delay ensures the terminal is sized before createPty

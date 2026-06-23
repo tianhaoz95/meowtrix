@@ -52,6 +52,10 @@ function captureWorkspaceState() {
 
 // Rebuild workspace from serialized state
 function restoreWorkspaceState(state) {
+  if (typeof maximizedPane !== 'undefined') {
+    maximizedPane = null;
+    document.body.classList.remove('has-maximized-pane');
+  }
   const workspace = document.getElementById('workspace');
   workspace.innerHTML = '';
   paneRegistry.clear();

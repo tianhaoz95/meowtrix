@@ -8,6 +8,9 @@ function equalizeChildren(container) {
 
 // dir: 'vertical' = side-by-side, 'horizontal' = top/bottom
 function splitPane(pane, dir) {
+  if (typeof maximizedPane !== 'undefined' && maximizedPane) {
+    toggleMaximizePane(maximizedPane);
+  }
   const parentEl = pane.el.parentElement;
   const newPane = createPane();
 

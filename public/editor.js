@@ -701,6 +701,7 @@ function initEditorTab(tab, viewEl, dir) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
         renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
+        minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
       });
     }
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
@@ -733,6 +734,7 @@ function initEditorTab(tab, viewEl, dir) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
         renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
+        minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
       });
     }
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
@@ -1444,7 +1446,7 @@ function initEditorTab(tab, viewEl, dir) {
         theme: monacoTheme(),
         automaticLayout: false,
         fontSize: 13,
-        minimap: { enabled: true },
+        minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
         scrollBeyondLastLine: false,
       });
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveActive());
@@ -1814,6 +1816,12 @@ function initEditorTab(tab, viewEl, dir) {
   tab.updateTheme = () => {
     if (editor) editor.updateOptions({ theme: monacoTheme() });
     if (diffEditor) diffEditor.updateOptions({ theme: monacoTheme() });
+  };
+
+  tab.updateMinimap = () => {
+    const isMinimapEnabled = (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false;
+    if (editor) editor.updateOptions({ minimap: { enabled: isMinimapEnabled } });
+    if (diffEditor) diffEditor.updateOptions({ minimap: { enabled: isMinimapEnabled } });
   };
 
   tab.disposeEditor = () => {

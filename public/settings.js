@@ -87,6 +87,12 @@ function applyTermSettings() {
   }));
 }
 
+function applyEditorSettings() {
+  getAllPanes().forEach(p => p.tabs.forEach(t => {
+    if (typeof t.updateMinimap === 'function') t.updateMinimap();
+  }));
+}
+
 // ── Panel open/close ─────────────────────────────────────────────────────────
 // ── Search settings ──────────────────────────────────────────────────────────
 function getRowSearchText(item) {
@@ -232,6 +238,7 @@ function populateControls(s) {
   document.getElementById('s-mobile-scrollbar').checked = s.mobileScrollbar !== false;
   document.getElementById('s-show-time').checked = s.showTimeInMenu !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
+  document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
 
   const statusEl = document.getElementById('s-update-status');
   if (statusEl) {
@@ -508,6 +515,11 @@ function wireControls() {
     await saveSetting('autoUpdate', e.target.checked);
   });
 
+  document.getElementById('s-editor-minimap').addEventListener('change', async (e) => {
+    await saveSetting('editorMinimap', e.target.checked);
+    onSettingChanged('editorMinimap', e.target.checked);
+  });
+
   const btnCheckUpdate = document.getElementById('btn-check-update');
   if (btnCheckUpdate) {
     btnCheckUpdate.addEventListener('click', async () => {
@@ -632,6 +644,9 @@ function onSettingChanged(key) {
   if (key === 'mobileKeys') {
     if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
   }
+  if (key === 'editorMinimap') {
+    applyEditorSettings();
+  }
 }
 
 let _networkIps = ['127.0.0.1'];
@@ -698,6 +713,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateControls(s);
     applyTheme(s.theme);
     applyTermSettings();
+    applyEditorSettings();
     if (typeof updateUiMode === 'function') updateUiMode();
     if (typeof setComboFxEnabled === 'function') setComboFxEnabled(s.comboFx);
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();

@@ -600,6 +600,25 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
   min-width: 80px; min-height: 60px; flex: 1;
   position: relative;
 }
+.pane.maximized {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 100 !important;
+  background: var(--bg) !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+body.has-maximized-pane {
+  overflow: hidden !important;
+}
 /* Active pane gets a soft accent rail along the top of its tab bar. */
 .pane.active > .pane-tabs::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
@@ -640,6 +659,14 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 }
 .tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--bg5); color: var(--text) !important; }
+
+.tab-maximize {
+  opacity: 0; font-size: 11px; color: var(--text3); line-height: 1;
+  padding: 3px 4px; border-radius: 5px; margin-left: 2px;
+  transition: opacity 0.12s var(--ease), background 0.12s var(--ease), color 0.12s var(--ease);
+}
+.tab:hover .tab-maximize, .tab.active .tab-maximize { opacity: 1; }
+.tab-maximize:hover { background: var(--bg5); color: var(--text) !important; }
 
 .tab-add {
   width: 28px; height: 28px; margin-left: 2px; border-radius: 8px;

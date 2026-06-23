@@ -88,16 +88,16 @@ function wsSend(obj) {
   }
 }
 
-function _sendCreate(id, cols, rows, cwd) {
-  wsSend({ type: 'pty:create', id, cols, rows, cwd });
+function _sendCreate(id, cols, rows, cwd, inheritFromPtyId) {
+  wsSend({ type: 'pty:create', id, cols, rows, cwd, inheritFromPtyId });
 }
 
-function createPty(id, term, cols, rows, cwd) {
+function createPty(id, term, cols, rows, cwd, inheritFromPtyId) {
   ptyCallbacks.set(id, term);
   if (wsReady) {
-    _sendCreate(id, cols, rows, cwd);
+    _sendCreate(id, cols, rows, cwd, inheritFromPtyId);
   } else {
-    pendingPtys.push([id, cols, rows, cwd]);
+    pendingPtys.push([id, cols, rows, cwd, inheritFromPtyId]);
   }
 }
 
