@@ -394,6 +394,14 @@ function initEditorTab(tab, viewEl, dir) {
   tab.editorDir = dir || '';
   if (dir && tab.label && !tab.isCustomLabel) tab.label.textContent = basename(dir);
 
+  if (!tab.editorExpandedDirs) {
+    tab.editorExpandedDirs = new Set();
+  }
+
+  if (dir) {
+    wsSend({ type: 'fs:watch', path: dir });
+  }
+
   // ── DOM scaffold ───────────────────────────────────────────────────────────
   const sidebar = document.createElement('div');
   sidebar.className = 'editor-sidebar';
@@ -1911,14 +1919,28 @@ function initEditorTab(tab, viewEl, dir) {
 
       if (entry.type === 'dir') {
         const childWrap = document.createElement('div');
-        childWrap.hidden = true;
+        childWrap.hidden = !tab.editorExpandedDirs.has(full);
         let loaded = false;
         containerEl.appendChild(childWrap);
+
+        if (tab.editorExpandedDirs.has(full)) {
+          loaded = true;
+          icon.innerHTML = getFileIconSvg(entry.name, entry.type, true);
+          renderDir(full, childWrap, depth + 1);
+        }
+
         row.addEventListener('click', async () => {
           const show = childWrap.hidden;
           childWrap.hidden = !show;
           icon.innerHTML = getFileIconSvg(entry.name, entry.type, show);
-          if (show && !loaded) { loaded = true; await renderDir(full, childWrap, depth + 1); }
+          if (show) {
+            tab.editorExpandedDirs.add(full);
+            if (typeof saveSessionState === 'function') saveSessionState();
+            if (!loaded) { loaded = true; await renderDir(full, childWrap, depth + 1); }
+          } else {
+            tab.editorExpandedDirs.delete(full);
+            if (typeof saveSessionState === 'function') saveSessionState();
+          }
         });
       } else {
         treeRows.set(full, row);
@@ -1966,6 +1988,62 @@ function initEditorTab(tab, viewEl, dir) {
     if (diffEditor) diffEditor.updateOptions({ minimap: { enabled: isMinimapEnabled } });
   };
 
+  let changeTimeout = null;
+  const changedFiles = new Set();
+
+  async function reloadActiveFile() {
+    if (!activePath) return;
+    const st = open.get(activePath);
+    if (!st || st.dirty) return;
+    try {
+      const res = await fetch('/api/fs/read?path=' + encodeURIComponent(activePath));
+      const data = await res.json();
+      if (res.ok && data && typeof data.content === 'string') {
+        const currentVal = st.model.getValue();
+        if (currentVal !== data.content) {
+          const state = editor ? editor.saveViewState() : null;
+          st.model.setValue(data.content);
+          if (state && editor) editor.restoreViewState(state);
+          markDirty(activePath, false);
+          if (st.previewActive) {
+            if (isMarkdownFile(activePath)) renderMarkdownContent(st);
+            else if (isHtmlFile(activePath)) renderHtmlContent(st);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to auto-reload changed file:', e);
+    }
+  }
+
+  tab.handleFsChange = (eventType, filename) => {
+    if (changeTimeout) clearTimeout(changeTimeout);
+    if (filename) changedFiles.add(filename);
+    changeTimeout = setTimeout(() => {
+      refreshFiles();
+      if (!gitEl.hidden && !gitBtn.hidden) {
+        refreshGit();
+      }
+      if (activePath && !open.get(activePath)?.dirty) {
+        const activeRel = activePath.startsWith(dir) 
+          ? activePath.slice(dir.length).replace(/^\/+/, '')
+          : null;
+        let activeChanged = false;
+        for (const f of changedFiles) {
+          const normalizedF = f.replace(/\\/g, '/');
+          if (activeRel && (normalizedF === activeRel || activeRel.endsWith('/' + normalizedF))) {
+            activeChanged = true;
+            break;
+          }
+        }
+        if (activeChanged) {
+          reloadActiveFile();
+        }
+      }
+      changedFiles.clear();
+    }, 300);
+  };
+
   tab.disposeEditor = () => {
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('contextmenu', onDocumentContextMenu);
@@ -1976,5 +2054,34 @@ function initEditorTab(tab, viewEl, dir) {
     diffEditor?.dispose();
     if (diffModels) { diffModels.original.dispose(); diffModels.modified.dispose(); }
     open.forEach(st => st.model.dispose());
+    if (dir) {
+      wsSend({ type: 'fs:unwatch', path: dir });
+    }
   };
 }
+
+function rewatchAllEditors() {
+  if (typeof getAllPanes !== 'function') return;
+  for (const pane of getAllPanes()) {
+    for (const tab of pane.tabs) {
+      if (tab.type === 'editor' && tab.editorDir) {
+        wsSend({ type: 'fs:watch', path: tab.editorDir });
+      }
+    }
+  }
+}
+window.rewatchAllEditors = rewatchAllEditors;
+
+function onFsChange(watchPath, eventType, filename) {
+  if (typeof getAllPanes !== 'function') return;
+  for (const pane of getAllPanes()) {
+    for (const tab of pane.tabs) {
+      if (tab.type === 'editor' && tab.editorDir === watchPath) {
+        if (typeof tab.handleFsChange === 'function') {
+          tab.handleFsChange(eventType, filename);
+        }
+      }
+    }
+  }
+}
+window.onFsChange = onFsChange;

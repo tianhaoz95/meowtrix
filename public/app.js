@@ -30,6 +30,7 @@ function captureWorkspaceState() {
           editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'terminal' ? t.terminalDir : null),
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
+          editorExpandedDirs: t.type === 'editor' ? Array.from(t.editorExpandedDirs || []) : null,
           label: t.label?.textContent || null,
           isCustomLabel: !!t.isCustomLabel,
         })),
@@ -65,7 +66,7 @@ function restoreWorkspaceState(state) {
     if (node.type === 'pane') {
       const pane = createPane();
       node.tabs.forEach(tabState => {
-        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen);
+        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen, tabState.editorExpandedDirs);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
         if (tabState.isCustomLabel) tab.isCustomLabel = true;
       });
@@ -165,6 +166,9 @@ function claimActiveSession() {
 // Called by ws.js each time the socket (re)connects.
 function onWsConnected() {
   if (!bootstrapped) return;            // bootstrapSession() will claim
+  if (typeof rewatchAllEditors === 'function') {
+    rewatchAllEditors();
+  }
   if (!hasClaimed) { claimActiveSession(); return; }
   if (isActiveSession) {
     // We reconnected and still believe we're active: the server dropped our PTY

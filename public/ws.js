@@ -43,6 +43,8 @@ function handleWsMessage(msg) {
     if (typeof onPortsState === 'function') onPortsState(msg.ports);
   } else if (msg.type === 'ports:new') {
     if (typeof onPortsNew === 'function') onPortsNew(msg.ports);
+  } else if (msg.type === 'fs:change') {
+    if (typeof onFsChange === 'function') onFsChange(msg.path, msg.eventType, msg.filename);
   }
 }
 

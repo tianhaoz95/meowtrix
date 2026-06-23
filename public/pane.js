@@ -315,7 +315,7 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen, existingEditorExpandedDirs) {
   const id = existingId || uid();
 
   const viewEl = document.createElement('div');
@@ -378,7 +378,8 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
     consoleOpen: !!existingBrowserConsoleOpen,
-    isCustomLabel: false
+    isCustomLabel: false,
+    editorExpandedDirs: type === 'editor' ? new Set(existingEditorExpandedDirs || []) : null
   };
   pane.tabs.push(tab);
 

@@ -1366,6 +1366,42 @@ wss.on('connection', (ws) => {
         if (clearSchedule(msg.id)) broadcastSchedules();
         break;
       }
+      case 'fs:watch': {
+        const watchPath = msg.path;
+        if (!watchPath) break;
+        if (!ws.fsWatchers) ws.fsWatchers = new Map();
+        if (ws.fsWatchers.has(watchPath)) break;
+        try {
+          const resolved = path.resolve(watchPath);
+          if (fs.existsSync(resolved)) {
+            const watcher = fs.watch(resolved, { recursive: true }, (eventType, filename) => {
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'fs:change', path: watchPath, eventType, filename }));
+              }
+            });
+            watcher.on('error', (err) => {
+              console.warn(`[Watcher Error] ${resolved}:`, err);
+              if (ws.fsWatchers && ws.fsWatchers.has(watchPath)) {
+                try { watcher.close(); } catch (e) {}
+                ws.fsWatchers.delete(watchPath);
+              }
+            });
+            ws.fsWatchers.set(watchPath, watcher);
+          }
+        } catch (e) {
+          console.warn(`[Watcher Start Fail] ${watchPath}:`, e);
+        }
+        break;
+      }
+      case 'fs:unwatch': {
+        const unwatchPath = msg.path;
+        if (unwatchPath && ws.fsWatchers && ws.fsWatchers.has(unwatchPath)) {
+          const watcher = ws.fsWatchers.get(unwatchPath);
+          try { watcher.close(); } catch (e) {}
+          ws.fsWatchers.delete(unwatchPath);
+        }
+        break;
+      }
     }
   });
 
@@ -1374,6 +1410,13 @@ wss.on('connection', (ws) => {
     attached.forEach(cleanup => cleanup());
     attached.clear();
     sessionClients.delete(ws);
+    // Clean up file watchers
+    if (ws.fsWatchers) {
+      for (const watcher of ws.fsWatchers.values()) {
+        try { watcher.close(); } catch (e) {}
+      }
+      ws.fsWatchers.clear();
+    }
     // If the active session's socket dropped, hand off to the most recently
     // connected remaining client so the others aren't stranded on the overlay.
     if (ws.tabId && ws.tabId === activeTabId) {
