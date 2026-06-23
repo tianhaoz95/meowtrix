@@ -11,6 +11,77 @@ let bootstrapped = false;     // workspace built and ready to claim?
 let streamsLost = false;      // another session took over our PTY streams
 let everActive = false;       // have we ever been the active session?
 
+// Workspaces state variables
+let currentWorkspaces = [
+  { name: "Workspace 1", layout: null },
+  { name: "Workspace 2", layout: null },
+  { name: "Workspace 3", layout: null },
+  { name: "Workspace 4", layout: null }
+];
+let activeWorkspaceIndex = 0;
+
+function deactivateCurrentWorkspace() {
+  getAllPanes().forEach(pane => {
+    pane.tabs.forEach(tab => {
+      if (tab.ptyId) {
+        ptyCallbacks.delete(tab.ptyId);
+      }
+      if (tab.term) {
+        try { tab.term.dispose(); } catch (e) {}
+      }
+      if (tab.disposeTerminal) {
+        try { tab.disposeTerminal(); } catch (e) {}
+      }
+      if (tab.disposeEditor) {
+        try { tab.disposeEditor(); } catch (e) {}
+      }
+    });
+  });
+}
+
+function updateWorkspaceUI() {
+  document.querySelectorAll('.logo-letter').forEach(el => {
+    const idx = parseInt(el.getAttribute('data-index'), 10);
+    el.classList.toggle('active', idx === activeWorkspaceIndex);
+  });
+  const badge = document.getElementById('workspace-badge');
+  if (badge) {
+    badge.textContent = currentWorkspaces[activeWorkspaceIndex].name;
+  }
+}
+
+function switchWorkspace(index) {
+  if (index < 0 || index > 3) return;
+  if (index === activeWorkspaceIndex) return;
+
+  // Flush any pending save for the current workspace first
+  flushSessionState();
+
+  // Save the current layout into memory
+  currentWorkspaces[activeWorkspaceIndex].layout = captureWorkspaceState();
+
+  // Clean up current DOM elements
+  deactivateCurrentWorkspace();
+
+  // Switch index
+  activeWorkspaceIndex = index;
+
+  // Restore the new layout (or initialize if null)
+  const nextLayout = currentWorkspaces[activeWorkspaceIndex].layout;
+  if (nextLayout) {
+    restoreWorkspaceState(nextLayout);
+  } else {
+    initWorkspace();
+  }
+
+  // Update UI and fit terminals
+  updateWorkspaceUI();
+  fitAllTerminals();
+
+  // Save the new state immediately
+  _postSessionState();
+}
+
 // Serialize current workspace state for transfer
 function captureWorkspaceState() {
   function serializeEl(el) {
@@ -109,8 +180,15 @@ let workspaceReady = false;
 let _saveTimer = null;
 function _postSessionState() {
   _saveTimer = null;
-  const state = captureWorkspaceState();
-  if (state) fetch('/api/session', {
+  currentWorkspaces[activeWorkspaceIndex].layout = captureWorkspaceState();
+  const state = {
+    activeWorkspaceIndex,
+    workspaces: currentWorkspaces.map(ws => ({
+      name: ws.name,
+      layout: ws.layout
+    }))
+  };
+  fetch('/api/session', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(state),
   });
@@ -141,13 +219,38 @@ function fitAllTerminals() {
 async function bootstrapSession() {
   try {
     const saved = await fetch('/api/session').then(r => r.json());
-    if (saved) restoreWorkspaceState(saved);
-    else initWorkspace();
+    if (saved) {
+      if (saved.workspaces && Array.isArray(saved.workspaces)) {
+        currentWorkspaces = saved.workspaces.map(ws => ({
+          name: ws.name,
+          layout: ws.layout
+        }));
+        activeWorkspaceIndex = typeof saved.activeWorkspaceIndex === 'number' ? saved.activeWorkspaceIndex : 0;
+      } else {
+        // Upgrade old session format
+        currentWorkspaces = [
+          { name: "Workspace 1", layout: saved },
+          { name: "Workspace 2", layout: null },
+          { name: "Workspace 3", layout: null },
+          { name: "Workspace 4", layout: null }
+        ];
+        activeWorkspaceIndex = 0;
+      }
+      const activeLayout = currentWorkspaces[activeWorkspaceIndex].layout;
+      if (activeLayout) {
+        restoreWorkspaceState(activeLayout);
+      } else {
+        initWorkspace();
+      }
+    } else {
+      initWorkspace();
+    }
   } catch {
     initWorkspace();
   }
   workspaceReady = true;
   bootstrapped = true;
+  updateWorkspaceUI();
   fitAllTerminals();
   // The server may have reported pending schedules before the tabs existed.
   if (typeof reconcileSchedules === 'function') reconcileSchedules();
@@ -188,8 +291,32 @@ function onWsConnected() {
 async function resyncWorkspace() {
   try {
     const saved = await fetch('/api/session').then(r => r.json());
-    if (saved) restoreWorkspaceState(saved);
+    if (saved) {
+      deactivateCurrentWorkspace();
+      if (saved.workspaces && Array.isArray(saved.workspaces)) {
+        currentWorkspaces = saved.workspaces.map(ws => ({
+          name: ws.name,
+          layout: ws.layout
+        }));
+        activeWorkspaceIndex = typeof saved.activeWorkspaceIndex === 'number' ? saved.activeWorkspaceIndex : 0;
+      } else {
+        currentWorkspaces = [
+          { name: "Workspace 1", layout: saved },
+          { name: "Workspace 2", layout: null },
+          { name: "Workspace 3", layout: null },
+          { name: "Workspace 4", layout: null }
+        ];
+        activeWorkspaceIndex = 0;
+      }
+      const activeLayout = currentWorkspaces[activeWorkspaceIndex].layout;
+      if (activeLayout) {
+        restoreWorkspaceState(activeLayout);
+      } else {
+        initWorkspace();
+      }
+    }
   } catch {}
+  updateWorkspaceUI();
   fitAllTerminals();
   // Re-apply schedule lock overlays to the freshly rebuilt tabs.
   if (typeof reconcileSchedules === 'function') reconcileSchedules();
@@ -565,7 +692,14 @@ async function uploadFiles(fileList) {
 }
 
 function initWorkspace() {
+  if (typeof maximizedPane !== 'undefined') {
+    maximizedPane = null;
+    document.body.classList.remove('has-maximized-pane');
+  }
   const workspace = document.getElementById('workspace');
+  workspace.innerHTML = '';
+  paneRegistry.clear();
+
   const initialPane = createPane();
   workspace.appendChild(initialPane.el);
   setActivePane(initialPane);
@@ -667,9 +801,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
+    // Check for workspace shortcuts (Ctrl+Alt or Cmd+Alt)
+    const isAltCmd = (e.ctrlKey || e.metaKey) && e.altKey;
+    if (isAltCmd) {
+      if (e.key === '[' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+        switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4);
+        return;
+      }
+      if (e.key === ']' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        e.stopPropagation();
+        switchWorkspace((activeWorkspaceIndex + 1) % 4);
+        return;
+      }
+      if (['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        switchWorkspace(parseInt(e.key, 10) - 1);
+        return;
+      }
+    }
+
     if (!(e.metaKey || e.ctrlKey)) return;
     if (runAppShortcut(e.key, e)) e.preventDefault();
-  });
+  }, true); // Use capture phase so terminal doesn't swallow
 
   // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal.
   // Send the Tab straight to the PTY (same message xterm's onData emits) so the
@@ -711,14 +868,55 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPorts.addEventListener('click', togglePortsPopover);
   }
 
+  // ── Workspaces ──
+  const btnPrevWS = document.getElementById('btn-prev-workspace');
+  if (btnPrevWS) {
+    btnPrevWS.addEventListener('click', () => {
+      switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4);
+    });
+  }
+  const btnNextWS = document.getElementById('btn-next-workspace');
+  if (btnNextWS) {
+    btnNextWS.addEventListener('click', () => {
+      switchWorkspace((activeWorkspaceIndex + 1) % 4);
+    });
+  }
+  document.querySelectorAll('.logo-letter').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.getAttribute('data-index'), 10);
+      switchWorkspace(idx);
+    });
+  });
+  const wsBadge = document.getElementById('workspace-badge');
+  if (wsBadge) {
+    wsBadge.addEventListener('click', () => {
+      if (typeof openPalette === 'function') {
+        openPalette();
+        paletteMode = 'renameWorkspace';
+        paletteInput.placeholder = 'Enter new workspace name…';
+        paletteInput.value = currentWorkspaces[activeWorkspaceIndex].name;
+        paletteInput.focus();
+        paletteInput.select();
+        if (typeof renderRenameWorkspaceHint === 'function') renderRenameWorkspaceHint();
+      }
+    });
+  }
+
   initSession();
 
   window.addEventListener('beforeunload', () => {
     // Only the active session persists on unload — an inactive tab's state is
     // stale and would overwrite the real layout.
     if (workspaceReady && isActiveSession) {
-      const state = captureWorkspaceState();
-      if (state) navigator.sendBeacon('/api/session', new Blob([JSON.stringify(state)], { type: 'application/json' }));
+      currentWorkspaces[activeWorkspaceIndex].layout = captureWorkspaceState();
+      const state = {
+        activeWorkspaceIndex,
+        workspaces: currentWorkspaces.map(ws => ({
+          name: ws.name,
+          layout: ws.layout
+        }))
+      };
+      navigator.sendBeacon('/api/session', new Blob([JSON.stringify(state)], { type: 'application/json' }));
     }
     // The server notices our WS closing and hands the active session off.
   });

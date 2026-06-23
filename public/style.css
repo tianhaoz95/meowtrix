@@ -399,6 +399,46 @@ html.mobile-ui .toolbar-clock {
   font-size: 16px; font-weight: 800; letter-spacing: -0.4px;
   color: var(--text); font-family: inherit;
 }
+.logo-letter {
+  cursor: pointer;
+  transition: opacity 0.2s, color 0.2s, text-shadow 0.2s;
+  opacity: 0.55;
+  display: inline-block;
+}
+.logo-letter:hover {
+  opacity: 0.85;
+  color: var(--text);
+}
+.logo-letter.active {
+  opacity: 1;
+  color: var(--accent-hi) !important;
+  text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent2);
+}
+#logo-separator {
+  color: var(--text3);
+  font-size: 14px;
+  margin-left: 2px;
+  user-select: none;
+}
+#workspace-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+#workspace-badge:hover {
+  background: var(--bg4);
+  border-color: var(--accent);
+  color: var(--text);
+}
 #logo-trix {
   background: linear-gradient(90deg, var(--accent), var(--accent-hi));
   -webkit-background-clip: text; background-clip: text;
