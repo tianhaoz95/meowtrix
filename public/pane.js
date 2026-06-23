@@ -465,7 +465,11 @@ function initTerminalTab(tab, existingPtyId) {
   if (window.WebLinksAddon) {
     const webLinksAddon = new window.WebLinksAddon.WebLinksAddon((event, uri) => {
       event.preventDefault();
-      event.stopPropagation();
+      
+      // Clear selection and prevent stuck drag-selection states in xterm.js
+      term.clearSelection();
+      window.getSelection()?.removeAllRanges();
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       
       // Check if it's a 0.0.0.0 link to automatically open with selected host IP
       let checkUri = uri;
@@ -707,7 +711,7 @@ function initTerminalTab(tab, existingPtyId) {
     // cancelled, so stray keystrokes can't disturb the queued command.
     if (tab.schedule) return;
 
-    if (data === '@' && !tab.acActive) {
+    if (data === '!' && !tab.acActive) {
       startAutocomplete(tab);
     } else if (tab.acActive) {
       handleAutocompleteData(tab, data);
@@ -1486,7 +1490,7 @@ function renderAutocomplete(tab) {
     
     const idEl = document.createElement('div');
     idEl.className = 'term-autocomplete-id';
-    idEl.textContent = '@' + item.id;
+    idEl.textContent = '!' + item.id;
     
     const cmdEl = document.createElement('div');
     cmdEl.className = 'term-autocomplete-cmd';
