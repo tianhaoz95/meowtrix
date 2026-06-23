@@ -26,21 +26,47 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 
 ## Prerequisites
 
-Meowtrix runs on the **host machine** (macOS or Linux) — you only need a browser on the devices you connect from. On the host you'll need:
+Meowtrix runs on the **host machine** (macOS or Linux) — you only need a browser on the devices you connect from. 
 
-- **Node.js 18+** and **npm** — runs the server
-- **git** — the installer clones the repo
-- **A C/C++ build toolchain** — `node-pty` compiles natively on install:
-  - **macOS:** Xcode Command Line Tools (`xcode-select --install`)
-  - **Linux:** `build-essential` (or `gcc`/`make`) and `python3`
+Depending on your preferred installation method, the prerequisites differ:
+
+- **Zero-Dependency Install (Recommended):**
+  - No dependencies required. The installer automatically downloads the pre-packaged Node.js runtime and compiled native modules for your platform.
+- **Source-Based Install:**
+  - **Node.js 18+** and **npm** — runs the server
+  - **git** — clones the repository
+  - **A C/C++ build toolchain** — to compile `node-pty` natively:
+    - **macOS:** Xcode Command Line Tools (`xcode-select --install`)
+    - **Linux:** `build-essential` (or `gcc`/`make`) and `python3`
 
 > The `--service` auto-start mode is supported on macOS (launchd) and Linux (systemd) only. Windows is not supported by the installer.
 
 ## Install
 
+### 1. Zero-Dependency Binary Install (Recommended)
+
+Run the installer:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash
 ```
+*Note: If `git` or `node` are not detected on your system, the installer will automatically fall back to downloading a precompiled release. You can force this zero-dependency binary install by passing the `--binary` flag:*
+```bash
+curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --binary
+```
+
+### 2. Source-Based Install
+
+If you prefer to compile from source and have Node.js, git, and a C/C++ toolchain installed:
+```bash
+# Clone the repository manually
+git clone https://github.com/tianhaoz95/meowtrix.git ~/.meowtrix/app
+cd ~/.meowtrix/app
+
+# Run the installer from source
+./install.sh
+```
+
+---
 
 Then run:
 
@@ -188,6 +214,17 @@ Then open `http://<host-ip>:9123` from any device. You can also bind to one spec
 ```bash
 ./start.sh       # nodemon + browser hot-reload
 ```
+
+### Packaging a Release
+
+To package Meowtrix into a zero-dependency portable archive for the current host OS & architecture:
+
+```bash
+./package-release.sh
+```
+
+This script automatically downloads a standalone Node.js binary, installs production dependencies, compiles native modules (`node-pty`), and outputs a `.tar.gz` bundle into the `dist/` directory.
+
 
 ### Containerized development (Dev Container)
 

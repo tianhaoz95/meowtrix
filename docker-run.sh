@@ -39,27 +39,27 @@ fi
 echo "→ Building Docker image 'meowtrix-dev'..."
 docker build -t meowtrix-dev .
 
-# Detect a random untaken port on the host
-echo "→ Searching for an available port..."
-PORT=""
-
-if command -v node &>/dev/null; then
-  PORT=$(node -e '
-    const server = require("net").createServer();
-    server.listen(0, () => {
-      console.log(server.address().port);
-      server.close();
-    });
-  ' 2>/dev/null)
-fi
-
-if [ -z "$PORT" ] && command -v python3 &>/dev/null; then
-  PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()' 2>/dev/null)
-fi
-
+# Detect a random untaken port on the host if not specified
 if [ -z "$PORT" ]; then
-  # Fallback to random number in dynamic range
-  PORT=$((1025 + RANDOM % 64511))
+  echo "→ Searching for an available port..."
+  if command -v node &>/dev/null; then
+    PORT=$(node -e '
+      const server = require("net").createServer();
+      server.listen(0, () => {
+        console.log(server.address().port);
+        server.close();
+      });
+    ' 2>/dev/null)
+  fi
+
+  if [ -z "$PORT" ] && command -v python3 &>/dev/null; then
+    PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()' 2>/dev/null)
+  fi
+
+  if [ -z "$PORT" ]; then
+    # Fallback to random number in dynamic range
+    PORT=$((1025 + RANDOM % 64511))
+  fi
 fi
 
 echo "✅ Using port: $PORT"
@@ -72,18 +72,26 @@ echo "   Settings Vol:  meowtrix-dev-settings"
 echo "   Ctrl-C to stop."
 echo ""
 
-# Open browser shortly after container starts
-(
-  sleep 1.5
-  if command -v open &>/dev/null; then
-    open "$URL"
-  elif command -v xdg-open &>/dev/null; then
-    xdg-open "$URL"
-  fi
-) &
+# Open browser shortly after container starts unless NO_OPEN is set
+if [ -z "$NO_OPEN" ]; then
+  (
+    sleep 1.5
+    if command -v open &>/dev/null; then
+      open "$URL"
+    elif command -v xdg-open &>/dev/null; then
+      xdg-open "$URL"
+    fi
+  ) &
+fi
 
 # Determine application directory (where the script itself is located)
 APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Determine if running in an interactive terminal
+DOCKER_FLAGS="-i"
+if [ -t 0 ]; then
+  DOCKER_FLAGS="-it"
+fi
 
 # Run Docker container
 # -p binds the random host port to container's 9123
@@ -93,7 +101,7 @@ APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # -v mounts named volume for settings persistence
 # -e MEOWTRIX_WORKSPACE configures server.js to use that path for home/cwd
 # -e HOTRELOAD=1 enables hot reload in server.js
-docker run --rm -it \
+exec docker run --rm $DOCKER_FLAGS \
   -p "$PORT:9123" \
   -v "$APP_DIR:/app" \
   -v "/app/node_modules" \

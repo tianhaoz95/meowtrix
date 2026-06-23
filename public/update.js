@@ -38,12 +38,22 @@ function syncSettingsUpdateStatus() {
       statusEl.style.color = '#f87171';
     } else {
       statusEl.title = '';
+      const hasLocal = latestUpdateInfo.hasLocalChanges || latestUpdateInfo.ahead > 0;
       if (latestUpdateInfo.updateAvailable) {
         statusEl.textContent = 'Update available!';
         statusEl.style.color = 'var(--accent-hi)';
+        if (hasLocal) {
+          statusEl.title = 'Local modifications or commits detected.';
+        }
       } else {
-        statusEl.textContent = 'Up to date';
-        statusEl.style.color = 'var(--text3)';
+        if (hasLocal) {
+          statusEl.textContent = 'Up to date (modified)';
+          statusEl.style.color = 'var(--text2)';
+          statusEl.title = 'Local modifications or commits detected.';
+        } else {
+          statusEl.textContent = 'Up to date';
+          statusEl.style.color = 'var(--text3)';
+        }
       }
     }
   } else {
@@ -118,7 +128,13 @@ function renderUpdateBanner() {
 async function applyUpdateNow() {
   if (_updateApplying) return;
   if (!updateAvailable()) { showToast('Meowtrix is up to date.'); return; }
-  if (!await showConfirm('Update Meowtrix', 'Update Meowtrix now? This restarts the server and ends all running terminal sessions.')) return;
+  
+  let warningMessage = 'Update Meowtrix now? This restarts the server and ends all running terminal sessions.';
+  if (latestUpdateInfo && (latestUpdateInfo.hasLocalChanges || latestUpdateInfo.ahead > 0)) {
+    warningMessage = 'Update Meowtrix now? This restarts the server, ends terminal sessions, and will overwrite any local modifications to Meowtrix files.';
+  }
+  
+  if (!await showConfirm('Update Meowtrix', warningMessage)) return;
   
   _updateApplying = true;
   _updateError = null;

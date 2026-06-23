@@ -613,12 +613,14 @@ html.mobile-ui .toolbar-clock {
   font-size: 13px; font-weight: 500;
 }
 #update-banner-text { flex: 1; }
-#update-banner-apply {
+#update-banner-apply, #update-banner-force {
   flex: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;
   background: var(--accent); color: #fff; border: none;
   font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 #update-banner-apply:hover { background: var(--accent-hi); }
+#update-banner-force { background: #dc2626; }
+#update-banner-force:hover { background: #b91c1c; }
 #update-banner-dismiss {
   flex: none; padding: 4px 8px; border-radius: 8px; cursor: pointer;
   background: transparent; color: var(--text2); border: none; font-size: 13px;
