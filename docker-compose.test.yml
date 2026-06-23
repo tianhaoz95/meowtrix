@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  meowtrix:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9234:9123"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=9123
+      - MEOWTRIX_WORKSPACE=/workspace
+    volumes:
+      - .:/app
+      - /app/node_modules               # Avoids native node-pty binary conflicts with macOS host
+      - meowtrix_settings:/root/.meowtrix
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9123/"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+    restart: always
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.61.0-jammy
+    depends_on:
+      meowtrix:
+        condition: service_healthy
+    environment:
+      - BASE_URL=http://meowtrix:9123
+      - CI=true
+    volumes:
+      - .:/app
+      - /app/node_modules               # Avoids browser package conflicts with host
+    working_dir: /app
+    # Installs devDependencies (Playwright) and runs the tests
+    command: >
+      bash -c "
+        npm install --include=dev --ignore-scripts &&
+        npx playwright test
+      "
+
+volumes:
+  meowtrix_settings:

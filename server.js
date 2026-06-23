@@ -1446,6 +1446,27 @@ const IS_SUPERVISED = process.env.MEOWTRIX_SUPERVISED === '1';
 const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // hourly background check
 let lastUpdateInfo = null; // cached result of the most recent check
 
+function appCurl(url, args = []) {
+  const settings = readSettings();
+  const env = { ...process.env };
+  if (settings.httpProxy) {
+    env.HTTP_PROXY = settings.httpProxy;
+    env.http_proxy = settings.httpProxy;
+  }
+  if (settings.httpsProxy) {
+    env.HTTPS_PROXY = settings.httpsProxy;
+    env.https_proxy = settings.httpsProxy;
+  }
+  return new Promise((resolve) => {
+    execFile('curl', ['-fsSL', '-H', 'User-Agent: Meowtrix-Updater', ...args, url], { maxBuffer: 4 * 1024 * 1024, env },
+      (err, stdout, stderr) => resolve({
+        ok: !err,
+        stdout: (stdout || '').toString().trim(),
+        stderr: (stderr || (err && err.message) || '').toString().trim(),
+      }));
+  });
+}
+
 function appGit(args, opts = {}) {
   const settings = readSettings();
   const env = { ...process.env, ...opts.env };
@@ -1471,15 +1492,69 @@ function appVersion() {
   try { return require('./package.json').version || ''; } catch { return ''; }
 }
 
-// Inspect the local clone against its upstream. Does a `git fetch` first (unless
-// fetch:false) and compares HEAD to the upstream tracking ref. Degrades cleanly
-// when the install isn't a git checkout or has no upstream — `updateAvailable`
-// just stays false and `error` explains why.
+// Check for updates. If a git checkout, compares HEAD to the upstream tracking ref.
+// If a binary release distribution, checks the GitHub Releases API.
 async function checkForUpdate({ fetch = true } = {}) {
   const info = {
     isRepo: false, supervised: IS_SUPERVISED, updateAvailable: false,
     behind: 0, ahead: 0, version: appVersion(), local: '', remote: '', error: null,
+    hasLocalChanges: false, isBinary: false
   };
+
+  const isGit = fs.existsSync(path.join(APP_ROOT, '.git'));
+
+  if (!isGit) {
+    info.isBinary = true;
+    const currentVer = appVersion();
+    info.local = currentVer;
+
+    if (!fetch) {
+      if (lastUpdateInfo) {
+        return lastUpdateInfo;
+      }
+      return info;
+    }
+
+    const res = await appCurl('https://api.github.com/repos/tianhaoz95/meowtrix/releases/latest');
+    if (!res.ok) {
+      info.error = 'Failed to check updates: ' + (res.stderr || 'unreachable');
+      lastUpdateInfo = info;
+      return info;
+    }
+
+    try {
+      const release = JSON.parse(res.stdout);
+      const remoteVer = release.tag_name ? release.tag_name.replace(/^v/, '') : '';
+      info.remote = remoteVer;
+
+      if (remoteVer && currentVer) {
+        const parseVer = v => v.split('.').map(Number);
+        const localParts = parseVer(currentVer);
+        const remoteParts = parseVer(remoteVer);
+        let updateAvailable = false;
+        for (let i = 0; i < Math.max(localParts.length, remoteParts.length); i++) {
+          const l = localParts[i] || 0;
+          const r = remoteParts[i] || 0;
+          if (r > l) {
+            updateAvailable = true;
+            break;
+          } else if (l > r) {
+            break;
+          }
+        }
+        info.updateAvailable = updateAvailable;
+        if (updateAvailable) {
+          info.behind = 1;
+        }
+      }
+    } catch (e) {
+      info.error = 'Failed to parse release version: ' + e.message;
+    }
+
+    lastUpdateInfo = info;
+    return info;
+  }
+
   const head = await appGit(['rev-parse', 'HEAD']);
   if (!head.ok) { info.error = 'not a git checkout'; lastUpdateInfo = info; return info; }
   info.isRepo = true;
@@ -1498,6 +1573,12 @@ async function checkForUpdate({ fetch = true } = {}) {
   }
   const remote = await appGit(['rev-parse', up.stdout]);
   if (remote.ok) info.remote = remote.stdout;
+  
+  const status = await appGit(['status', '--porcelain']);
+  if (status.ok) {
+    info.hasLocalChanges = status.stdout.trim().length > 0;
+  }
+
   info.updateAvailable = info.behind > 0;
   lastUpdateInfo = info;
   return info;
@@ -1513,20 +1594,78 @@ function broadcastUpdate() {
 // Pull the pending update, reinstalling deps only when package.json/the lockfile
 // changed, then (if supervised) signal the caller to exit so the new code loads.
 async function applyUpdate() {
+  const isGit = fs.existsSync(path.join(APP_ROOT, '.git'));
+
+  if (!isGit) {
+    const osPlatform = process.platform === 'darwin' ? 'darwin' : (process.platform === 'linux' ? 'linux' : '');
+    const osArch = process.arch === 'arm64' ? 'arm64' : (process.arch === 'x64' ? 'x64' : '');
+
+    if (!osPlatform || !osArch) {
+      return { ok: false, output: `Unsupported platform/architecture: ${process.platform}/${process.arch}` };
+    }
+
+    const releaseUrl = `https://github.com/tianhaoz95/meowtrix/releases/latest/download/meowtrix-${osPlatform}-${osArch}.tar.gz`;
+    const tempTarball = path.join(os.tmpdir() || '/tmp', `meowtrix-update-${Date.now()}.tar.gz`);
+
+    console.log(`[Update] Downloading binary update from ${releaseUrl}...`);
+    const download = await appCurl(releaseUrl, ['-o', tempTarball]);
+    if (!download.ok) {
+      return { ok: false, output: `Failed to download release update: ${download.stderr}` };
+    }
+
+    console.log(`[Update] Extracting binary update to ${APP_ROOT}...`);
+    const extract = await new Promise((resolve) => {
+      execFile('tar', ['-zxf', tempTarball, '-C', APP_ROOT, '--strip-components=1'],
+        (err, stdout, stderr) => resolve({
+          ok: !err,
+          stderr: (stderr || (err && err.message) || '').toString().trim()
+        }));
+    });
+
+    try { fs.unlinkSync(tempTarball); } catch {}
+
+    if (!extract.ok) {
+      return { ok: false, output: `Failed to extract update: ${extract.stderr}` };
+    }
+
+    await checkForUpdate({ fetch: false });
+    broadcastUpdate();
+    return { ok: true, output: 'Successfully updated binary release files.', depsChanged: true, restarting: IS_SUPERVISED };
+  }
+
   const up = await appGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
   if (!up.ok) return { ok: false, output: 'no upstream tracking branch' };
-  // Only act when there's actually something to pull — otherwise a supervised
-  // server would exit (and relaunch) for no reason. Don't re-fetch here; the
-  // caller just checked, and we want to apply exactly what was reported.
-  const counts = await appGit(['rev-list', '--count', `HEAD..${up.stdout}`]);
-  if (!counts.ok || Number(counts.stdout) === 0) return { ok: false, output: 'already up to date' };
+  
+  // Only act when there's actually something to pull/reset
+  const counts = await appGit(['rev-list', '--left-right', '--count', `HEAD...${up.stdout}`]);
+  let ahead = 0, behind = 0;
+  if (counts.ok) {
+    const [ah, bh] = counts.stdout.split(/\s+/).map(Number);
+    ahead = ah || 0;
+    behind = bh || 0;
+  }
+  
+  const status = await appGit(['status', '--porcelain']);
+  const hasLocalChanges = status.ok && status.stdout.trim().length > 0;
+  
+  if (behind === 0 && ahead === 0 && !hasLocalChanges) {
+    return { ok: false, output: 'already up to date' };
+  }
+
   // Does the pending update touch dependencies? Check before pulling.
   const depDiff = await appGit(['diff', '--name-only', 'HEAD', up.stdout, '--', 'package.json', 'package-lock.json']);
   const depsChanged = depDiff.ok && depDiff.stdout.length > 0;
 
-  const pull = await appGit(['pull', '--ff-only']);
-  if (!pull.ok) return { ok: false, output: pull.stderr || 'git pull failed' };
+  let pull = await appGit(['pull', '--ff-only']);
   let output = pull.stdout;
+  if (!pull.ok) {
+    // If fast-forward pull fails (due to conflicts or local modifications/commits),
+    // automatically fallback to hard reset to the upstream branch to ensure update succeeds.
+    const reset = await appGit(['reset', '--hard', up.stdout]);
+    if (!reset.ok) return { ok: false, output: `Pull failed: ${pull.stderr}. Recovery reset failed: ${reset.stderr}` };
+    const clean = await appGit(['clean', '-df']);
+    output = `Pull encountered conflicts; successfully recovered by resetting to upstream tracking branch and discarding local modifications.\n` + (clean.stdout || '');
+  }
 
   if (depsChanged) {
     output += '\nReinstalling dependencies…';

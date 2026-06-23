@@ -88,14 +88,19 @@
       <section id="install">
         <h2>Installation</h2>
         <h3>Prerequisites</h3>
-        <p>Meowtrix runs on the <strong>host machine</strong> (macOS or Linux) — the devices you connect from only need a browser. On the host you'll need:</p>
+        <p>Meowtrix runs on the <strong>host machine</strong> (macOS or Linux) — the devices you connect from only need a browser.</p>
         <ul>
-          <li><strong>Node.js 18+</strong> and <strong>npm</strong> — runs the server</li>
-          <li><strong>git</strong> — the installer clones the repo</li>
-          <li><strong>A C/C++ build toolchain</strong> — <code>node-pty</code> compiles natively on install:
+          <li><strong>Zero-Dependency Install (Recommended):</strong> No dependencies required. The installer automatically downloads the pre-packaged Node.js runtime and compiled native modules for your platform.</li>
+          <li><strong>Source-Based Install:</strong>
             <ul>
-              <li><strong>macOS:</strong> Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
-              <li><strong>Linux:</strong> <code>build-essential</code> (or <code>gcc</code>/<code>make</code>) and <code>python3</code></li>
+              <li><strong>Node.js 18+</strong> and <strong>npm</strong> — runs the server</li>
+              <li><strong>git</strong> — clones the repo</li>
+              <li><strong>A C/C++ build toolchain</strong> — to compile <code>node-pty</code> natively:
+                <ul>
+                  <li><strong>macOS:</strong> Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
+                  <li><strong>Linux:</strong> <code>build-essential</code> (or <code>gcc</code>/<code>make</code>) and <code>python3</code></li>
+                </ul>
+              </li>
             </ul>
           </li>
         </ul>
@@ -103,31 +108,32 @@
           <span class="ico">🪟</span>
           <p>The one-line installer and the <code>--service</code> auto-start mode support macOS and Linux only — Windows is not supported.</p>
         </div>
-        <p>The fastest path is the one-line installer, which clones Meowtrix into <code>~/.meowtrix/app</code>, installs dependencies, and adds a <code>meowtrix</code> launcher to your <code>PATH</code>:</p>
+
+        <h3>Zero-Dependency Binary Install (Recommended)</h3>
+        <p>The fastest path is the one-line installer. If <code>git</code> or <code>node</code> are not detected on your system, it automatically falls back to downloading a precompiled release. Run:</p>
         <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash</code></pre>
-        <h3>Install as a background service</h3>
-        <p>Add <code>--service</code> to auto-start Meowtrix on login and restart it if it crashes (launchd on macOS, systemd on Linux):</p>
-        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service</code></pre>
-        <h4>Stopping &amp; starting the service</h4>
-        <p>Once installed with <code>--service</code>, control Meowtrix with your platform's native service manager. Stopping the service kills all in-memory PTYs (running shells).</p>
-        <p><strong>macOS (launchd):</strong></p>
-        <pre><code>launchctl unload ~/Library/LaunchAgents/com.meowtrix.plist   # stop (disable auto-start)
-launchctl load   ~/Library/LaunchAgents/com.meowtrix.plist   # start (re-enable auto-start)</code></pre>
-        <p>Check status with <code>launchctl list | grep com.meowtrix</code>; logs are at <code>~/.meowtrix/meowtrix.log</code>.</p>
-        <p><strong>Linux (systemd):</strong></p>
-        <pre><code>systemctl --user stop    meowtrix   # stop
-systemctl --user start   meowtrix   # start
-systemctl --user restart meowtrix   # restart
-systemctl --user status  meowtrix   # check status</code></pre>
-        <p>Use <code>systemctl --user disable meowtrix</code> to stop it auto-starting on login (<code>enable</code> to turn it back on); follow logs with <code>journalctl --user -u meowtrix -f</code>.</p>
-        <h3>From source</h3>
+        <p>You can force this zero-dependency binary install by passing the <code>--binary</code> flag:</p>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --binary</code></pre>
+
+        <h3>Source-Based Install</h3>
+        <p>If you prefer to compile from source and have all prerequisites installed, you can clone the repository and run the installer:</p>
+        <pre><code>git clone https://github.com/tianhaoz95/meowtrix.git ~/.meowtrix/app
+cd ~/.meowtrix/app
+./install.sh</code></pre>
+        
+        <p>Or run directly without installation:</p>
         <pre><code>git clone https://github.com/tianhaoz95/meowtrix.git
 cd meowtrix
 npm install      # node-pty compiles natively
 npm start</code></pre>
+
+        <h3>Install as a background service</h3>
+        <p>Add <code>--service</code> to auto-start Meowtrix on login and restart it if it crashes (launchd on macOS, systemd on Linux):</p>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service</code></pre>
+
         <div class="callout">
           <span class="ico">📦</span>
-          <p><strong>Updating</strong> is the same one-line installer — re-run it and it pulls the latest into <code>~/.meowtrix/app</code>.</p>
+          <p><strong>Updating</strong> is as simple as re-running the installer (it pulls the latest changes). In addition, binary installations support <strong>one-click auto-updates</strong> directly from the browser's update banner.</p>
         </div>
         <h3>Uninstall</h3>
         <p>To fully uninstall Meowtrix, stop the service (if running), remove the service configuration, and delete the installation files.</p>

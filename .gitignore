@@ -17,3 +17,12 @@ npm-debug.log*
 .vscode/
 .idea/
 *.swp
+
+# Build Artifacts
+build-temp/
+dist/
+
+# Test Artifacts
+playwright-report/
+test-results/
+
