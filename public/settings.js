@@ -621,7 +621,7 @@ function wireControls() {
   const btnResetMobileKeys = document.getElementById('btn-reset-mobile-keys');
   if (btnResetMobileKeys) {
     btnResetMobileKeys.addEventListener('click', async () => {
-      if (!confirm('Reset mobile keys to defaults?')) return;
+      if (!await showConfirm('Reset Mobile Keys', 'Reset mobile keys to defaults?')) return;
       currentSettings.mobileKeys = [...DEFAULT_MOBILE_KEYS];
       await saveSetting('mobileKeys', currentSettings.mobileKeys);
       populateMobileKeysList();
@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank');
   });
   document.getElementById('settings-reset').addEventListener('click', async () => {
-    if (!confirm('Reset all settings to defaults?')) return;
+    if (!await showConfirm('Reset Settings', 'Reset all settings to defaults?')) return;
     const res = await fetch('/api/settings/reset', { method: 'POST' });
     const s = await res.json();
     currentSettings = s;

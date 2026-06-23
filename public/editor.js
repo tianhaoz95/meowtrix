@@ -260,6 +260,135 @@ function getFileIconSvg(filename, type, isOpen = false) {
   }
 }
 
+function showPrompt(title, placeholder, defaultValue = '') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'folder-prompt-overlay';
+    const box = document.createElement('div');
+    box.className = 'folder-prompt';
+    
+    const titleEl = document.createElement('div');
+    titleEl.className = 'folder-prompt-title';
+    titleEl.textContent = title;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'folder-prompt-input';
+    input.placeholder = placeholder;
+    input.value = defaultValue;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+
+    const row = document.createElement('div');
+    row.className = 'folder-prompt-actions';
+    
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel';
+    
+    const ok = document.createElement('button');
+    ok.textContent = 'OK';
+    ok.className = 'primary';
+    
+    row.append(cancel, ok);
+    box.append(titleEl, input, row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    input.focus();
+    if (defaultValue) {
+      input.setSelectionRange(0, defaultValue.length);
+    }
+
+    const close = (val) => {
+      overlay.remove();
+      resolve(val);
+    };
+
+    cancel.onclick = () => close(null);
+    ok.onclick = () => {
+      const val = input.value.trim();
+      close(val || null);
+    };
+
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = input.value.trim();
+        close(val || null);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        close(null);
+      }
+    };
+    
+    overlay.onclick = (e) => {
+      if (e.target === overlay) close(null);
+    };
+  });
+}
+
+function showConfirm(title, message, okText = 'OK', cancelText = 'Cancel') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'folder-prompt-overlay';
+    const box = document.createElement('div');
+    box.className = 'folder-prompt';
+    
+    const titleEl = document.createElement('div');
+    titleEl.className = 'folder-prompt-title';
+    titleEl.textContent = title;
+
+    const messageEl = document.createElement('div');
+    messageEl.style.fontSize = '13px';
+    messageEl.style.color = 'var(--text2)';
+    messageEl.style.marginBottom = '16px';
+    messageEl.style.lineHeight = '1.4';
+    messageEl.textContent = message;
+
+    const row = document.createElement('div');
+    row.className = 'folder-prompt-actions';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelText;
+    
+    const okBtn = document.createElement('button');
+    okBtn.textContent = okText;
+    okBtn.className = 'primary';
+    
+    row.append(cancelBtn, okBtn);
+    box.append(titleEl, messageEl, row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    okBtn.focus();
+
+    const cleanupAndResolve = (val) => {
+      window.removeEventListener('keydown', handleKeyDown);
+      overlay.remove();
+      resolve(val);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        cleanupAndResolve(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cleanupAndResolve(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    cancelBtn.onclick = () => cleanupAndResolve(false);
+    okBtn.onclick = () => cleanupAndResolve(true);
+    
+    overlay.onclick = (e) => {
+      if (e.target === overlay) cleanupAndResolve(false);
+    };
+  });
+}
+
 function initEditorTab(tab, viewEl, dir) {
   viewEl.classList.add('editor-view');
   tab.editorDir = dir || '';
@@ -497,7 +626,7 @@ function initEditorTab(tab, viewEl, dir) {
   // ── CRUD Helpers ─────────────────────────────────────────────────────────────
   async function createInDir(parentPath, type) {
     const label = type === 'dir' ? 'folder' : 'file';
-    const name = prompt(`Enter new ${label} name:`);
+    const name = await showPrompt(`New ${type === 'dir' ? 'Folder' : 'File'}`, `Enter new ${label} name...`);
     if (!name || !name.trim()) return;
     try {
       const res = await fetch('/api/fs/create', {
@@ -522,7 +651,7 @@ function initEditorTab(tab, viewEl, dir) {
 
   async function renameItem(itemPath) {
     const oldName = basename(itemPath);
-    const newName = prompt(`Rename ${oldName} to:`, oldName);
+    const newName = await showPrompt(`Rename ${oldName}`, `Enter new name...`, oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     
     // Construct new path
@@ -570,7 +699,7 @@ function initEditorTab(tab, viewEl, dir) {
 
   async function deleteItem(itemPath) {
     const name = basename(itemPath);
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!await showConfirm('Delete', `Are you sure you want to delete ${name}?`)) return;
     try {
       const res = await fetch('/api/fs/delete?path=' + encodeURIComponent(itemPath), {
         method: 'DELETE'
@@ -835,7 +964,7 @@ function initEditorTab(tab, viewEl, dir) {
       const untracked = f.x === '?';
       acts.append(iconBtn('↺', 'Discard', async (e) => {
         e.stopPropagation();
-        if (!confirm(`Discard changes to ${f.path}?`)) return;
+        if (!await showConfirm('Discard Changes', `Discard changes to ${f.path}?`)) return;
         if (await gitAction('/api/git/discard', { root: dir, path: abs, untracked })) {
           if (diffCurrent && diffCurrent.path === abs) closeDiff();
           refreshGit();
@@ -1039,7 +1168,7 @@ function initEditorTab(tab, viewEl, dir) {
             createItem.addEventListener('click', async (createEvent) => {
               createEvent.stopPropagation();
               dropdownMenu.hidden = true;
-              const newBranch = prompt('Enter new branch name:');
+              const newBranch = await showPrompt('Create Branch', 'Enter new branch name...');
               if (!newBranch || !newBranch.trim()) return;
               toast(`Creating branch ${newBranch.trim()}...`);
               try {
@@ -1593,6 +1722,19 @@ function initEditorTab(tab, viewEl, dir) {
         label: 'Download File',
         icon: '📥',
         onClick: () => downloadFile(itemPath)
+      });
+      items.push({ type: 'divider' });
+      const lastSlash = itemPath.lastIndexOf('/');
+      const parentPath = lastSlash >= 0 ? itemPath.slice(0, lastSlash) : itemPath;
+      items.push({
+        label: 'New File...',
+        icon: '📄+',
+        onClick: () => createInDir(parentPath, 'file')
+      });
+      items.push({
+        label: 'New Folder...',
+        icon: '📁+',
+        onClick: () => createInDir(parentPath, 'dir')
       });
       items.push({ type: 'divider' });
       items.push({

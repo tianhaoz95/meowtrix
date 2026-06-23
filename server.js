@@ -248,9 +248,15 @@ app.put('/api/fs/write', (req, res) => {
 app.post('/api/fs/create', (req, res) => {
   const { path: dirPath, name, type } = req.body || {};
   if (!dirPath || !name || !type) return res.status(400).json({ error: 'Missing path, name, or type' });
-  const baseName = path.basename(name).trim();
-  if (!baseName || baseName === '.' || baseName === '..') return res.status(400).json({ error: 'Invalid name' });
-  const target = path.join(path.resolve(dirPath), baseName);
+
+  const resolvedDirPath = path.resolve(dirPath);
+  const target = path.resolve(resolvedDirPath, name.trim());
+
+  // Guard: ensure the target is within the specified directory path to prevent directory traversal
+  if (!target.startsWith(resolvedDirPath + path.sep) && target !== resolvedDirPath) {
+    return res.status(403).json({ error: 'Access denied: Target path must be within the directory' });
+  }
+
   if (fs.existsSync(target)) return res.status(409).json({ error: 'Already exists' });
 
   if (type === 'dir') {
@@ -259,9 +265,13 @@ app.post('/api/fs/create', (req, res) => {
       res.json({ ok: true, path: target });
     });
   } else {
-    fs.writeFile(target, '', (err) => {
+    // Ensure parent directory exists for nested files
+    fs.mkdir(path.dirname(target), { recursive: true }, (err) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ ok: true, path: target });
+      fs.writeFile(target, '', (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true, path: target });
+      });
     });
   }
 });

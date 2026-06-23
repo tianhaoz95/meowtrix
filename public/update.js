@@ -118,7 +118,7 @@ function renderUpdateBanner() {
 async function applyUpdateNow() {
   if (_updateApplying) return;
   if (!updateAvailable()) { showToast('Meowtrix is up to date.'); return; }
-  if (!confirm('Update Meowtrix now? This restarts the server and ends all running terminal sessions.')) return;
+  if (!await showConfirm('Update Meowtrix', 'Update Meowtrix now? This restarts the server and ends all running terminal sessions.')) return;
   
   _updateApplying = true;
   _updateError = null;
