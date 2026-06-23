@@ -837,7 +837,7 @@ function initEditorTab(tab, viewEl, dir) {
     if (!diffEditor) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
-        renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
+        renderSideBySide: diffSideBySide, fontSize: Math.round(13 * (tab.zoomLevel || 1.0)), scrollBeyondLastLine: false,
         minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
       });
     }
@@ -870,7 +870,7 @@ function initEditorTab(tab, viewEl, dir) {
     if (!diffEditor) {
       diffEditor = monaco.editor.createDiffEditor(diffHost, {
         theme: monacoTheme(), readOnly: true, automaticLayout: false,
-        renderSideBySide: diffSideBySide, fontSize: 13, scrollBeyondLastLine: false,
+        renderSideBySide: diffSideBySide, fontSize: Math.round(13 * (tab.zoomLevel || 1.0)), scrollBeyondLastLine: false,
         minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
       });
     }
@@ -1582,7 +1582,7 @@ function initEditorTab(tab, viewEl, dir) {
       editor = monaco.editor.create(monacoHost, {
         theme: monacoTheme(),
         automaticLayout: false,
-        fontSize: 13,
+        fontSize: Math.round(13 * (tab.zoomLevel || 1.0)),
         minimap: { enabled: (typeof getSettings === 'function' ? getSettings().editorMinimap : true) !== false },
         scrollBeyondLastLine: false,
       });
@@ -2043,6 +2043,23 @@ function initEditorTab(tab, viewEl, dir) {
       changedFiles.clear();
     }, 300);
   };
+
+  tab.zoom = (zoomLevel) => {
+    tab.zoomLevel = zoomLevel;
+    const fs = Math.round(13 * zoomLevel);
+    if (editor) {
+      editor.updateOptions({ fontSize: fs });
+    }
+    if (diffEditor) {
+      diffEditor.updateOptions({ fontSize: fs });
+    }
+    if (markdownPreviewHost) {
+      markdownPreviewHost.style.zoom = zoomLevel;
+    }
+  };
+  if (tab.zoomLevel) {
+    tab.zoom(tab.zoomLevel);
+  }
 
   tab.disposeEditor = () => {
     document.removeEventListener('click', onDocumentClick);

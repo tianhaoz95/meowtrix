@@ -315,7 +315,7 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen, existingEditorExpandedDirs) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen, existingEditorExpandedDirs, existingZoomLevel) {
   const id = existingId || uid();
 
   const viewEl = document.createElement('div');
@@ -379,7 +379,8 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     editorSidebarCollapsed: !!existingEditorCollapsed,
     consoleOpen: !!existingBrowserConsoleOpen,
     isCustomLabel: false,
-    editorExpandedDirs: type === 'editor' ? new Set(existingEditorExpandedDirs || []) : null
+    editorExpandedDirs: type === 'editor' ? new Set(existingEditorExpandedDirs || []) : null,
+    zoomLevel: existingZoomLevel || 1.0
   };
   pane.tabs.push(tab);
 
@@ -401,6 +402,8 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   if (type === 'terminal') initTerminalTab(tab, existingPtyId);
   else if (type === 'editor') initEditorTab(tab, viewEl, existingDir);
   else initBrowserTab(tab, viewEl, label, existingUrl);
+
+  createZoomControls(tab);
 
   activateTab(pane, id);
   return tab;
@@ -451,7 +454,7 @@ function initTerminalTab(tab, existingPtyId) {
   const s = getSettings();
   const term = new Terminal({
     theme: getTermTheme(),
-    fontSize: s.termFontSize || 13,
+    fontSize: Math.round((s.termFontSize || 13) * (tab.zoomLevel || 1.0)),
     fontFamily: s.termFontFamily || '"Cascadia Code", "JetBrains Mono", Menlo, Monaco, monospace',
     cursorBlink: true,
     scrollback: s.termScrollback || 10000,
@@ -724,6 +727,14 @@ function initTerminalTab(tab, existingPtyId) {
     }
   });
   ro.observe(tab.viewEl);
+  tab.zoom = (zoomLevel) => {
+    tab.zoomLevel = zoomLevel;
+    const baseFontSize = (getSettings().termFontSize || 13);
+    term.options.fontSize = Math.round(baseFontSize * zoomLevel);
+    if (tab.fitAddon) {
+      tab.fitAddon.fit();
+    }
+  };
   tab.disposeTerminal = () => {
     ro.disconnect();
     if (tab.mobileScrollDis) { tab.mobileScrollDis.dispose(); tab.mobileScrollDis = null; }
@@ -988,6 +999,15 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   fwdBtn.addEventListener('click', () => { try { frame.contentWindow.history.forward(); } catch {} });
   reloadBtn.addEventListener('click', () => { if (tab.currentUrl) navigate(tab.currentUrl); });
   extBtn.addEventListener('click', () => { if (tab.currentUrl) window.open(tab.currentUrl, '_blank'); });
+
+  tab.zoom = (zoomLevel) => {
+    tab.zoomLevel = zoomLevel;
+    frame.style.zoom = zoomLevel;
+    startEl.style.zoom = zoomLevel;
+  };
+  if (tab.zoomLevel) {
+    tab.zoom(tab.zoomLevel);
+  }
 }
 
 // Find a live terminal tab by its PTY id (used by reconnect restore + schedules).
@@ -1556,4 +1576,90 @@ function handleAutocompleteData(tab, data) {
     return;
   }
   closeAutocomplete(tab);
+}
+
+function adjustZoom(tab, delta) {
+  const current = tab.zoomLevel || 1.0;
+  const target = Math.min(2.5, Math.max(0.5, Math.round((current + delta) * 10) / 10));
+  setTabZoom(tab, target);
+}
+
+function resetZoom(tab) {
+  setTabZoom(tab, 1.0);
+}
+
+function setTabZoom(tab, level) {
+  tab.zoomLevel = level;
+  if (typeof tab.zoom === 'function') {
+    tab.zoom(level);
+  }
+  const indicator = tab.viewEl?.querySelector('.zoom-indicator');
+  if (indicator) {
+    indicator.textContent = Math.round(level * 100) + '%';
+  }
+}
+
+function zoomActiveTab(delta) {
+  const tab = activePane?.activeTab;
+  if (!tab) return;
+  adjustZoom(tab, delta);
+  if (typeof saveSessionState === 'function') {
+    saveSessionState();
+  }
+}
+
+function resetActiveTabZoom() {
+  const tab = activePane?.activeTab;
+  if (!tab) return;
+  resetZoom(tab);
+  if (typeof saveSessionState === 'function') {
+    saveSessionState();
+  }
+}
+
+function createZoomControls(tab) {
+  const container = document.createElement('div');
+  container.className = 'zoom-controls';
+
+  const btnMinus = document.createElement('button');
+  btnMinus.className = 'zoom-btn minus';
+  btnMinus.textContent = '−';
+  btnMinus.title = 'Zoom out (Ctrl+Shift+-)';
+
+  const indicator = document.createElement('span');
+  indicator.className = 'zoom-indicator';
+  indicator.textContent = Math.round((tab.zoomLevel || 1.0) * 100) + '%';
+  indicator.title = 'Click to reset zoom (Ctrl+Shift+0)';
+
+  const btnPlus = document.createElement('button');
+  btnPlus.className = 'zoom-btn plus';
+  btnPlus.textContent = '+';
+  btnPlus.title = 'Zoom in (Ctrl+Shift++)';
+
+  container.append(btnMinus, indicator, btnPlus);
+
+  container.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  btnMinus.addEventListener('click', (e) => {
+    e.stopPropagation();
+    adjustZoom(tab, -0.1);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
+
+  btnPlus.addEventListener('click', (e) => {
+    e.stopPropagation();
+    adjustZoom(tab, 0.1);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
+
+  indicator.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetZoom(tab);
+    if (typeof saveSessionState === 'function') saveSessionState();
+  });
+
+  tab.viewEl.appendChild(container);
 }

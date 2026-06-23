@@ -104,6 +104,7 @@ function captureWorkspaceState() {
           editorExpandedDirs: t.type === 'editor' ? Array.from(t.editorExpandedDirs || []) : null,
           label: t.label?.textContent || null,
           isCustomLabel: !!t.isCustomLabel,
+          zoomLevel: t.zoomLevel || 1.0,
         })),
       };
     } else if (el.classList.contains('split-container')) {
@@ -137,7 +138,7 @@ function restoreWorkspaceState(state) {
     if (node.type === 'pane') {
       const pane = createPane();
       node.tabs.forEach(tabState => {
-        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen, tabState.editorExpandedDirs);
+        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen, tabState.editorExpandedDirs, tabState.zoomLevel);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
         if (tabState.isCustomLabel) tab.isCustomLabel = true;
       });
@@ -771,6 +772,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-close-pane').addEventListener('click', closeActivePane);
 
+  // ── Zoom Controls ──
+  document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
+    if (typeof zoomActiveTab === 'function') zoomActiveTab(0.1);
+  });
+  document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
+    if (typeof zoomActiveTab === 'function') zoomActiveTab(-0.1);
+  });
+  document.getElementById('btn-zoom-reset')?.addEventListener('click', () => {
+    if (typeof resetActiveTabZoom === 'function') resetActiveTabZoom();
+  });
+
   // ── Fullscreen ──
   const btnFullscreen = document.getElementById('btn-fullscreen');
   if (btnFullscreen) {
@@ -820,6 +832,29 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         e.stopPropagation();
         switchWorkspace(parseInt(e.key, 10) - 1);
+        return;
+      }
+    }
+
+    // Zoom shortcuts: Ctrl+Shift+= or Cmd+Shift+= (Zoom In), Ctrl+Shift+- or Cmd+Shift+- (Zoom Out), Ctrl+Shift+0 or Cmd+Shift+0 (Reset)
+    const isZoomModifier = (e.ctrlKey || e.metaKey) && e.shiftKey;
+    if (isZoomModifier) {
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof zoomActiveTab === 'function') zoomActiveTab(0.1);
+        return;
+      }
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof zoomActiveTab === 'function') zoomActiveTab(-0.1);
+        return;
+      }
+      if (e.key === '0') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof resetActiveTabZoom === 'function') resetActiveTabZoom();
         return;
       }
     }

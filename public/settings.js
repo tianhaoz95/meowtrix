@@ -80,7 +80,7 @@ function applyMenuButtonMode(mode) {
 function applyTermSettings() {
   getAllPanes().forEach(p => p.tabs.forEach(t => {
     if (!t.term) return;
-    t.term.options.fontSize = currentSettings.termFontSize;
+    t.term.options.fontSize = Math.round((currentSettings.termFontSize || 13) * (t.zoomLevel || 1.0));
     t.term.options.fontFamily = currentSettings.termFontFamily;
     t.term.options.scrollback = currentSettings.termScrollback;
     if (t.fitAddon) t.fitAddon.fit();
