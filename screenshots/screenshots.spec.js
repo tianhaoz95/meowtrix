@@ -20,8 +20,11 @@ test.describe('Generate Showcase Screenshots', () => {
   });
 
   test('capture light and dark theme screenshots', async ({ page }) => {
-    // Set a high-quality standard desktop resolution
-    await page.setViewportSize({ width: 1440, height: 900 });
+    // Set a high-quality standard desktop resolution. Width must comfortably fit
+    // the full toolbar (its button row grows past ~1740px with the editor/terminal
+    // panes open); a narrower viewport overflows it, pushing the right-side controls
+    // (incl. #btn-settings) off-screen where they can't be screenshotted cleanly.
+    await page.setViewportSize({ width: 1920, height: 1080 });
 
     // Inject mock for LanguageModel/Prompt API to enable chat pet in settings
     await page.addInitScript(() => {
@@ -49,6 +52,15 @@ test.describe('Generate Showcase Screenshots', () => {
 
     // Wait for the workspace to be visible and ready
     await expect(page.locator('#workspace')).toBeVisible();
+
+    // Disable CSS transitions/animations for the rest of the capture. Under the
+    // heavy populated layout (Monaco + a loaded browser iframe) the settings
+    // panel's open/close transition can freeze at its off-screen start state,
+    // so the panel never actually slides in. Snapping state changes also makes
+    // the captured screenshots crisp instead of caught mid-animation.
+    await page.addStyleTag({
+      content: '*, *::before, *::after { transition: none !important; animation: none !important; }',
+    });
 
     // 1. Split Pane Vertically -> Pane A (left) and Pane B (right, active)
     await page.locator('#btn-split-v').click();
@@ -121,8 +133,29 @@ test.describe('Generate Showcase Screenshots', () => {
     const iframe = pane2.locator('iframe.browser-frame');
     await expect(iframe).toHaveAttribute('src', /\/proxy\/http\/duckduckgo.com/);
 
-    // 6. Disable Chat Pet companion in settings for a clean workspace layout
-    await page.locator('#btn-settings').click();
+    // The demo page is taller than its pane, so the proxied document renders its
+    // own vertical scrollbar — which looks unpolished in the capture. The proxy
+    // serves same-origin content, so we can reach into the iframe's document and
+    // hide the scrollbar (content stays scrollable, the bar just isn't painted).
+    const hideIframeScrollbars = async () => {
+      const handle = await pane2.locator('iframe.browser-frame').elementHandle();
+      const frame = handle && (await handle.contentFrame());
+      if (frame) {
+        await frame.addStyleTag({
+          content:
+            'html{scrollbar-width:none!important;-ms-overflow-style:none!important;}' +
+            '::-webkit-scrollbar{width:0!important;height:0!important;display:none!important;}',
+        }).catch(() => {});
+      }
+    };
+    await hideIframeScrollbars();
+
+    // 6. Disable Chat Pet companion in settings for a clean workspace layout.
+    // Open via the global openSettings() rather than clicking #btn-settings: with
+    // every pane populated the toolbar's button row can grow wider than the viewport,
+    // leaving the settings button off-screen and unclickable. (The button click
+    // itself is covered by the functional suite in tests/meowtrix.spec.js.)
+    await page.evaluate(() => openSettings());
     const settingsPanel = page.locator('#settings-panel');
     await expect(settingsPanel).toBeVisible();
 
@@ -145,12 +178,13 @@ test.describe('Generate Showcase Screenshots', () => {
     await page.waitForTimeout(2000);
 
     // Save Dark Theme Screenshot
+    await hideIframeScrollbars();
     const screenshotDarkPath = path.resolve(__dirname, '../website/assets/screenshot-dark.png');
     await page.screenshot({ path: screenshotDarkPath });
     console.log(`Saved dark theme screenshot to ${screenshotDarkPath}`);
 
     // 7. Toggle to Light Theme (Daylight)
-    await page.locator('#btn-settings').click();
+    await page.evaluate(() => openSettings());
     await expect(settingsPanel).toBeVisible();
     await themeSelect.selectOption('light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -163,6 +197,7 @@ test.describe('Generate Showcase Screenshots', () => {
     await page.waitForTimeout(2000);
 
     // Save Light Theme Screenshot
+    await hideIframeScrollbars();
     const screenshotLightPath = path.resolve(__dirname, '../website/assets/screenshot-light.png');
     await page.screenshot({ path: screenshotLightPath });
     console.log(`Saved light theme screenshot to ${screenshotLightPath}`);

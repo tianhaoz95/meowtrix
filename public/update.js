@@ -39,20 +39,23 @@ function syncSettingsUpdateStatus() {
     } else {
       statusEl.title = '';
       const hasLocal = latestUpdateInfo.hasLocalChanges || latestUpdateInfo.ahead > 0;
+      const versionDetail = updateVersionDetail();
       if (latestUpdateInfo.updateAvailable) {
         statusEl.textContent = 'Update available!';
         statusEl.style.color = 'var(--accent-hi)';
-        if (hasLocal) {
-          statusEl.title = 'Local modifications or commits detected.';
-        }
+        statusEl.title = [versionDetail, hasLocal ? 'Local modifications or commits detected.' : '']
+          .filter(Boolean).join(' · ');
       } else {
         if (hasLocal) {
           statusEl.textContent = 'Up to date (modified)';
           statusEl.style.color = 'var(--text2)';
-          statusEl.title = 'Local modifications or commits detected.';
+          statusEl.title = [versionDetail, 'Local modifications or commits detected.']
+            .filter(Boolean).join(' · ');
         } else {
-          statusEl.textContent = 'Up to date';
+          statusEl.textContent = latestUpdateInfo.isBinary && latestUpdateInfo.local
+            ? `Up to date (v${latestUpdateInfo.local})` : 'Up to date';
           statusEl.style.color = 'var(--text3)';
+          statusEl.title = versionDetail;
         }
       }
     }
@@ -64,6 +67,30 @@ function syncSettingsUpdateStatus() {
 
 function updateAvailable() {
   return !!(latestUpdateInfo && latestUpdateInfo.updateAvailable);
+}
+
+// Describe the pending update. Binary releases compare versions (the server only
+// uses `behind` as a flag there, so a commit count would be meaningless); git
+// checkouts genuinely count commits behind upstream.
+function updateAvailableMessage() {
+  const i = latestUpdateInfo;
+  if (!i) return 'A Meowtrix update is available.';
+  if (i.isBinary) {
+    const cur = i.local ? `v${i.local}` : 'current';
+    const next = i.remote ? `v${i.remote}` : 'latest';
+    return `A Meowtrix update is available (${cur} → ${next}).`;
+  }
+  const n = i.behind;
+  return `A Meowtrix update is available (${n} commit${n === 1 ? '' : 's'} behind).`;
+}
+
+// Short version summary for the settings-panel tooltip / hover.
+function updateVersionDetail() {
+  const i = latestUpdateInfo;
+  if (!i || !i.isBinary) return '';
+  const cur = i.local ? `v${i.local}` : 'unknown';
+  const next = i.remote ? `v${i.remote}` : 'unknown';
+  return `Current version: ${cur} · Latest version: ${next}`;
 }
 
 function renderUpdateBanner() {
@@ -111,9 +138,7 @@ function renderUpdateBanner() {
       <button id="update-banner-apply">Update &amp; restart</button>
       <button id="update-banner-dismiss" title="Dismiss">✕</button>
     `;
-    const n = latestUpdateInfo.behind;
-    bar.querySelector('#update-banner-text').textContent =
-      `A Meowtrix update is available (${n} commit${n === 1 ? '' : 's'} behind).`;
+    bar.querySelector('#update-banner-text').textContent = updateAvailableMessage();
     bar.querySelector('#update-banner-apply').addEventListener('click', applyUpdateNow);
     bar.querySelector('#update-banner-dismiss').addEventListener('click', () => {
       _updateDismissed = true;
@@ -138,7 +163,9 @@ async function applyUpdateNow() {
   
   _updateApplying = true;
   _updateError = null;
-  _updateProgressText = 'Updating Meowtrix (pulling latest code and checking dependencies)…';
+  _updateProgressText = (latestUpdateInfo && latestUpdateInfo.isBinary)
+    ? 'Updating Meowtrix (downloading and installing the latest release)…'
+    : 'Updating Meowtrix (pulling latest code and checking dependencies)…';
   renderUpdateBanner();
   syncSettingsUpdateStatus();
   showToast('Updating Meowtrix…');
@@ -193,7 +220,11 @@ async function checkForUpdateNow() {
     const info = await fetch('/api/update/check').then(res => res.json());
     onUpdateState(info);
     if (info.error) showToast('Update check: ' + info.error);
-    else if (!info.updateAvailable) showToast('Meowtrix is up to date.');
+    else if (!info.updateAvailable) {
+      showToast(info.isBinary && info.local
+        ? `Meowtrix is up to date (v${info.local}).`
+        : 'Meowtrix is up to date.');
+    }
     // If an update is available the banner renders itself; no toast needed.
   } catch (e) {
     showToast('Update check failed: ' + e.message);

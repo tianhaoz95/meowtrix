@@ -4,6 +4,9 @@ const { defineConfig, devices } = require('@playwright/test');
  * See https://playwright.dev/docs/test-configuration.
  */
 module.exports = defineConfig({
+  // E2E suite only. The showcase screenshot capture lives in ./screenshots and is
+  // run separately via playwright.screenshots.config.js (`npm run screenshots`), so
+  // it is deliberately kept out of testDir and never runs in the CI E2E job.
   testDir: './tests',
   /* Run tests sequentially to avoid layout/session state conflicts on a single server */
   fullyParallel: false,

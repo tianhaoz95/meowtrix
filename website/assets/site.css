@@ -244,7 +244,8 @@ code, pre, kbd {
 .window-controls .dot.minimize { background: #febc2e; }
 .window-controls .dot.expand { background: #28c840; }
 
-.browser-tabs { display: flex; align-items: flex-end; gap: 4px; flex-grow: 1; overflow-x: auto; }
+.browser-tabs { display: flex; align-items: flex-end; gap: 4px; flex-grow: 1; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.browser-tabs::-webkit-scrollbar { display: none; }
 .browser-tab {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 14px 8px; border-radius: 8px 8px 0 0;
@@ -298,7 +299,7 @@ code, pre, kbd {
 .screenshot-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 1440 / 900;
+  aspect-ratio: 1920 / 1080;
   overflow: hidden;
 }
 .screenshot-wrapper img {

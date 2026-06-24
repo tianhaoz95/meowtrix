@@ -55,6 +55,18 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   --shadow-lg: 0 28px 70px -16px rgba(0,0,0,0.72);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Glow system ──────────────────────────────────────────────────────────
+     Dark themes need extra "lift" so interactive elements don't disappear into
+     the near-black surfaces. These accent-tinted glows are applied to button
+     hover/active/focus states below. Light-scheme themes neutralize them to a
+     plain drop shadow (see the grouped override after the theme blocks) since a
+     coloured halo reads as muddy on a bright background. Dark themes that don't
+     redefine these inherit the values here. */
+  --glow-hover:  0 0 0 1px var(--accent2), 0 6px 22px -8px var(--accent2);
+  --glow-active: 0 0 18px -3px var(--accent-hi), 0 3px 16px -2px var(--accent2);
+  --glow-focus:  0 0 0 3px var(--accent-soft), 0 0 20px -4px var(--accent2);
+  --glow-soft:   0 0 16px -6px var(--accent2);
 }
 
 html[data-theme="light"] {
@@ -352,6 +364,19 @@ html[data-theme="synthwave"] {
   --logo-grad-end: #34e7e4;
 }
 
+/* Light-scheme themes opt out of the coloured glow (it muddies on bright bg) and
+   fall back to a plain shadow + crisp accent ring. Placed after the theme blocks
+   so it overrides the inherited dark-theme glow for these themes only. */
+html[data-theme="light"],
+html[data-theme="sakura"],
+html[data-theme="bubblegum"],
+html[data-theme="cappuccino"] {
+  --glow-hover:  var(--shadow-md);
+  --glow-active: var(--shadow), 0 2px 14px var(--accent2);
+  --glow-focus:  0 0 0 3px var(--accent-soft);
+  --glow-soft:   none;
+}
+
 body, html {
   width: 100%; height: 100%;
   background: var(--bg); color: var(--text);
@@ -378,7 +403,7 @@ body::before {
 }
 
 /* Keyboard-only focus ring (mouse/touch clicks stay clean) */
-:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--glow-soft); }
 button:focus-visible { border-radius: 8px; }
 
 /* ── Toolbar ── */
@@ -566,8 +591,8 @@ html.mobile-ui .toolbar-clock {
 #toolbar button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 32px; padding: 0 13px;
-  background: var(--bg3); color: var(--text2);
-  border: 1px solid var(--border); border-radius: 9px;
+  background: var(--bg4); color: var(--text);
+  border: 1px solid var(--border3); border-radius: 9px;
   cursor: pointer; font-size: 12px; font-weight: 500; white-space: nowrap;
   font-family: inherit;
   transition: background 0.15s var(--ease), color 0.15s var(--ease),
@@ -577,15 +602,15 @@ html.mobile-ui .toolbar-clock {
 }
 #toolbar button .btn-icon { font-size: 13px; line-height: 1; }
 #toolbar button:hover {
-  background: var(--bg5); color: var(--text); border-color: var(--border3);
-  transform: translateY(-1px);
+  background: var(--bg5); color: var(--text); border-color: var(--accent);
+  transform: translateY(-1px); box-shadow: var(--glow-hover);
 }
 #toolbar button:active { transform: translateY(0); }
 #toolbar button.active,
 #toolbar button.active:hover {
   background: linear-gradient(180deg, var(--accent-hi), var(--accent));
   color: #fff; border-color: transparent;
-  box-shadow: 0 2px 14px var(--accent2);
+  box-shadow: var(--glow-active);
 }
 
 /* Transient status toast (file upload progress, etc.) */
@@ -675,7 +700,7 @@ html.mobile-ui .toolbar-clock {
   padding: 9px 12px; border-radius: 9px; cursor: pointer;
   color: var(--text); font-size: 13.5px;
 }
-.palette-item.active { background: var(--accent-soft); }
+.palette-item.active { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent2), var(--glow-soft); }
 .palette-ico { width: 20px; text-align: center; flex-shrink: 0; font-size: 14px; }
 .palette-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-hint {
@@ -763,7 +788,7 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 #toolbar .toolbar-btn-group button[aria-pressed="true"] {
   background: linear-gradient(180deg, var(--accent-hi), var(--accent));
   color: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 8px var(--accent2);
+  box-shadow: var(--glow-active);
 }
 
 #toolbar .toolbar-btn-group button.btn-danger:hover {
@@ -870,10 +895,10 @@ body.has-maximized-pane {
   transition: color 0.12s var(--ease), background 0.12s var(--ease);
   touch-action: none; /* enable pointer-based touch drag without the bar scrolling */
 }
-.tab:hover { color: var(--text2); background: var(--bg3); }
+.tab:hover { color: var(--text); background: var(--bg3); }
 .tab.active {
   color: var(--text); background: var(--tab-bg);
-  box-shadow: var(--shadow), inset 0 0 0 1px var(--border);
+  box-shadow: var(--shadow), var(--glow-soft), inset 0 0 0 1px var(--border3);
 }
 
 .tab-close {
@@ -932,12 +957,15 @@ body.dragging-tab .pane-content { pointer-events: none; }
   flex-shrink: 0;
 }
 .browser-bar button {
-  background: transparent; border: 1px solid transparent;
-  color: var(--text3); padding: 4px 8px; border-radius: 7px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); padding: 4px 8px; border-radius: 7px;
   cursor: pointer; font-size: 13px; line-height: 1;
   transition: all 0.12s var(--ease); flex-shrink: 0;
 }
-.browser-bar button:hover { background: var(--bg5); color: var(--text); border-color: var(--border3); }
+.browser-bar button:hover {
+  background: var(--bg5); color: var(--text); border-color: var(--accent);
+  box-shadow: var(--glow-soft);
+}
 
 .browser-url {
   flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -947,7 +975,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 .browser-url:focus {
   border-color: var(--accent); background: var(--bg4);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: var(--glow-focus);
 }
 
 /* Demo-mode notice that direct-embedded sites may be blocked (see pane.js). */
@@ -1016,7 +1044,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
   font-size: 13px; font-weight: 500; text-align: left; font-family: inherit;
   transition: all 0.12s var(--ease);
 }
-.tab-type-picker button:hover { background: var(--accent); color: #fff; border-color: transparent; }
+.tab-type-picker button:hover { background: var(--accent); color: #fff; border-color: transparent; box-shadow: var(--glow-active); }
 
 .tab-icon { font-size: 10px; }
 
@@ -1281,7 +1309,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .editor-git-branchname:focus {
   border-color: var(--accent);
   background: var(--bg4);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: var(--glow-focus);
 }
 .editor-git-branch-menu {
   position: absolute;
@@ -1401,7 +1429,8 @@ body.dragging-tab .pane-content { pointer-events: none; }
   background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer;
   transition: background 0.1s var(--ease), opacity 0.1s var(--ease);
 }
-.editor-git-commitbtn:hover:not(:disabled) { background: var(--accent-hi); }
+.editor-git-commitbtn { transition: background 0.1s var(--ease), opacity 0.1s var(--ease), box-shadow 0.15s var(--ease); }
+.editor-git-commitbtn:hover:not(:disabled) { background: var(--accent-hi); box-shadow: var(--glow-active); }
 .editor-git-commitbtn:disabled { opacity: 0.45; cursor: default; }
 .editor-git-aibtn {
   flex: none;
@@ -1663,7 +1692,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
   background: var(--bg3); color: var(--text);
   border: 1px solid var(--border3); border-radius: 8px; outline: none;
 }
-.folder-prompt-input:focus { border-color: var(--accent); }
+.folder-prompt-input:focus { border-color: var(--accent); box-shadow: var(--glow-focus); }
 
 /* Directory autocomplete dropdown */
 .folder-prompt-list {
@@ -1973,7 +2002,7 @@ details.settings-section[open] .settings-section-content {
 }
 .settings-row button:hover {
   background: var(--accent); color: #fff; border-color: transparent;
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--glow-soft);
 }
 .settings-row button:active {
   transform: scale(0.97);
@@ -2052,7 +2081,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   transition: filter 0.15s var(--ease), transform 0.08s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-#btn-takeover:hover { filter: brightness(1.08); box-shadow: 0 8px 26px var(--accent2); transform: translateY(-1px); }
+#btn-takeover:hover { filter: brightness(1.08); box-shadow: 0 8px 26px var(--accent2), var(--glow-soft); transform: translateY(-1px); }
 #btn-takeover:active { transform: translateY(0); }
 
 /* ── Scheduled Enter: dialog ────────────────────────────────────────────────*/
@@ -2091,6 +2120,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 .sched-tabs button.active {
   background: var(--accent-soft); color: var(--text);
   border-color: var(--accent); font-weight: 600;
+  box-shadow: var(--glow-soft);
 }
 .sched-presets { display: flex; gap: 6px; margin-bottom: 10px; }
 .sched-presets button {
@@ -2110,7 +2140,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 .sched-duration input { width: 64px; }
 #sched-time { width: 140px; }
 .sched-duration input:focus, #sched-time:focus {
-  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent); box-shadow: var(--glow-focus);
 }
 .sched-at-hint { margin-top: 8px; font-size: 11.5px; color: var(--text3); line-height: 1.4; }
 .sched-preview {
@@ -2132,7 +2162,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   background: linear-gradient(180deg, var(--accent-hi), var(--accent));
   box-shadow: 0 3px 14px var(--accent2);
 }
-.sched-actions button.primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.sched-actions button.primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 3px 14px var(--accent2), var(--glow-soft); }
 .sched-actions button.primary:disabled {
   filter: none; transform: none; cursor: not-allowed; opacity: 0.5; box-shadow: none;
 }
@@ -2213,7 +2243,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 .keybar-mod.armed {
   background: linear-gradient(180deg, var(--accent-hi), var(--accent));
   color: #fff; border-color: transparent;
-  box-shadow: 0 2px 12px var(--accent2);
+  box-shadow: var(--glow-active);
 }
 .keybar-hide {
   margin-left: auto;
