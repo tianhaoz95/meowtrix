@@ -76,6 +76,25 @@ function applyMenuButtonMode(mode) {
   window.dispatchEvent(new Event('resize'));
 }
 
+function applyMenuButtonGroupsVisibility() {
+  const settings = getSettings();
+  const groups = {
+    'grp-workspace': settings.showWorkspaceButtons !== false,
+    'grp-pane': settings.showPaneButtons !== false,
+    'grp-tools': settings.showToolButtons !== false,
+    'grp-zoom': settings.showZoomButtons !== false,
+    'grp-system': settings.showSystemButtons !== false,
+  };
+  
+  for (const [id, visible] of Object.entries(groups)) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = visible ? '' : 'none';
+    }
+  }
+  window.dispatchEvent(new Event('resize'));
+}
+
 // ── Apply settings live ──────────────────────────────────────────────────────
 function applyTermSettings() {
   getAllPanes().forEach(p => p.tabs.forEach(t => {
@@ -239,6 +258,17 @@ function populateControls(s) {
   document.getElementById('s-show-time').checked = s.showTimeInMenu !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
   document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
+  
+  const chkWorkspace = document.getElementById('s-menu-workspace');
+  if (chkWorkspace) chkWorkspace.checked = s.showWorkspaceButtons !== false;
+  const chkPane = document.getElementById('s-menu-pane');
+  if (chkPane) chkPane.checked = s.showPaneButtons !== false;
+  const chkTools = document.getElementById('s-menu-tools');
+  if (chkTools) chkTools.checked = s.showToolButtons !== false;
+  const chkZoom = document.getElementById('s-menu-zoom');
+  if (chkZoom) chkZoom.checked = s.showZoomButtons !== false;
+  const chkSystem = document.getElementById('s-menu-system');
+  if (chkSystem) chkSystem.checked = s.showSystemButtons !== false;
 
   const statusEl = document.getElementById('s-update-status');
   if (statusEl) {
@@ -628,6 +658,21 @@ function wireControls() {
       if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
     });
   }
+
+  const wireCheckbox = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', async (e) => {
+        await saveSetting(key, e.target.checked);
+        applyMenuButtonGroupsVisibility();
+      });
+    }
+  };
+  wireCheckbox('s-menu-workspace', 'showWorkspaceButtons');
+  wireCheckbox('s-menu-pane', 'showPaneButtons');
+  wireCheckbox('s-menu-tools', 'showToolButtons');
+  wireCheckbox('s-menu-zoom', 'showZoomButtons');
+  wireCheckbox('s-menu-system', 'showSystemButtons');
 }
 
 function onSettingChanged(key) {
@@ -646,6 +691,9 @@ function onSettingChanged(key) {
   }
   if (key === 'editorMinimap') {
     applyEditorSettings();
+  }
+  if (['showWorkspaceButtons', 'showPaneButtons', 'showToolButtons', 'showZoomButtons', 'showSystemButtons'].includes(key)) {
+    applyMenuButtonGroupsVisibility();
   }
 }
 
@@ -675,6 +723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initClockVisibility();
   if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
   applyMenuButtonMode(s.menuButtonMode);
+  applyMenuButtonGroupsVisibility();
 
   const searchInput = document.getElementById('settings-search');
   if (searchInput) {
@@ -724,5 +773,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initClockVisibility();
     if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
     applyMenuButtonMode(s.menuButtonMode);
+    applyMenuButtonGroupsVisibility();
   });
 });

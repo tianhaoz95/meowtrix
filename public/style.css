@@ -727,6 +727,80 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 #btn-fullscreen:hover svg { transform: scale(1.18); }
 
 
+/* ── Toolbar Button Groups (Capsule Styling) ── */
+.toolbar-btn-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+  height: 32px;
+  box-sizing: border-box;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+#toolbar .toolbar-btn-group button {
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  padding: 0 11px;
+  font-size: 11.5px;
+  color: var(--text2);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease),
+              box-shadow 0.15s var(--ease), transform 0.08s var(--ease);
+  box-shadow: none;
+  position: relative;
+}
+
+#toolbar .toolbar-btn-group button:hover {
+  background: var(--bg4);
+  color: var(--text);
+  transform: translateY(-0.5px);
+}
+
+#toolbar .toolbar-btn-group button:active {
+  transform: translateY(0);
+}
+
+#toolbar .toolbar-btn-group button.active,
+#toolbar .toolbar-btn-group button.active:hover,
+#toolbar .toolbar-btn-group button[aria-pressed="true"] {
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 8px var(--accent2);
+}
+
+#toolbar .toolbar-btn-group button.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+/* Dynamic divider lines between buttons */
+#toolbar .toolbar-btn-group button:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border);
+  transition: opacity 0.15s var(--ease);
+}
+
+/* Hide divider adjacent to active/hovered buttons */
+#toolbar .toolbar-btn-group button:hover::after,
+#toolbar .toolbar-btn-group button.active::after,
+#toolbar .toolbar-btn-group button[aria-pressed="true"]::after,
+#toolbar .toolbar-btn-group button:has(+ button:hover)::after,
+#toolbar .toolbar-btn-group button:has(+ button.active)::after,
+#toolbar .toolbar-btn-group button:has(+ button[aria-pressed="true"])::after {
+  opacity: 0;
+}
+
+
 #toolbar-group-extra {
   display: contents;
 }
@@ -2237,6 +2311,21 @@ html.mobile-ui {
   #toolbar-group-extra button.btn-danger:hover {
     background: rgba(248, 113, 113, 0.12) !important;
     border-color: rgba(248, 113, 113, 0.3) !important;
+  }
+
+  .toolbar-btn-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 4px;
+  }
+  .toolbar-btn-group button {
+    margin-left: 0 !important;
+  }
+  .toolbar-btn-group:not(:last-of-type) {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
   }
 
   #btn-settings::before {

@@ -45,21 +45,31 @@
         <button id="btn-palette" aria-label="Command palette"><span class="btn-icon">⌘</span><span class="btn-text">Commands</span></button>
         <button id="btn-menu" aria-label="More actions" class="mobile-only"><span class="btn-icon">☰</span></button>
         <div id="toolbar-group-extra">
-          <button id="btn-prev-workspace" title="Previous workspace (Ctrl+Alt+[ or Ctrl+Alt+Left)"><span class="btn-icon">◀</span><span class="btn-text">Prev WS</span></button>
-          <button id="btn-next-workspace" title="Next workspace (Ctrl+Alt+] or Ctrl+Alt+Right)"><span class="btn-icon">▶</span><span class="btn-text">Next WS</span></button>
-          <button id="btn-split-v" title="Split vertical (side by side)"><span class="btn-icon">◧</span><span class="btn-text">Split V</span></button>
-          <button id="btn-split-h" title="Split horizontal (top/bottom)"><span class="btn-icon">⬓</span><span class="btn-text">Split H</span></button>
-          <button id="btn-close-pane" title="Close active pane" class="btn-danger"><span class="btn-icon">✕</span><span class="btn-text">Close</span></button>
-          <button id="btn-broadcast" title="Broadcast input to all visible terminals" aria-pressed="false"><span class="btn-icon">📡</span><span class="btn-text">Broadcast</span></button>
-          <button id="btn-upload" title="Upload file(s) to the host (~/meowtrix)"><span class="btn-icon">📤</span><span class="btn-text">Upload</span></button>
+          <div class="toolbar-btn-group" id="grp-workspace">
+            <button id="btn-prev-workspace" title="Previous workspace (Ctrl+Alt+[ or Ctrl+Alt+Left)"><span class="btn-icon">◀</span><span class="btn-text">Prev WS</span></button>
+            <button id="btn-next-workspace" title="Next workspace (Ctrl+Alt+] or Ctrl+Alt+Right)"><span class="btn-icon">▶</span><span class="btn-text">Next WS</span></button>
+          </div>
+          <div class="toolbar-btn-group" id="grp-pane">
+            <button id="btn-split-v" title="Split vertical (side by side)"><span class="btn-icon">◧</span><span class="btn-text">Split V</span></button>
+            <button id="btn-split-h" title="Split horizontal (top/bottom)"><span class="btn-icon">⬓</span><span class="btn-text">Split H</span></button>
+            <button id="btn-close-pane" title="Close active pane" class="btn-danger"><span class="btn-icon">✕</span><span class="btn-text">Close</span></button>
+          </div>
+          <div class="toolbar-btn-group" id="grp-tools">
+            <button id="btn-broadcast" title="Broadcast input to all visible terminals" aria-pressed="false"><span class="btn-icon">📡</span><span class="btn-text">Broadcast</span></button>
+            <button id="btn-upload" title="Upload file(s) to the host (~/meowtrix)"><span class="btn-icon">📤</span><span class="btn-text">Upload</span></button>
+            <button id="btn-schedule" title="Schedule an Enter key press in the active terminal (for when your quota resets)"><span class="btn-icon">⏰</span><span class="btn-text">Schedule</span></button>
+          </div>
+          <div class="toolbar-btn-group" id="grp-zoom">
+            <button id="btn-zoom-out" title="Zoom out active tab (Ctrl+Shift+-)"><span class="btn-icon">🔍−</span><span class="btn-text">Zoom −</span></button>
+            <button id="btn-zoom-reset" title="Reset zoom of active tab (Ctrl+Shift+0)"><span class="btn-icon">🔍0</span><span class="btn-text">Reset Zoom</span></button>
+            <button id="btn-zoom-in" title="Zoom in active tab (Ctrl+Shift++)"><span class="btn-icon">🔍+</span><span class="btn-text">Zoom +</span></button>
+          </div>
+          <div class="toolbar-btn-group" id="grp-system">
+            <button id="btn-ports" title="Active local servers" hidden><span class="btn-icon">🔌</span><span class="btn-text">Servers (<span id="ports-count">0</span>)</span></button>
+            <button id="btn-fullscreen" title="Enter fullscreen"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg></span><span class="btn-text">Fullscreen</span></button>
+            <button id="btn-settings" title="Settings"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span><span class="btn-text">Settings</span></button>
+          </div>
           <input type="file" id="upload-input" multiple hidden>
-          <button id="btn-schedule" title="Schedule an Enter key press in the active terminal (for when your quota resets)"><span class="btn-icon">⏰</span><span class="btn-text">Schedule</span></button>
-          <button id="btn-zoom-out" title="Zoom out active tab (Ctrl+Shift+-)"><span class="btn-icon">🔍−</span><span class="btn-text">Zoom −</span></button>
-          <button id="btn-zoom-reset" title="Reset zoom of active tab (Ctrl+Shift+0)"><span class="btn-icon">🔍0</span><span class="btn-text">Reset Zoom</span></button>
-          <button id="btn-zoom-in" title="Zoom in active tab (Ctrl+Shift++)"><span class="btn-icon">🔍+</span><span class="btn-text">Zoom +</span></button>
-          <button id="btn-ports" title="Active local servers" hidden><span class="btn-icon">🔌</span><span class="btn-text">Servers (<span id="ports-count">0</span>)</span></button>
-          <button id="btn-fullscreen" title="Enter fullscreen"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg></span><span class="btn-text">Fullscreen</span></button>
-          <button id="btn-settings" title="Settings"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span><span class="btn-text">Settings</span></button>
         </div>
       </div>
     </div>
@@ -149,6 +159,36 @@
             <div class="settings-row">
               <label for="s-combo-fx">Keystroke combo FX</label>
               <input type="checkbox" id="s-combo-fx">
+            </div>
+          </div>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Menu Bar Buttons
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-menu-workspace">Workspace actions (Prev/Next WS)</label>
+              <input type="checkbox" id="s-menu-workspace">
+            </div>
+            <div class="settings-row">
+              <label for="s-menu-pane">Pane actions (Split/Close)</label>
+              <input type="checkbox" id="s-menu-pane">
+            </div>
+            <div class="settings-row">
+              <label for="s-menu-tools">Tool actions (Broadcast/Upload/Schedule)</label>
+              <input type="checkbox" id="s-menu-tools">
+            </div>
+            <div class="settings-row">
+              <label for="s-menu-zoom">Zoom actions (In/Out/Reset)</label>
+              <input type="checkbox" id="s-menu-zoom">
+            </div>
+            <div class="settings-row">
+              <label for="s-menu-system">System actions (Servers/Fullscreen/Settings)</label>
+              <input type="checkbox" id="s-menu-system">
             </div>
           </div>
         </details>

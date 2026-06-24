@@ -212,4 +212,36 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(paletteOverlay).not.toBeVisible();
     await expect(page.locator('.pane')).toHaveCount(2);
   });
+
+  test('should customize top menu bar button groups visibility', async ({ page }) => {
+    // Open settings panel
+    await page.locator('#btn-settings').click();
+    await expect(page.locator('#settings-panel')).toBeVisible();
+
+    const workspaceGroup = page.locator('#grp-workspace');
+    const paneGroup = page.locator('#grp-pane');
+    
+    // Initially they should be visible
+    await expect(workspaceGroup).toBeVisible();
+    await expect(paneGroup).toBeVisible();
+
+    // Toggle Workspace buttons off
+    const wsCheckbox = page.locator('#s-menu-workspace');
+    await wsCheckbox.click();
+    await expect(workspaceGroup).not.toBeVisible();
+
+    // Toggle Pane buttons off
+    const paneCheckbox = page.locator('#s-menu-pane');
+    await paneCheckbox.click();
+    await expect(paneGroup).not.toBeVisible();
+
+    // Toggle them back on
+    await wsCheckbox.click();
+    await paneCheckbox.click();
+    await expect(workspaceGroup).toBeVisible();
+    await expect(paneGroup).toBeVisible();
+
+    // Close settings
+    await page.locator('#settings-close').click();
+  });
 });

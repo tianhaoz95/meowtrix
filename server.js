@@ -69,6 +69,11 @@ const DEFAULT_SETTINGS = {
   showTimeInMenu: true, // show current time in the top menu bar
   menuButtonMode: 'both', // top menu bar button style: 'both', 'icon', or 'text'
   editorMinimap: true, // show minimap in code editor tab
+  showWorkspaceButtons: true, // show/hide workspace group buttons together
+  showPaneButtons: true, // show/hide pane group buttons together
+  showToolButtons: true, // show/hide tool group buttons together
+  showZoomButtons: true, // show/hide zoom group buttons together
+  showSystemButtons: true, // show/hide system group buttons together
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",
