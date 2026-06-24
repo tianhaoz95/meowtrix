@@ -8,6 +8,8 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 
 **[Website & docs](https://tianhaoz95.github.io/meowtrix/)** · **[Live demo](https://tianhaoz95.github.io/meowtrix/demo/?demo)** · **[User guide](https://tianhaoz95.github.io/meowtrix/docs/)** · **[Developer docs](https://tianhaoz95.github.io/meowtrix/dev/)**
 
+![Meowtrix remote workspace](website/assets/screenshot-dark.png)
+
 ## Features
 
 - **Tiling panes & tabs** — split vertically or horizontally, drag dividers to resize; each pane holds multiple tabs
