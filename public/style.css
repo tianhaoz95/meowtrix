@@ -829,6 +829,18 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 /* ── Workspace ── */
 #workspace { flex: 1; display: flex; overflow: hidden; }
 
+/* Directional slide+fade when switching/cycling workspaces. */
+#workspace.ws-enter-next { animation: ws-slide-next 0.26s var(--ease) both; }
+#workspace.ws-enter-prev { animation: ws-slide-prev 0.26s var(--ease) both; }
+@keyframes ws-slide-next {
+  from { opacity: 0; transform: translateX(34px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes ws-slide-prev {
+  from { opacity: 0; transform: translateX(-34px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* ── Split containers ── */
 .split-container { display: flex; width: 100%; height: 100%; overflow: hidden; }
 .split-container.vertical { flex-direction: row; }

@@ -54,6 +54,9 @@ function switchWorkspace(index) {
   if (index < 0 || index > 3) return;
   if (index === activeWorkspaceIndex) return;
 
+  // Direction for the enter animation (slide from the side we're moving toward)
+  const goingNext = index > activeWorkspaceIndex;
+
   // Flush any pending save for the current workspace first
   flushSessionState();
 
@@ -77,6 +80,14 @@ function switchWorkspace(index) {
   // Update UI and fit terminals
   updateWorkspaceUI();
   fitAllTerminals();
+
+  // Play the directional enter animation on the freshly-rebuilt workspace.
+  const workspaceEl = document.getElementById('workspace');
+  if (workspaceEl) {
+    workspaceEl.classList.remove('ws-enter-next', 'ws-enter-prev');
+    void workspaceEl.offsetWidth; // force reflow so the animation restarts
+    workspaceEl.classList.add(goingNext ? 'ws-enter-next' : 'ws-enter-prev');
+  }
 
   // Save the new state immediately
   _postSessionState();
