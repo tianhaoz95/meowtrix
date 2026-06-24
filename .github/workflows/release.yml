@@ -2,13 +2,15 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for the release (e.g., v1.0.0)'
-        required: true
+        description: 'Tag name for the release (e.g., v1.0.0). If empty, version from package.json will be used.'
+        required: false
         type: string
 
 permissions:
@@ -27,10 +29,13 @@ jobs:
       - name: Determine Tag Name
         id: get-tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag_name }}" ]; then
             echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Draft Release
