@@ -2,6 +2,8 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Meowtrix E2E Tests', () => {
   test.beforeAll(async ({ request }) => {
+    // Reset settings to default before any tests run
+    await request.post('/api/settings/reset');
     // Reset layout state to a clean slate before any tests run
     await request.post('/api/session', {
       data: {
@@ -39,9 +41,10 @@ test.describe('Meowtrix E2E Tests', () => {
 
     // Check if the inactive session overlay appears and claim the session
     const takeoverBtn = page.locator('#btn-takeover');
-    if (await takeoverBtn.isVisible()) {
+    try {
+      await takeoverBtn.waitFor({ state: 'visible', timeout: 1500 });
       await takeoverBtn.click();
-    }
+    } catch (e) {}
 
     // Wait for the workspace to be visible and ready
     await expect(page.locator('#workspace')).toBeVisible();
@@ -220,10 +223,14 @@ test.describe('Meowtrix E2E Tests', () => {
 
     const workspaceGroup = page.locator('#grp-workspace');
     const paneGroup = page.locator('#grp-pane');
+    const systemGroup = page.locator('#grp-system');
+    const settingsGroup = page.locator('#grp-settings');
     
     // Initially they should be visible
     await expect(workspaceGroup).toBeVisible();
     await expect(paneGroup).toBeVisible();
+    await expect(systemGroup).toBeVisible();
+    await expect(settingsGroup).toBeVisible();
 
     // Toggle Workspace buttons off
     const wsCheckbox = page.locator('#s-menu-workspace');
@@ -235,13 +242,48 @@ test.describe('Meowtrix E2E Tests', () => {
     await paneCheckbox.click();
     await expect(paneGroup).not.toBeVisible();
 
+    // Toggle System actions off (should hide grp-system but NOT grp-settings)
+    const systemCheckbox = page.locator('#s-menu-system');
+    await systemCheckbox.click();
+    await expect(systemGroup).not.toBeVisible();
+    await expect(settingsGroup).toBeVisible(); // Excluded from system actions, cannot be disabled
+
     // Toggle them back on
     await wsCheckbox.click();
     await paneCheckbox.click();
+    await systemCheckbox.click();
     await expect(workspaceGroup).toBeVisible();
     await expect(paneGroup).toBeVisible();
+    await expect(systemGroup).toBeVisible();
+    await expect(settingsGroup).toBeVisible();
 
     // Close settings
     await page.locator('#settings-close').click();
+  });
+
+  test('settings button should never be disabled, even when session is inactive', async ({ page, context }) => {
+    // Open a second page to hijack the session and make the first page inactive
+    const page2 = await context.newPage();
+    await page2.goto('/');
+    
+    // The second page will claim the active session. Wait for page 2 to load.
+    const takeoverBtn = page2.locator('#btn-takeover');
+    if (await takeoverBtn.isVisible()) {
+      await takeoverBtn.click();
+    }
+    await expect(page2.locator('#workspace')).toBeVisible();
+
+    // Now verify the first page shows the inactive overlay
+    await expect(page.locator('#inactive-overlay')).toBeVisible();
+
+    // The settings button on the first page should still be clickable and open settings
+    const settingsPanel = page.locator('#settings-panel');
+    await expect(settingsPanel).not.toBeVisible();
+    await page.locator('#btn-settings').click();
+    await expect(settingsPanel).toBeVisible();
+
+    // Clean up settings panel
+    await page.locator('#settings-close').click();
+    await expect(settingsPanel).not.toBeVisible();
   });
 });

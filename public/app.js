@@ -329,6 +329,7 @@ function onSessionState(activeTabId) {
   const was = isActiveSession;
   isActiveSession = active;
   document.getElementById('inactive-overlay').hidden = active;
+  document.body.classList.toggle('session-inactive', !active);
   if (active) {
     if (everActive && !was && workspaceReady) {
       // Idle → active: rebuild from the server so the layout matches what the

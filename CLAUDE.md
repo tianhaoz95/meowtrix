@@ -19,6 +19,10 @@ npm run screenshots # generate showcase screenshots using playwright
 
 Playwright E2E tests reside in `tests/`. The frontend is plain ES scripts served directly from `public/`, loaded via `<script>` tags in `index.html` (no bundler, no modules). After editing frontend code, reload the page (or use `./start.sh` for auto-reload).
 
+## Development Guidelines
+
+- **Versioning**: When a change is made, boost the version in [package.json](file:///Users/tianhaozhou/experimental/web-vibe-eng-tool/package.json) accordingly (following semantic versioning). This version is used by the release workflow to determine the release draft tag name when pushed to `main`.
+
 ## Architecture
 
 **Single server, two responsibilities** (`server.js`):

@@ -701,13 +701,6 @@ html.mobile-ui .toolbar-clock {
 }
 
 /* Visually separate the icon-only utility buttons from the action group */
-#btn-settings {
-  margin-left: 5px; position: relative;
-}
-#btn-settings::before {
-  content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
-  width: 1px; height: 18px; background: var(--border3);
-}
 
 /* Broadcast mode: ring the workspace so it's obvious input goes everywhere. */
 body.broadcasting #workspace {
@@ -1707,7 +1700,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
 /* ── Settings panel ── */
 #settings-overlay {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45); z-index: 100;
+  background: rgba(0,0,0,0.45); z-index: 1100;
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
 #settings-overlay.open { display: block; }
@@ -1717,7 +1710,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
   background: var(--glass-strong);
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
-  display: flex; flex-direction: column; z-index: 101;
+  display: flex; flex-direction: column; z-index: 1101;
   transform: translateX(100%); visibility: hidden;
   transition: transform 0.26s var(--ease), visibility 0.26s var(--ease);
   box-shadow: var(--shadow-lg);
@@ -2000,6 +1993,18 @@ details.settings-section[open] .settings-section-content {
 }
 
 #inactive-overlay[hidden] { display: none; }
+
+/* Allow the settings button to be accessed when the session is inactive */
+body.session-inactive #toolbar {
+  z-index: 1001;
+  pointer-events: none;
+}
+body.session-inactive #btn-settings {
+  pointer-events: auto;
+}
+body.session-inactive #toolbar button:not(#btn-settings) {
+  opacity: 0.45;
+}
 
 #inactive-box {
   background: var(--glass-strong);
@@ -2328,9 +2333,7 @@ html.mobile-ui {
     margin-bottom: 2px;
   }
 
-  #btn-settings::before {
-    display: none;
-  }
+
 
   /* Settings slides over the full width instead of a fixed sidebar */
   #settings-panel { width: 100%; }

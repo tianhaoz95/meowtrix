@@ -3,6 +3,8 @@ const path = require('path');
 
 test.describe('Generate Showcase Screenshots', () => {
   test.beforeAll(async ({ request }) => {
+    // Reset settings to default before screenshots run
+    await request.post('/api/settings/reset');
     // Reset layout state to a clean slate before screenshots run
     await request.post('/api/session', {
       data: {
@@ -40,9 +42,10 @@ test.describe('Generate Showcase Screenshots', () => {
 
     // Check if the inactive session overlay appears and claim the session
     const takeoverBtn = page.locator('#btn-takeover');
-    if (await takeoverBtn.isVisible()) {
+    try {
+      await takeoverBtn.waitFor({ state: 'visible', timeout: 1500 });
       await takeoverBtn.click();
-    }
+    } catch (e) {}
 
     // Wait for the workspace to be visible and ready
     await expect(page.locator('#workspace')).toBeVisible();
