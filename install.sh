@@ -6,47 +6,47 @@ INSTALL_DIR="$HOME/.meowtrix/app"
 SERVICE=false
 
 # Parse flags
-# Parse flags
 BINARY=false
+SOURCE=false
 for arg in "$@"; do
   case $arg in
     --service) SERVICE=true ;;
     --binary) BINARY=true ;;
+    --source) SOURCE=true ;;
   esac
 done
 
 echo "🐾 Installing Meowtrix..."
 
+# Detect OS and Arch
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+  ARCH="x64"
+elif [ "$ARCH" = "aarch64" ]; then
+  ARCH="arm64"
+fi
+
 # Check if we should use pre-packaged binary installation
-USE_BINARY=false
-if [ "$BINARY" = true ]; then
-  USE_BINARY=true
-else
-  # Check if required source dependencies are missing
-  for cmd in git node npm; do
-    if ! command -v "$cmd" &>/dev/null; then
-      USE_BINARY=true
-      break
+USE_BINARY=true
+if [ "$SOURCE" = true ]; then
+  USE_BINARY=false
+fi
+
+if [ "$USE_BINARY" = true ]; then
+  if [ "$OS" != "darwin" ] && [ "$OS" != "linux" ]; then
+    if [ "$SOURCE" = false ]; then
+      echo "⚠ Binary installation is only supported on macOS (Darwin) and Linux. Falling back to source installation..."
+      USE_BINARY=false
+    else
+      echo "Error: Binary installation is only supported on macOS (Darwin) and Linux." >&2
+      exit 1
     fi
-  done
+  fi
 fi
 
 if [ "$USE_BINARY" = true ]; then
   echo "→ Performing zero-dependency binary installation..."
-
-  # Detect OS
-  OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-  ARCH=$(uname -m)
-  if [ "$ARCH" = "x86_64" ]; then
-    ARCH="x64"
-  elif [ "$ARCH" = "aarch64" ]; then
-    ARCH="arm64"
-  fi
-
-  if [ "$OS" != "darwin" ] && [ "$OS" != "linux" ]; then
-    echo "Error: Binary installation is only supported on macOS (Darwin) and Linux." >&2
-    exit 1
-  fi
 
   # GitHub Releases latest release tarball URL
   RELEASE_URL="https://github.com/tianhaoz95/meowtrix/releases/latest/download/meowtrix-${OS}-${ARCH}.tar.gz"
@@ -209,4 +209,7 @@ else
   echo ""
   echo "Tip: to install as an auto-starting service, re-run with --service:"
   echo "   curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service"
+  echo ""
+  echo "Tip: to install from source instead of binary, re-run with --source:"
+  echo "   curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --source"
 fi
