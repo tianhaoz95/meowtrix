@@ -89,9 +89,12 @@ jobs:
 
   publish-release:
     name: Publish Release
-    needs: build-and-upload
+    needs: [create-release, build-and-upload]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Publish Draft Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
