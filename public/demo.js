@@ -20,6 +20,11 @@ if (window.DEMO_MODE) {
     shell: '/bin/bash (demo: in-browser JS REPL)',
     browserHomepage: '',
     showTimeInMenu: true,
+    showWorkspaceButtons: true,
+    showPaneButtons: true,
+    showToolButtons: true,
+    showZoomButtons: true,
+    showSystemButtons: true,
     mobileKeys: [
       { label: 'Esc', kind: 'send', payload: '\\x1b' },
       { label: 'Tab', kind: 'send', payload: '\\t' },

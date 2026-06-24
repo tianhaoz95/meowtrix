@@ -69,6 +69,11 @@ const DEFAULT_SETTINGS = {
   showTimeInMenu: true, // show current time in the top menu bar
   menuButtonMode: 'both', // top menu bar button style: 'both', 'icon', or 'text'
   editorMinimap: true, // show minimap in code editor tab
+  showWorkspaceButtons: true, // show/hide workspace group buttons together
+  showPaneButtons: true, // show/hide pane group buttons together
+  showToolButtons: true, // show/hide tool group buttons together
+  showZoomButtons: true, // show/hide zoom group buttons together
+  showSystemButtons: true, // show/hide system group buttons together
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",
@@ -1492,6 +1497,38 @@ function appVersion() {
   try { return require('./package.json').version || ''; } catch { return ''; }
 }
 
+function shouldUpdateViaBinary() {
+  if (process.env.MEOWTRIX_UPDATE_VIA_BINARY === 'true' || process.env.MEOWTRIX_UPDATE_VIA_BINARY === '1') {
+    return true;
+  }
+  if (process.env.MEOWTRIX_UPDATE_VIA_GIT === 'true' || process.env.MEOWTRIX_UPDATE_VIA_GIT === '1') {
+    return false;
+  }
+
+  const isGit = fs.existsSync(path.join(APP_ROOT, '.git'));
+  if (!isGit) {
+    return true;
+  }
+
+  // If we are in the standard install path, prioritize binary updates
+  const homeDir = os.homedir();
+  const standardInstallPath = path.join(homeDir, '.meowtrix', 'app');
+
+  try {
+    const realAppRoot = fs.realpathSync(APP_ROOT);
+    const realStandardPath = fs.realpathSync(standardInstallPath);
+    if (realAppRoot === realStandardPath) {
+      return true;
+    }
+  } catch (e) {
+    if (path.resolve(APP_ROOT) === path.resolve(standardInstallPath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Check for updates. If a git checkout, compares HEAD to the upstream tracking ref.
 // If a binary release distribution, checks the GitHub Releases API.
 async function checkForUpdate({ fetch = true } = {}) {
@@ -1501,9 +1538,9 @@ async function checkForUpdate({ fetch = true } = {}) {
     hasLocalChanges: false, isBinary: false
   };
 
-  const isGit = fs.existsSync(path.join(APP_ROOT, '.git'));
+  const useBinary = shouldUpdateViaBinary();
 
-  if (!isGit) {
+  if (useBinary) {
     info.isBinary = true;
     const currentVer = appVersion();
     info.local = currentVer;
@@ -1594,9 +1631,9 @@ function broadcastUpdate() {
 // Pull the pending update, reinstalling deps only when package.json/the lockfile
 // changed, then (if supervised) signal the caller to exit so the new code loads.
 async function applyUpdate() {
-  const isGit = fs.existsSync(path.join(APP_ROOT, '.git'));
+  const useBinary = shouldUpdateViaBinary();
 
-  if (!isGit) {
+  if (useBinary) {
     const osPlatform = process.platform === 'darwin' ? 'darwin' : (process.platform === 'linux' ? 'linux' : '');
     const osArch = process.arch === 'arm64' ? 'arm64' : (process.arch === 'x64' ? 'x64' : '');
 
@@ -1626,6 +1663,96 @@ async function applyUpdate() {
 
     if (!extract.ok) {
       return { ok: false, output: `Failed to extract update: ${extract.stderr}` };
+    }
+
+    // If we were a git repo, migrate to clean binary install by removing .git directory
+    const gitDir = path.join(APP_ROOT, '.git');
+    if (fs.existsSync(gitDir)) {
+      try {
+        fs.rmSync(gitDir, { recursive: true, force: true });
+        console.log('[Update] Removed .git directory to finalize binary installation migration.');
+      } catch (e) {
+        console.error('[Update] Failed to remove .git directory:', e);
+      }
+    }
+
+    // Handle launcher and service updates if migrating/updating binary
+    const homeDir = os.homedir();
+    const isMac = process.platform === 'darwin';
+    const isLinux = process.platform === 'linux';
+
+    // 1. Update launcher script at ~/.local/bin/meowtrix
+    const launcherPath = path.join(homeDir, '.local/bin', 'meowtrix');
+    if (fs.existsSync(launcherPath)) {
+      try {
+        const launcherContent = `#!/usr/bin/env bash\n"${path.join(APP_ROOT, 'meowtrix')}" "$@"\n`;
+        fs.writeFileSync(launcherPath, launcherContent, { mode: 0o755 });
+        console.log('[Update] Updated launcher script to point to binary launcher.');
+      } catch (e) {
+        console.error('[Update] Failed to update launcher script:', e);
+      }
+    }
+
+    // 2. Update launchd/systemd service to point to the bundled Node
+    let serviceUpdated = false;
+    let plistPath = '';
+    let servicePath = '';
+
+    if (isMac) {
+      plistPath = path.join(homeDir, 'Library/LaunchAgents/com.meowtrix.plist');
+      if (fs.existsSync(plistPath)) {
+        try {
+          let content = fs.readFileSync(plistPath, 'utf8');
+          const bundledNode = path.join(APP_ROOT, 'bin', 'node');
+          const match = content.match(/<key>ProgramArguments<\/key>\s*<array>\s*<string>([^<]+)<\/string>/);
+          if (match && match[1] !== bundledNode) {
+            content = content.replace(match[0], `<key>ProgramArguments</key>\n  <array>\n    <string>${bundledNode}</string>`);
+            fs.writeFileSync(plistPath, content);
+            console.log('[Update] Updated launchd plist to use bundled Node.');
+            serviceUpdated = true;
+          }
+        } catch (e) {
+          console.error('[Update] Failed to update launchd service:', e);
+        }
+      }
+    } else if (isLinux) {
+      servicePath = path.join(homeDir, '.config/systemd/user/meowtrix.service');
+      if (fs.existsSync(servicePath)) {
+        try {
+          let content = fs.readFileSync(servicePath, 'utf8');
+          const bundledNode = path.join(APP_ROOT, 'bin', 'node');
+          const serverJs = path.join(APP_ROOT, 'server.js');
+          const match = content.match(/^ExecStart=.+$/m);
+          if (match) {
+            content = content.replace(match[0], `ExecStart=${bundledNode} ${serverJs}`);
+            fs.writeFileSync(servicePath, content);
+            console.log('[Update] Updated systemd service to use bundled Node.');
+            serviceUpdated = true;
+          }
+        } catch (e) {
+          console.error('[Update] Failed to update systemd service:', e);
+        }
+      }
+    }
+
+    if (serviceUpdated && IS_SUPERVISED) {
+      if (isMac && plistPath) {
+        console.log('[Update] Restarting launchd service with updated configuration...');
+        setTimeout(() => {
+          execFile('launchctl', ['unload', plistPath], () => {
+            execFile('launchctl', ['load', plistPath]);
+          });
+        }, 500);
+        return { ok: true, output: 'Successfully updated binary release files and launchd service.', depsChanged: true, restarting: true };
+      } else if (isLinux && servicePath) {
+        console.log('[Update] Restarting systemd service with updated configuration...');
+        setTimeout(() => {
+          execFile('systemctl', ['--user', 'daemon-reload'], () => {
+            execFile('systemctl', ['--user', 'restart', 'meowtrix']);
+          });
+        }, 500);
+        return { ok: true, output: 'Successfully updated binary release files and systemd service.', depsChanged: true, restarting: true };
+      }
     }
 
     await checkForUpdate({ fetch: false });
@@ -1702,7 +1829,10 @@ app.post('/api/update/apply', async (req, res) => {
   res.json(result);
   // Exit only when supervised, and only after the response has had a moment to
   // flush — the supervisor relaunches us on the freshly pulled code.
-  if (result.ok && IS_SUPERVISED) setTimeout(() => process.exit(0), 500);
+  // Note: if the service itself was reloaded/restarted, the process will be terminated by the service manager.
+  if (result.ok && IS_SUPERVISED && !result.output.includes('service')) {
+    setTimeout(() => process.exit(0), 500);
+  }
 });
 
 // Background check: shortly after boot, then hourly. Honors the autoUpdate

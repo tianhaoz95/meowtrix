@@ -12,9 +12,12 @@ Meowtrix — a browser-based remote workspace ("vibe engineering tool"). The UI 
 npm install        # install deps (node-pty compiles natively)
 npm start          # run the server on PORT (default 9123)
 ./start.sh         # dev mode: nodemon + browser hot-reload (sets HOTRELOAD=1)
+npm run test:e2e   # run playwright e2e tests
+npm run screenshots # generate showcase screenshots using playwright
+./preview-website.sh # capture screenshots & start local server for website
 ```
 
-There is no test suite, linter, or build step — the frontend is plain ES scripts served directly from `public/`, loaded via `<script>` tags in `index.html` (no bundler, no modules). After editing frontend code, just reload the page (or use `./start.sh` for auto-reload).
+Playwright E2E tests reside in `tests/`. The frontend is plain ES scripts served directly from `public/`, loaded via `<script>` tags in `index.html` (no bundler, no modules). After editing frontend code, reload the page (or use `./start.sh` for auto-reload).
 
 ## Architecture
 
