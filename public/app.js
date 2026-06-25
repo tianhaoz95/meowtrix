@@ -470,6 +470,16 @@ function runAppShortcut(key, e) {
     case '-':  if (activePane) splitPane(activePane, 'horizontal'); return true;
     case 't':  if (activePane) showTabTypePicker({ clientX: 60, clientY: 40 }, activePane); return true;
     case 'w':  if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); return true;
+    // Cmd/Ctrl+Shift+W closes the whole pane (vs Cmd/Ctrl+W which closes a tab).
+    case 'W':  closeActivePane(); return true;
+    // Cmd/Ctrl+Shift+U → upload file(s). Plain Cmd/Ctrl+U falls through (default).
+    case 'U':  document.getElementById('upload-input')?.click(); return true;
+    // Cmd/Ctrl+Shift+S → schedule an Enter key press.
+    case 'S':  if (typeof openScheduleDialog === 'function') openScheduleDialog(); return true;
+    // Cmd/Ctrl+Shift+F → toggle fullscreen.
+    case 'F':  toggleFullscreen(); return true;
+    // Cmd/Ctrl+, → open settings (the conventional "preferences" shortcut).
+    case ',':  if (typeof openSettings === 'function') openSettings(); return true;
     case 'b':
     case 'B': {
       // Toggle broadcast input.
@@ -762,6 +772,31 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(localStorage.getItem('theme') || 'dark');
 
   // ── Toolbar ──
+  // Hover tooltips (styled data-kbd chip; see style.css) that spell out each
+  // button's action + keyboard shortcut, platform-aware (⌘ on macOS, Ctrl
+  // elsewhere). Keep in sync with runAppShortcut / the keydown handler below.
+  const isMacUI = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const modKey = isMacUI ? '⌘' : 'Ctrl';
+  const broadcastKbd = isMacUI ? '⌘+B' : 'Ctrl+Shift+B';
+  const setBtnTip = (id, t) => {
+    const el = document.getElementById(id);
+    if (el) { el.dataset.kbd = t; el.removeAttribute('title'); }
+  };
+  setBtnTip('btn-prev-workspace', `Previous workspace (${modKey}+Alt+[)`);
+  setBtnTip('btn-next-workspace', `Next workspace (${modKey}+Alt+])`);
+  setBtnTip('btn-split-v', `Split vertically — side by side (${modKey}+\\)`);
+  setBtnTip('btn-split-h', `Split horizontally — top / bottom (${modKey}+-)`);
+  setBtnTip('btn-close-pane', `Close active pane (${modKey}+Shift+W)`);
+  setBtnTip('btn-broadcast', `Broadcast input to all visible terminals (${broadcastKbd})`);
+  setBtnTip('btn-upload', `Upload file(s) to host — ~/meowtrix (${modKey}+Shift+U)`);
+  setBtnTip('btn-schedule', `Schedule an Enter press — for when your quota resets (${modKey}+Shift+S)`);
+  setBtnTip('btn-zoom-out', `Zoom out active tab (${modKey}+Shift+-)`);
+  setBtnTip('btn-zoom-reset', `Reset zoom (${modKey}+Shift+0)`);
+  setBtnTip('btn-zoom-in', `Zoom in active tab (${modKey}+Shift+=)`);
+  setBtnTip('btn-settings', `Settings (${modKey}+,)`);
+  setBtnTip('btn-fullscreen', `Enter fullscreen (${modKey}+Shift+F)`);
+  setBtnTip('btn-ports', 'Active local servers');
+
   document.getElementById('btn-split-v').addEventListener('click', () => {
     if (activePane) splitPane(activePane, 'vertical');
   });
@@ -773,8 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBroadcast.addEventListener('click', () => {
       setBroadcastInput(!broadcastInput);
     });
-    const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-    btnBroadcast.title = `Broadcast input to all visible terminals (${isMac ? 'Cmd+B' : 'Ctrl+Shift+B'})`;
+    // Tooltip set above via setBtnTip (data-kbd chip).
   }
   const uploadInput = document.getElementById('upload-input');
   document.getElementById('btn-upload').addEventListener('click', () => uploadInput.click());
@@ -810,7 +844,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (icon) icon.innerHTML = isFS ? EXIT_FS_SVG : ENTER_FS_SVG;
       if (text) text.textContent = isFS ? 'Exit Full' : 'Fullscreen';
-      btnFullscreen.title = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
+      btnFullscreen.dataset.kbd = (isFS ? 'Exit fullscreen' : 'Enter fullscreen') + ` (${modKey}+Shift+F)`;
+      btnFullscreen.removeAttribute('title');
       
       if (isFS) {
         btnFullscreen.classList.add('active');

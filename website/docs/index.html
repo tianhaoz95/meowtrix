@@ -135,52 +135,80 @@
           <p>The one-line installer and the <code>--service</code> auto-start mode support macOS and Linux only — Windows is not supported.</p>
         </div>
 
-        <h3>Zero-Dependency Binary Install (Recommended)</h3>
-        <p>The fastest path is the one-line installer. If <code>git</code> or <code>node</code> are not detected on your system, it automatically falls back to downloading a precompiled release. Run:</p>
-        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash</code></pre>
-        <p>You can force this zero-dependency binary install by passing the <code>--binary</code> flag:</p>
-        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --binary</code></pre>
+        <h3>Build your command</h3>
+        <p>Pick what you want to do and the exact command updates below — copy it and paste it into a terminal on the host machine.</p>
 
-        <h3>Source-Based Install</h3>
-        <p>If you prefer to compile from source and have all prerequisites installed, you can clone the repository and run the installer:</p>
-        <pre><code>git clone https://github.com/tianhaoz95/meowtrix.git ~/.meowtrix/app
-cd ~/.meowtrix/app
-./install.sh</code></pre>
-        
-        <p>Or run directly without installation:</p>
-        <pre><code>git clone https://github.com/tianhaoz95/meowtrix.git
-cd meowtrix
-npm install      # node-pty compiles natively
-npm start</code></pre>
+        <div class="cmd-builder" id="cmd-builder">
+          <div class="cb-row">
+            <span class="cb-label">I want to</span>
+            <div class="cb-seg" role="group" data-group="task">
+              <button class="cb-opt" type="button" data-task="install" aria-pressed="true">Install</button>
+              <button class="cb-opt" type="button" data-task="run" aria-pressed="false">Run it</button>
+              <button class="cb-opt" type="button" data-task="service" aria-pressed="false">Start / stop service</button>
+              <button class="cb-opt" type="button" data-task="uninstall" aria-pressed="false">Uninstall</button>
+            </div>
+          </div>
 
-        <h3>Install as a background service</h3>
-        <p>Add <code>--service</code> to auto-start Meowtrix on login and restart it if it crashes (launchd on macOS, systemd on Linux):</p>
-        <pre><code>curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash -s -- --service</code></pre>
+          <!-- Install options -->
+          <div class="cb-row" data-when="install">
+            <span class="cb-label">Install method</span>
+            <div class="cb-seg" role="group" data-group="method">
+              <button class="cb-opt" type="button" data-method="auto" aria-pressed="true">Quick <small>(auto-detect)</small></button>
+              <button class="cb-opt" type="button" data-method="binary" aria-pressed="false">Zero-dependency binary</button>
+              <button class="cb-opt" type="button" data-method="source" aria-pressed="false">From source</button>
+            </div>
+          </div>
+          <div class="cb-row" data-when="install">
+            <span class="cb-label">Auto-start</span>
+            <div class="cb-seg" role="group" data-group="service-flag">
+              <button class="cb-opt" type="button" data-service="false" aria-pressed="true">Manual launch</button>
+              <button class="cb-opt" type="button" data-service="true" aria-pressed="false">Run as a service</button>
+            </div>
+          </div>
+
+          <!-- Run options -->
+          <div class="cb-row" data-when="run" hidden>
+            <span class="cb-label">Reachable from</span>
+            <div class="cb-seg" role="group" data-group="binding">
+              <button class="cb-opt" type="button" data-binding="local" aria-pressed="true">This machine only</button>
+              <button class="cb-opt" type="button" data-binding="network" aria-pressed="false">Other devices (network)</button>
+            </div>
+          </div>
+
+          <!-- Service options -->
+          <div class="cb-row" data-when="service" hidden>
+            <span class="cb-label">Action</span>
+            <div class="cb-seg" role="group" data-group="svc-action">
+              <button class="cb-opt" type="button" data-svc="start" aria-pressed="true">Start</button>
+              <button class="cb-opt" type="button" data-svc="stop" aria-pressed="false">Stop</button>
+              <button class="cb-opt" type="button" data-svc="restart" aria-pressed="false">Restart</button>
+              <button class="cb-opt" type="button" data-svc="status" aria-pressed="false">Status</button>
+            </div>
+          </div>
+
+          <!-- OS picker (service + uninstall) -->
+          <div class="cb-row" data-when="service uninstall" hidden>
+            <span class="cb-label">Operating system</span>
+            <div class="cb-seg" role="group" data-group="os">
+              <button class="cb-opt" type="button" data-os="macos" aria-pressed="true">macOS</button>
+              <button class="cb-opt" type="button" data-os="linux" aria-pressed="false">Linux</button>
+            </div>
+          </div>
+
+          <div class="cb-out">
+            <div class="cb-out-head">
+              <span class="cb-out-title"><span class="dot"></span>Run this command</span>
+              <button class="cb-copy" type="button" id="cb-copy">📋 Copy</button>
+            </div>
+            <pre class="cb-code"><code id="cb-code">curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash</code></pre>
+            <p class="cb-note" id="cb-note"></p>
+          </div>
+        </div>
 
         <div class="callout">
           <span class="ico">📦</span>
           <p><strong>Updating</strong> is as simple as re-running the installer (it pulls the latest changes). In addition, binary installations support <strong>one-click auto-updates</strong> directly from the browser's update banner.</p>
         </div>
-        <h3>Uninstall</h3>
-        <p>To fully uninstall Meowtrix, stop the service (if running), remove the service configuration, and delete the installation files.</p>
-        <p><strong>macOS:</strong></p>
-        <pre><code># Stop and remove the launchd service
-launchctl unload ~/Library/LaunchAgents/com.meowtrix.plist 2>/dev/null || true
-rm -f ~/Library/LaunchAgents/com.meowtrix.plist
-
-# Remove launcher and files
-rm -f ~/.local/bin/meowtrix
-rm -rf ~/.meowtrix</code></pre>
-        <p><strong>Linux:</strong></p>
-        <pre><code># Stop and disable the systemd service
-systemctl --user stop meowtrix 2>/dev/null || true
-systemctl --user disable meowtrix 2>/dev/null || true
-rm -f ~/.config/systemd/user/meowtrix.service
-systemctl --user daemon-reload
-
-# Remove launcher and files
-rm -f ~/.local/bin/meowtrix
-rm -rf ~/.meowtrix</code></pre>
       </section>
 
       <section id="running">
@@ -393,6 +421,129 @@ HOST=0.0.0.0 npm start</code></pre>
     </div>
     <p>🐾 Meowtrix — a browser-based remote vibe engineering tool.</p>
   </footer>
+  <script>
+    /* Interactive install-command builder. Reads the pressed option in each
+       segmented group and regenerates the shell command shown below. */
+    (function () {
+      var builder = document.getElementById('cmd-builder');
+      if (!builder) return;
+      var codeEl = document.getElementById('cb-code');
+      var noteEl = document.getElementById('cb-note');
+      var copyBtn = document.getElementById('cb-copy');
+      var INSTALL = 'curl -fsSL https://raw.githubusercontent.com/tianhaoz95/meowtrix/main/install.sh | bash';
+      var PLIST = '~/Library/LaunchAgents/com.meowtrix.plist';
+
+      /* The currently-pressed button's data-value within a group. */
+      function pick(group, attr) {
+        var btn = builder.querySelector('[data-group="' + group + '"] [aria-pressed="true"]');
+        return btn ? btn.getAttribute(attr) : null;
+      }
+
+      function build() {
+        var task = pick('task', 'data-task');
+        var cmd = '', note = '';
+
+        if (task === 'install') {
+          var method = pick('method', 'data-method');
+          var service = pick('service-flag', 'data-service') === 'true';
+          if (method === 'source') {
+            cmd = 'git clone https://github.com/tianhaoz95/meowtrix.git ~/.meowtrix/app\n' +
+                  'cd ~/.meowtrix/app\n' +
+                  './install.sh' + (service ? ' --service' : '');
+            note = '🛠 Source builds need Node 18+, git, and a C/C++ toolchain so <code>node-pty</code> can compile.';
+          } else {
+            var flags = [];
+            if (method === 'binary') flags.push('--binary');
+            if (service) flags.push('--service');
+            cmd = INSTALL + (flags.length ? ' -s -- ' + flags.join(' ') : '');
+            note = method === 'binary'
+              ? '📦 Forces the precompiled binary — no Node, git, or build tools required.'
+              : '✨ Auto-detects your setup and falls back to the precompiled binary when git/node are missing.';
+          }
+          if (service) {
+            note += ' Auto-starts on login and binds to <code>0.0.0.0</code> (reachable from other devices) by default.';
+          }
+        } else if (task === 'run') {
+          var binding = pick('binding', 'data-binding');
+          if (binding === 'network') {
+            cmd = 'meowtrix --network';
+            note = '🔓 Exposes a real shell to anyone who can reach the port — only do this on a trusted network. See “Reaching it remotely”.';
+          } else {
+            cmd = 'meowtrix';
+            note = '🔒 Binds to <code>127.0.0.1</code>. Open <code>http://localhost:9123</code>, or forward the port over SSH to reach it from elsewhere.';
+          }
+        } else if (task === 'service') {
+          var os = pick('os', 'data-os');
+          var act = pick('svc-action', 'data-svc');
+          if (os === 'macos') {
+            var load = 'launchctl load ' + PLIST;
+            var unload = 'launchctl unload ' + PLIST;
+            cmd = act === 'start' ? load
+                : act === 'stop' ? unload
+                : act === 'restart' ? unload + '\n' + load
+                : 'launchctl list | grep meowtrix';
+          } else {
+            cmd = 'systemctl --user ' +
+                  (act === 'status' ? 'status' : act) + ' meowtrix';
+          }
+          note = '⚙️ Only applies if you installed with <code>--service</code>.';
+        } else if (task === 'uninstall') {
+          var os2 = pick('os', 'data-os');
+          if (os2 === 'macos') {
+            cmd = '# Stop and remove the launchd service (if installed)\n' +
+                  'launchctl unload ' + PLIST + ' 2>/dev/null || true\n' +
+                  'rm -f ' + PLIST + '\n\n' +
+                  '# Remove launcher and files\n' +
+                  'rm -f ~/.local/bin/meowtrix\n' +
+                  'rm -rf ~/.meowtrix';
+          } else {
+            cmd = '# Stop and disable the systemd service (if installed)\n' +
+                  'systemctl --user stop meowtrix 2>/dev/null || true\n' +
+                  'systemctl --user disable meowtrix 2>/dev/null || true\n' +
+                  'rm -f ~/.config/systemd/user/meowtrix.service\n' +
+                  'systemctl --user daemon-reload\n\n' +
+                  '# Remove launcher and files\n' +
+                  'rm -f ~/.local/bin/meowtrix\n' +
+                  'rm -rf ~/.meowtrix';
+          }
+          note = '🗑 Removes Meowtrix entirely, including settings and saved sessions under <code>~/.meowtrix</code>.';
+        }
+
+        codeEl.textContent = cmd;
+        noteEl.innerHTML = note;
+
+        /* Show only the option rows relevant to the chosen task. */
+        builder.querySelectorAll('[data-when]').forEach(function (row) {
+          var tasks = row.getAttribute('data-when').split(' ');
+          row.hidden = tasks.indexOf(task) === -1;
+        });
+      }
+
+      /* Clicking an option presses it and clears its siblings, then rebuilds. */
+      builder.addEventListener('click', function (e) {
+        var opt = e.target.closest('.cb-opt');
+        if (!opt) return;
+        var seg = opt.closest('.cb-seg');
+        seg.querySelectorAll('.cb-opt').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === opt));
+        });
+        build();
+      });
+
+      copyBtn.addEventListener('click', function () {
+        navigator.clipboard.writeText(codeEl.textContent).then(function () {
+          copyBtn.textContent = '✓ Copied';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '📋 Copy';
+            copyBtn.classList.remove('copied');
+          }, 1600);
+        });
+      });
+
+      build();
+    })();
+  </script>
   <script src="../assets/theme.js"></script>
 </body>
 </html>

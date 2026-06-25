@@ -709,9 +709,11 @@ html.mobile-ui .toolbar-clock {
 }
 .palette-empty { padding: 18px; text-align: center; color: var(--text3); font-size: 13px; }
 
-/* Hover tooltip for the palette toolbar button — shows the open shortcut. */
-#btn-palette { position: relative; }
-#btn-palette::after {
+/* Hover tooltip for toolbar buttons — shows a description + keyboard shortcut.
+   Driven by data-kbd (set in JS); an instant styled chip, clearer than the
+   native title. Applies to every toolbar action button, palette included. */
+#toolbar-actions button[data-kbd] { position: relative; }
+#toolbar-actions button[data-kbd]::after {
   content: attr(data-kbd);
   position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(-3px);
   white-space: nowrap; z-index: 1500;
@@ -721,9 +723,17 @@ html.mobile-ui .toolbar-clock {
   opacity: 0; pointer-events: none;
   transition: opacity 0.12s var(--ease), transform 0.12s var(--ease);
 }
-#btn-palette:hover::after, #btn-palette:focus-visible::after {
+#toolbar-actions button[data-kbd]:hover::after,
+#toolbar-actions button[data-kbd]:focus-visible::after {
   opacity: 1; transform: translateX(-50%) translateY(0);
 }
+/* Right-anchor tooltips for the rightmost groups so they don't clip the viewport edge. */
+#grp-system button[data-kbd]::after,
+#grp-settings button[data-kbd]::after { left: auto; right: 0; transform: translateX(0) translateY(-3px); }
+#grp-system button[data-kbd]:hover::after,
+#grp-system button[data-kbd]:focus-visible::after,
+#grp-settings button[data-kbd]:hover::after,
+#grp-settings button[data-kbd]:focus-visible::after { transform: translateX(0) translateY(0); }
 
 /* Visually separate the icon-only utility buttons from the action group */
 
