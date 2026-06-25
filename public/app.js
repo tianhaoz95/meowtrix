@@ -430,6 +430,7 @@ function showTabTypePicker(e, pane) {
 // matches a `html[data-theme="…"]` block in style.css (except 'dark', which
 // is the :root default). `icon` shows on the toolbar button for the theme.
 const THEMES = [
+  { id: 'auto',   label: 'Auto (System)', icon: '🌓' },
   { id: 'dark',   label: 'Midnight', icon: '🌙' },
   { id: 'light',  label: 'Daylight', icon: '☀️' },
   { id: 'ocean',  label: 'Ocean',    icon: '🌊' },
@@ -445,7 +446,13 @@ const THEMES = [
 // Exposed globally so settings.js can call it
 function applyTheme(theme) {
   const meta = THEMES.find(t => t.id === theme) || THEMES[0];
-  document.documentElement.dataset.theme = meta.id;
+  
+  let resolvedId = meta.id;
+  if (resolvedId === 'auto') {
+    resolvedId = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  document.documentElement.dataset.theme = resolvedId;
   const themeBtn = document.getElementById('btn-theme');
   if (themeBtn) {
     const iconEl = themeBtn.querySelector('.btn-icon');
@@ -465,6 +472,13 @@ function applyTheme(theme) {
     if (typeof t.updateTheme === 'function') t.updateTheme();
   }));
 }
+
+// Listen for system theme changes if set to auto
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (localStorage.getItem('theme') === 'auto' || !localStorage.getItem('theme')) {
+    applyTheme('auto');
+  }
+});
 
 // Apply a theme and persist it to the host. Shared by the toolbar cycle button,
 // the settings dropdown, and the command palette's "Theme: …" entries.
@@ -793,7 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkOnDeviceModel();
 
   // Apply saved theme immediately (server settings loaded async in settings.js)
-  applyTheme(localStorage.getItem('theme') || 'dark');
+  applyTheme(localStorage.getItem('theme') || 'auto');
 
   // ── Toolbar ──
   // Hover tooltips (styled data-kbd chip; see style.css) that spell out each

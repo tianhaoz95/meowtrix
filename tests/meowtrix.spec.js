@@ -182,6 +182,11 @@ test.describe('Meowtrix E2E Tests', () => {
     await themeSelect.selectOption('dark');
     await expect(htmlElement).toHaveAttribute('data-theme', 'dark');
 
+    // Switch to Auto and verify it resolves to either dark or light
+    await themeSelect.selectOption('auto');
+    const resolvedTheme = await htmlElement.getAttribute('data-theme');
+    expect(['dark', 'light']).toContain(resolvedTheme);
+
     // Close settings
     await page.locator('#settings-close').click();
     await expect(settingsPanel).not.toBeVisible();

@@ -47,7 +47,7 @@ app.get('/', (req, res) => {
 // ── Settings persistence ─────────────────────────────────────────────────────
 const SETTINGS_FILE = path.join(os.homedir(), '.meowtrix', 'settings.json');
 const DEFAULT_SETTINGS = {
-  theme: 'dark',
+  theme: 'auto',
   localServerIp: '127.0.0.1',
   termFontSize: 13,
   termFontFamily: 'Cascadia Code, JetBrains Mono, Menlo, Monaco, monospace',
