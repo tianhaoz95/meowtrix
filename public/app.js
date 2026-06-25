@@ -5,6 +5,21 @@
 // and devices — not just tabs in one browser. The newest client to claim wins;
 // the others drop to the overlay until they press "Move session here".
 const myTabId = Math.random().toString(36).slice(2);
+
+// Are we the Meowtrix app shell running *embedded* inside another page's iframe?
+// In normal use the app UI is always top-level — browser panes only ever frame
+// external/proxied content, never index.html itself. So `top !== self` means a
+// Meowtrix instance was opened inside another Meowtrix's browser pane. That pane
+// loads it through the host's `/proxy`, and the proxy can't rewrite WebSocket
+// targets, so the embedded page's control socket (ws.js uses `location.host`)
+// connects back to the *host* server — the same one the outer page is on. If the
+// embedded shell also claimed the active session, the host server would see two
+// clients each grabbing its single session lock and stealing it back and forth:
+// the "two instances own the same session" deadlock. So an embedded shell opts
+// out of session coordination entirely — it never claims and never shows the
+// inactive overlay, acting as a passive co-viewer that can't fight for control.
+const isEmbedded = (() => { try { return window.top !== window.self; } catch { return true; } })();
+
 let isActiveSession = false;  // are we the active session right now?
 let hasClaimed = false;       // have we sent our first claim yet?
 let bootstrapped = false;     // workspace built and ready to claim?
@@ -274,6 +289,8 @@ async function bootstrapSession() {
 // Tell the server we want to be the active session (also used by the takeover
 // button). The server replies with a session:state broadcast → onSessionState.
 function claimActiveSession() {
+  // An embedded shell never contends for the session (see `isEmbedded`).
+  if (isEmbedded) return;
   hasClaimed = true;
   wsSend({ type: 'session:claim', tabId: myTabId });
 }
@@ -336,6 +353,10 @@ async function resyncWorkspace() {
 
 // Called by ws.js when a session:state message arrives.
 function onSessionState(activeTabId) {
+  // Embedded shells stay out of the lock: never flip to the inactive overlay and
+  // never mark ourselves active (so we also never write the host's session.json
+  // with our unrelated layout). We just keep rendering whatever our socket sees.
+  if (isEmbedded) return;
   const active = activeTabId === myTabId;
   const was = isActiveSession;
   isActiveSession = active;
