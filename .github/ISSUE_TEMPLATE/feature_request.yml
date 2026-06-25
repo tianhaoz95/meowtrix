@@ -1,0 +1,65 @@
+name: 💡 Feature request
+description: Suggest an idea or improvement for Meowtrix
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Meowtrix better! 🐾
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I searched existing issues and this hasn't been requested yet
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do, and where does Meowtrix get in the way today?
+      placeholder: I'm always frustrated when…
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you'd like to see.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area does this touch?
+      options:
+        - Terminals / PTY
+        - Panes & tabs / layout
+        - Embedded browser / proxy
+        - Code editor / file API / git
+        - Scheduled Enter
+        - Sessions / cross-device
+        - Settings / themes
+        - Mobile
+        - Command palette
+        - Self-update / distribution
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you've thought about.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Mockups, links, or additional context.

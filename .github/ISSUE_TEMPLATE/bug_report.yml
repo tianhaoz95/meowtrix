@@ -1,0 +1,98 @@
+name: 🐛 Bug report
+description: Report something that isn't working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! 🐾
+
+        ⚠️ **Security issues:** do **not** report vulnerabilities here. Follow the
+        disclosure process in [SECURITY.md](../blob/main/SECURITY.md) instead.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I searched existing issues and this hasn't been reported yet
+          required: true
+        - label: This is not a security vulnerability (those go through SECURITY.md)
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including what you expected to happen.
+      placeholder: When I split a pane, the terminal in the new pane…
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the problem?
+      placeholder: |
+        1. Start the server with `npm start`
+        2. Open the browser to http://localhost:9123
+        3. Split a pane with ⌘\
+        4. …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Meowtrix version
+      description: From `package.json` or the in-app version, e.g. 1.7.1
+      placeholder: 1.7.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run-mode
+    attributes:
+      label: How are you running Meowtrix?
+      options:
+        - Manual launcher (npm start / meowtrix)
+        - Service install (--service, launchd/systemd)
+        - Docker
+        - Dev container
+        - Browser-only demo (?demo)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: host-os
+    attributes:
+      label: Host OS & Node.js version
+      description: The machine running the server. e.g. macOS 15.5 / Node 20.11
+      placeholder: macOS 15.5 / Node 20.11
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: Client browser & device
+      description: The browser/device you connect from. e.g. Chrome 126 on macOS, Safari on iPhone
+      placeholder: Chrome 126 on macOS
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: |
+        Relevant server console output and/or browser devtools console errors.
+        This will be rendered as a code block, so no backticks needed.
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Additional context that might help us track this down.
