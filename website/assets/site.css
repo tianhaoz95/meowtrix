@@ -301,6 +301,7 @@ code, pre, kbd {
   width: 100%;
   aspect-ratio: 1920 / 1080;
   overflow: hidden;
+  cursor: zoom-in;
 }
 .screenshot-wrapper img {
   width: 100%;
@@ -311,6 +312,37 @@ code, pre, kbd {
 
 html[data-theme="dark"] .theme-light { display: none; }
 html[data-theme="light"] .theme-dark { display: none; }
+
+/* ── Screenshot lightbox (click the hero screenshot to enlarge) ─────────────── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.22s var(--ease), visibility 0.22s var(--ease);
+  cursor: zoom-out;
+}
+.lightbox.open { opacity: 1; visibility: visible; }
+.lightbox img {
+  max-width: 100%; max-height: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 90px var(--shadow);
+  transform: scale(0.96);
+  transition: transform 0.22s var(--ease);
+}
+.lightbox.open img { transform: scale(1); }
+.lightbox-close {
+  position: absolute; top: 20px; right: 24px;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; line-height: 1; color: var(--text);
+  background: var(--bg2); border: 1px solid var(--border);
+  cursor: pointer; transition: all 0.18s var(--ease);
+}
+.lightbox-close:hover { border-color: var(--accent2); transform: scale(1.05); }
 
 /* ── Section wrappers ───────────────────────────────────────────────────────── */
 .section { max-width: var(--maxw); margin: 0 auto; padding: 80px 24px; }

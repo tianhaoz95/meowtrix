@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
-# preview-website.sh — Captures fresh screenshots using Playwright and starts a local server for the website.
+# preview-website.sh — Starts a local server for the website.
+# Pass --capture to first re-capture fresh screenshots using Playwright.
 
 set -e
 
 # Change directory to the root of the project
 cd "$(dirname "$0")"
 
-echo "🐾 [1/2] Capturing fresh workspace screenshots using E2E Playwright test..."
-npm run screenshots
+CAPTURE=0
+for arg in "$@"; do
+  case "$arg" in
+    --capture) CAPTURE=1 ;;
+  esac
+done
 
-echo "🐾 [2/2] Starting local web server to serve the website..."
+if [ "$CAPTURE" -eq 1 ]; then
+  echo "🐾 Capturing fresh workspace screenshots using E2E Playwright test..."
+  npm run screenshots
+else
+  echo "🐾 Skipping screenshot capture (pass --capture to recapture)."
+fi
+
+echo "🐾 Starting local web server to serve the website..."
 PORT=5173
 URL="http://localhost:${PORT}"
 

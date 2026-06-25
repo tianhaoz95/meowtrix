@@ -14,7 +14,7 @@ npm start          # run the server on PORT (default 9123)
 ./start.sh         # dev mode: nodemon + browser hot-reload (sets HOTRELOAD=1)
 npm run test:e2e   # run playwright e2e tests
 npm run screenshots # generate showcase screenshots using playwright
-./preview-website.sh # capture screenshots & start local server for website
+./preview-website.sh # start local server for website (add --capture to recapture screenshots first)
 ```
 
 Playwright E2E tests reside in `tests/`. The frontend is plain ES scripts served directly from `public/`, loaded via `<script>` tags in `index.html` (no bundler, no modules). After editing frontend code, reload the page (or use `./start.sh` for auto-reload).
