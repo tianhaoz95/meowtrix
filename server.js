@@ -1926,6 +1926,20 @@ app.post('/api/update/apply', async (req, res) => {
   }
 });
 
+// ── Full restart ─────────────────────────────────────────────────────────────
+// Relaunch the server in place by exiting cleanly and letting the supervisor
+// (launchd KeepAlive / systemd Restart=always) bring it back up on the same
+// code. Only meaningful when supervised — a bare `meowtrix` launcher has nothing
+// to restart it, so we report supervised:false and the client hides the option.
+// GET reports availability (so the UI can gate the control); POST does the exit.
+// Same no-auth stance as the rest of the app: anyone reachable already has a
+// shell here, and a restart only kills the in-memory PTYs (no new capability).
+app.get('/api/restart', (req, res) => res.json({ supervised: IS_SUPERVISED }));
+app.post('/api/restart', (req, res) => {
+  res.json({ ok: IS_SUPERVISED, supervised: IS_SUPERVISED, restarting: IS_SUPERVISED });
+  if (IS_SUPERVISED) setTimeout(() => process.exit(0), 500);
+});
+
 // Background check: shortly after boot, then hourly. Honors the autoUpdate
 // setting (re-read each tick so toggling it doesn't need a restart).
 function startUpdateChecks() {

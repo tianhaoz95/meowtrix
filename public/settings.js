@@ -210,6 +210,7 @@ function openSettings() {
   document.getElementById('settings-panel').classList.add('open');
   document.getElementById('settings-overlay').classList.add('open');
   if (typeof syncSettingsUpdateStatus === 'function') syncSettingsUpdateStatus();
+  if (typeof refreshRestartAvailability === 'function') refreshRestartAvailability();
   const searchInput = document.getElementById('settings-search');
   if (searchInput) {
     setTimeout(() => searchInput.focus(), 150);
@@ -577,6 +578,13 @@ function wireControls() {
       } finally {
         btnCheckUpdate.disabled = false;
       }
+    });
+  }
+
+  const btnRestartApp = document.getElementById('btn-restart-app');
+  if (btnRestartApp) {
+    btnRestartApp.addEventListener('click', () => {
+      if (typeof restartAppNow === 'function') restartAppNow();
     });
   }
 

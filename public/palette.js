@@ -79,6 +79,11 @@ function buildCommands() {
     cmds.push({ icon: '🚀', title: 'Update & restart Meowtrix', keywords: 'upgrade version git pull install',
       run: () => { if (typeof applyUpdateNow === 'function') applyUpdateNow(); } });
   }
+  // Only offer a plain restart when supervised (a service that can relaunch).
+  if (typeof appIsSupervised === 'function' && appIsSupervised()) {
+    cmds.push({ icon: '🔄', title: 'Restart Meowtrix', keywords: 'restart reboot relaunch service supervised refresh',
+      run: () => { if (typeof restartAppNow === 'function') restartAppNow(); } });
+  }
   // One entry per theme.
   THEMES.forEach(t => cmds.push({
     icon: t.icon, title: `Theme: ${t.label}`, keywords: 'color appearance', run: () => setTheme(t.id),

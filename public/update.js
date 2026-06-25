@@ -12,11 +12,56 @@ let _updateApplying = false;
 let _updateDismissed = false; // hide the banner for this page load once dismissed
 let _updateProgressText = '';
 let _updateError = null;
+let _isSupervised = null; // null until learned from update:state or GET /api/restart
 
 function onUpdateState(info) {
   latestUpdateInfo = info;
+  if (info && typeof info.supervised === 'boolean') _isSupervised = info.supervised;
   renderUpdateBanner();
   syncSettingsUpdateStatus();
+  syncRestartUi();
+}
+
+// Whether the server runs under a supervisor (launchd/systemd) and can relaunch
+// itself after a clean exit. A plain `meowtrix` launcher cannot, so the restart
+// control stays hidden there. Learned from update:state and a direct probe.
+function appIsSupervised() {
+  if (_isSupervised !== null) return _isSupervised;
+  return !!(latestUpdateInfo && latestUpdateInfo.supervised);
+}
+
+// Probe the server for supervised status and reveal/hide the settings control.
+async function refreshRestartAvailability() {
+  try {
+    const r = await fetch('/api/restart').then(res => res.json());
+    _isSupervised = !!r.supervised;
+  } catch {}
+  syncRestartUi();
+}
+
+function syncRestartUi() {
+  const row = document.getElementById('s-restart-row');
+  if (row) row.style.display = appIsSupervised() ? '' : 'none';
+}
+
+// Restart (relaunch) the running server. Confirms first because it ends every
+// running shell. Only works when supervised; otherwise the server reports
+// restarting:false and stays up.
+async function restartAppNow() {
+  if (!appIsSupervised()) { showToast('Restart is only available when Meowtrix runs as a service.'); return; }
+  if (!await showConfirm('Restart Meowtrix', 'Restart the Meowtrix server now? This relaunches the app and ends all running terminal sessions.')) return;
+  showToast('Restarting Meowtrix…');
+  try {
+    const r = await fetch('/api/restart', { method: 'POST' }).then(res => res.json());
+    if (r.restarting) {
+      showToast('Restarting server…');
+      waitForServerAndReload();
+    } else {
+      showToast('Restart is only available when Meowtrix runs as a service.');
+    }
+  } catch (e) {
+    showToast('Restart failed: ' + e.message);
+  }
 }
 
 function syncSettingsUpdateStatus() {
@@ -212,6 +257,10 @@ function waitForServerAndReload() {
   };
   setTimeout(ping, 1500);
 }
+
+// Probe supervised status once at startup so the restart control (settings row
+// and palette command) appears without waiting for the first update check.
+document.addEventListener('DOMContentLoaded', () => { refreshRestartAvailability(); });
 
 // Manual re-check, exposed via the palette.
 async function checkForUpdateNow() {
