@@ -72,18 +72,6 @@ echo "   Settings Vol:  meowtrix-dev-settings"
 echo "   Ctrl-C to stop."
 echo ""
 
-# Open browser shortly after container starts unless NO_OPEN is set
-if [ -z "$NO_OPEN" ]; then
-  (
-    sleep 1.5
-    if command -v open &>/dev/null; then
-      open "$URL"
-    elif command -v xdg-open &>/dev/null; then
-      xdg-open "$URL"
-    fi
-  ) &
-fi
-
 # Determine application directory (where the script itself is located)
 APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

@@ -2237,6 +2237,12 @@ function initEditorTab(tab, viewEl, dir) {
   }
 
   tab.handleFsChange = (eventType, filename) => {
+    // Ignore writes inside .git/ (e.g. `git status` refreshing .git/index).
+    // Otherwise refreshGit's own git calls retrigger this handler → infinite loop.
+    if (filename) {
+      const norm = filename.replace(/\\/g, '/');
+      if (norm === '.git' || norm.startsWith('.git/')) return;
+    }
     if (changeTimeout) clearTimeout(changeTimeout);
     if (filename) changedFiles.add(filename);
     changeTimeout = setTimeout(() => {
