@@ -315,8 +315,11 @@ function setActivePane(pane) {
   pane.el.classList.add('active');
 }
 
-function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen, existingEditorExpandedDirs, existingZoomLevel) {
+function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir, existingEditorWidth, existingEditorCollapsed, existingBrowserConsoleOpen, existingEditorExpandedDirs, existingZoomLevel, existingSshHost) {
   const id = existingId || uid();
+  // An SSH tab is a terminal whose PTY runs `ssh <host>` (see server.js); it's
+  // labelled with the host and gets its own icon to stand out from local shells.
+  const sshHost = type === 'terminal' ? (existingSshHost || null) : null;
 
   const viewEl = document.createElement('div');
   viewEl.className = 'pane-view';
@@ -327,9 +330,9 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   tabEl.className = 'tab';
   const icon = document.createElement('span');
   icon.className = 'tab-icon';
-  icon.textContent = type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : '🌐';
+  icon.textContent = sshHost ? '🔗' : type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : '🌐';
   const label = document.createElement('span');
-  label.textContent = type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : 'Browser';
+  label.textContent = sshHost ? sshHost : type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : 'Browser';
 
   const isMaximized = pane.el.classList.contains('maximized');
   const maxBtn = document.createElement('span');
@@ -375,10 +378,13 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     currentUrl: null,
     editorDir: type === 'editor' ? existingDir : null,
     terminalDir: type === 'terminal' ? existingDir : null,
+    sshHost,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
     consoleOpen: !!existingBrowserConsoleOpen,
-    isCustomLabel: false,
+    // Keep the host as the tab label rather than letting the remote shell's
+    // title (e.g. `user@host:~`) overwrite it via onTitleChange.
+    isCustomLabel: !!sshHost,
     editorExpandedDirs: type === 'editor' ? new Set(existingEditorExpandedDirs || []) : null,
     zoomLevel: existingZoomLevel || 1.0
   };
@@ -635,7 +641,7 @@ function initTerminalTab(tab, existingPtyId) {
 
   const initPty = () => {
     fitAddon.fit();
-    createPty(ptyId, term, term.cols, term.rows, tab.terminalDir, inheritFromPtyId);
+    createPty(ptyId, term, term.cols, term.rows, tab.terminalDir, inheritFromPtyId, tab.sshHost);
     if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
   };
   // Small rAF delay ensures the terminal is sized before createPty

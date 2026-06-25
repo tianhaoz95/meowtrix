@@ -1067,6 +1067,10 @@ body.dragging-tab .pane-content { pointer-events: none; }
   transition: all 0.12s var(--ease);
 }
 .tab-type-picker button:hover { background: var(--accent); color: #fff; border-color: transparent; box-shadow: var(--glow-active); }
+/* The SSH host submenu can get long; cap its height and let it scroll. */
+.tab-type-submenu { max-height: 60vh; overflow-y: auto; }
+.tab-type-picker button.tab-type-loading { color: var(--text3, var(--text2)); cursor: default; opacity: 0.7; }
+.tab-type-picker button.tab-type-loading:hover { background: transparent; color: var(--text3, var(--text2)); box-shadow: none; }
 
 .tab-icon { font-size: 10px; }
 

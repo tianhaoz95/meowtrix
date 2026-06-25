@@ -90,16 +90,16 @@ function wsSend(obj) {
   }
 }
 
-function _sendCreate(id, cols, rows, cwd, inheritFromPtyId) {
-  wsSend({ type: 'pty:create', id, cols, rows, cwd, inheritFromPtyId });
+function _sendCreate(id, cols, rows, cwd, inheritFromPtyId, sshHost) {
+  wsSend({ type: 'pty:create', id, cols, rows, cwd, inheritFromPtyId, sshHost });
 }
 
-function createPty(id, term, cols, rows, cwd, inheritFromPtyId) {
+function createPty(id, term, cols, rows, cwd, inheritFromPtyId, sshHost) {
   ptyCallbacks.set(id, term);
   if (wsReady) {
-    _sendCreate(id, cols, rows, cwd, inheritFromPtyId);
+    _sendCreate(id, cols, rows, cwd, inheritFromPtyId, sshHost);
   } else {
-    pendingPtys.push([id, cols, rows, cwd, inheritFromPtyId]);
+    pendingPtys.push([id, cols, rows, cwd, inheritFromPtyId, sshHost]);
   }
 }
 

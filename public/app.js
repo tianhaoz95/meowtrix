@@ -128,6 +128,7 @@ function captureWorkspaceState() {
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
           browserConsoleOpen: t.type === 'browser' ? !!t.consoleOpen : null,
           editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'terminal' ? t.terminalDir : null),
+          sshHost: t.type === 'terminal' ? (t.sshHost || null) : null,
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
           editorExpandedDirs: t.type === 'editor' ? Array.from(t.editorExpandedDirs || []) : null,
@@ -167,7 +168,7 @@ function restoreWorkspaceState(state) {
     if (node.type === 'pane') {
       const pane = createPane();
       node.tabs.forEach(tabState => {
-        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen, tabState.editorExpandedDirs, tabState.zoomLevel);
+        const tab = addTab(pane, tabState.type, tabState.id, tabState.ptyId, tabState.browserUrl, tabState.editorDir, tabState.editorSidebarWidth, tabState.editorSidebarCollapsed, tabState.browserConsoleOpen, tabState.editorExpandedDirs, tabState.zoomLevel, tabState.sshHost);
         if (tabState.label && tab.label) tab.label.textContent = tabState.label;
         if (tabState.isCustomLabel) tab.isCustomLabel = true;
       });
@@ -398,31 +399,89 @@ function showTabTypePicker(e, pane) {
   const picker = document.createElement('div');
   picker.className = 'tab-type-picker';
 
-  [['⬛  Terminal', 'terminal'], ['🌐  Browser', 'browser'], ['📝  Code editor', 'editor']].forEach(([text, type]) => {
+  // Tracks a second-level submenu (the SSH host list) so it can be torn down
+  // alongside the main picker and re-opened cleanly.
+  let submenu = null;
+  const closeSubmenu = () => { if (submenu) { submenu.remove(); submenu = null; } };
+  const closeAll = () => { closeSubmenu(); picker.remove(); activePicker = null; };
+
+  [['⬛  Terminal', 'terminal'], ['🔗  SSH', 'ssh'], ['🌐  Browser', 'browser'], ['📝  Code editor', 'editor']].forEach(([text, type]) => {
     const btn = document.createElement('button');
-    btn.textContent = text;
-    btn.addEventListener('click', async () => {
-      picker.remove(); activePicker = null;
-      if (type === 'editor') {
-        const dir = await promptForFolder();
-        if (!dir) return;
-        addTab(pane, 'editor', undefined, undefined, undefined, dir);
-      } else {
-        addTab(pane, type);
-      }
-      saveSessionState();
-    });
+    btn.textContent = type === 'ssh' ? text + '  ›' : text;
+    if (type === 'ssh') {
+      btn.addEventListener('click', (ev) => { ev.stopPropagation(); openSshSubmenu(btn); });
+    } else {
+      btn.addEventListener('mouseenter', closeSubmenu);
+      btn.addEventListener('click', async () => {
+        closeAll();
+        if (type === 'editor') {
+          const dir = await promptForFolder();
+          if (!dir) return;
+          addTab(pane, 'editor', undefined, undefined, undefined, dir);
+        } else {
+          addTab(pane, type);
+        }
+        saveSessionState();
+      });
+    }
     picker.appendChild(btn);
   });
+
+  // Build the SSH host submenu from ~/.ssh/config. The host list is fetched on
+  // demand; a connected host opens a terminal tab whose PTY runs `ssh <host>`.
+  async function openSshSubmenu(anchorBtn) {
+    closeSubmenu();
+    submenu = document.createElement('div');
+    submenu.className = 'tab-type-picker tab-type-submenu';
+    submenu.innerHTML = '<button disabled class="tab-type-loading">Loading hosts…</button>';
+    const rect = anchorBtn.getBoundingClientRect();
+    submenu.style.left = Math.min(rect.right + 2, window.innerWidth - 200) + 'px';
+    submenu.style.top = rect.top + 'px';
+    document.body.appendChild(submenu);
+
+    let hosts = [];
+    try {
+      const res = await fetch('/api/ssh/hosts');
+      hosts = (await res.json()).hosts || [];
+    } catch {}
+    if (!submenu) return; // torn down while loading
+    submenu.innerHTML = '';
+    if (!hosts.length) {
+      const empty = document.createElement('button');
+      empty.disabled = true;
+      empty.className = 'tab-type-loading';
+      empty.textContent = 'No hosts in ~/.ssh/config';
+      submenu.appendChild(empty);
+      return;
+    }
+    hosts.forEach(host => {
+      const hb = document.createElement('button');
+      hb.textContent = '🔗  ' + host;
+      hb.addEventListener('click', () => {
+        closeAll();
+        addTab(pane, 'terminal', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, host);
+        saveSessionState();
+      });
+      submenu.appendChild(hb);
+    });
+  }
 
   picker.style.left = Math.min(e.clientX, window.innerWidth - 160) + 'px';
   picker.style.top = (e.clientY + 6) + 'px';
   document.body.appendChild(picker);
   activePicker = picker;
 
-  setTimeout(() => {
-    document.addEventListener('click', () => { picker.remove(); activePicker = null; }, { once: true });
-  });
+  // Dismiss on an outside click. Clicks inside either menu are ignored (so
+  // opening the SSH submenu or selecting a host doesn't tear down the picker
+  // first); the listener re-arms itself in that case.
+  function onDocClick(ev) {
+    if (picker.contains(ev.target) || (submenu && submenu.contains(ev.target))) {
+      document.addEventListener('click', onDocClick, { once: true });
+      return;
+    }
+    closeAll();
+  }
+  setTimeout(() => document.addEventListener('click', onDocClick, { once: true }));
 }
 
 // Single source of truth for available themes — drives both the settings

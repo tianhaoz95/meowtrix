@@ -203,6 +203,72 @@ const EDITOR_MAX_FILE = 2 * 1024 * 1024; // refuse to open files larger than thi
 // picker / path autocomplete. Supports MEOWTRIX_WORKSPACE environment variable.
 app.get('/api/fs/home', (req, res) => res.json({ home: process.env.MEOWTRIX_WORKSPACE || os.homedir() }));
 
+// Parse ~/.ssh/config and return the concrete host aliases the user can ssh
+// into. We follow `Include` directives (with basic glob expansion) and skip
+// wildcard/negated patterns (`*`, `?`, `!`) since those aren't connectable
+// targets on their own. Used by the new-tab "SSH" submenu (public/app.js).
+function parseSshHosts() {
+  const home = os.homedir();
+  const sshDir = path.join(home, '.ssh');
+  const seenFiles = new Set();
+  const hosts = [];
+  const seenHosts = new Set();
+
+  function expandPath(p) {
+    if (p.startsWith('~/')) p = path.join(home, p.slice(2));
+    else if (!path.isAbsolute(p)) p = path.join(sshDir, p); // Include paths are relative to ~/.ssh
+    return p;
+  }
+
+  // Minimal glob: expand a trailing `*`/`?` segment by listing its directory.
+  function resolveGlob(pattern) {
+    if (!/[*?]/.test(pattern)) return [pattern];
+    const dir = path.dirname(pattern);
+    const base = path.basename(pattern);
+    let names;
+    try { names = fs.readdirSync(dir); } catch { return []; }
+    const re = new RegExp('^' + base.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+    return names.filter(n => re.test(n)).map(n => path.join(dir, n));
+  }
+
+  function parseFile(file) {
+    const real = path.resolve(file);
+    if (seenFiles.has(real)) return; // guard against include cycles
+    seenFiles.add(real);
+    let text;
+    try { text = fs.readFileSync(real, 'utf8'); } catch { return; }
+    for (const rawLine of text.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const m = line.match(/^(\S+)\s+(.*)$/);
+      if (!m) continue;
+      const keyword = m[1].toLowerCase();
+      const value = m[2].trim();
+      if (keyword === 'include') {
+        for (const token of value.split(/\s+/)) {
+          for (const f of resolveGlob(expandPath(token))) parseFile(f);
+        }
+      } else if (keyword === 'host') {
+        // A Host line can list several patterns: `Host web web-staging`.
+        for (const pattern of value.split(/\s+/)) {
+          if (/[*?!]/.test(pattern)) continue;       // skip wildcard/negated patterns
+          if (seenHosts.has(pattern)) continue;
+          seenHosts.add(pattern);
+          hosts.push(pattern);
+        }
+      }
+    }
+  }
+
+  parseFile(path.join(sshDir, 'config'));
+  return hosts;
+}
+
+app.get('/api/ssh/hosts', (req, res) => {
+  try { res.json({ hosts: parseSshHosts() }); }
+  catch { res.json({ hosts: [] }); }
+});
+
 // List a directory: dirs first, then files, each alphabetical (case-insensitive).
 app.get('/api/fs/list', (req, res) => {
   const p = req.query.path;
@@ -1318,7 +1384,17 @@ wss.on('connection', (ws) => {
           }
         }
 
-        const proc = pty.spawn(shell, shellArgs, {
+        // An SSH tab spawns `ssh <host>` directly instead of a login shell. The
+        // host comes from the client (chosen from ~/.ssh/config in the new-tab
+        // menu); restrict it to a safe charset and reject a leading `-` so it
+        // can't be smuggled in as an ssh option flag.
+        let spawnFile = shell, spawnArgs = shellArgs;
+        if (msg.sshHost && /^[A-Za-z0-9._@:%-]+$/.test(msg.sshHost) && !msg.sshHost.startsWith('-')) {
+          spawnFile = 'ssh';
+          spawnArgs = ['-t', msg.sshHost]; // -t forces a remote PTY for interactive use
+        }
+
+        const proc = pty.spawn(spawnFile, spawnArgs, {
           name: 'xterm-256color',
           cols: msg.cols || 80,
           rows: msg.rows || 24,
