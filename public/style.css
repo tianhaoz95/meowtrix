@@ -2323,7 +2323,9 @@ html.mobile-ui {
     flex-direction: column;
     gap: 4px;
     z-index: 100;
-    min-width: 150px;
+    min-width: 170px;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
   }
   
   #toolbar-group-extra.open {
@@ -2341,14 +2343,21 @@ html.mobile-ui {
     color: var(--text) !important;
     border-radius: 8px !important;
     gap: 10px !important;
+    transform: none !important;
+    box-shadow: none !important;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease) !important;
   }
   
   #toolbar-group-extra button:hover {
     background: var(--bg5) !important;
+    transform: none !important;
+    box-shadow: none !important;
   }
   
   #toolbar-group-extra button:active {
     background: var(--bg4) !important;
+    transform: none !important;
+    box-shadow: none !important;
   }
   
   #toolbar-group-extra button .btn-text {
@@ -2370,19 +2379,45 @@ html.mobile-ui {
     border-color: rgba(248, 113, 113, 0.3) !important;
   }
 
-  .toolbar-btn-group {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    gap: 4px;
+  #toolbar-group-extra button::after {
+    display: none !important;
+    content: none !important;
   }
-  .toolbar-btn-group button {
+
+  #toolbar-group-extra .toolbar-btn-group {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: auto !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    gap: 4px !important;
+  }
+  
+  #toolbar-group-extra .toolbar-btn-group button {
     margin-left: 0 !important;
   }
-  .toolbar-btn-group:not(:last-of-type) {
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
-    margin-bottom: 2px;
+
+  #toolbar-group-extra .toolbar-btn-group:not(:last-of-type) {
+    border-bottom: 1px solid var(--border) !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 2px !important;
+  }
+
+  /* Refined bottom border: only draw borders between visible groups */
+  #toolbar-group-extra .toolbar-btn-group:has(~ .toolbar-btn-group:not([style*="display: none"])) {
+    border-bottom: 1px solid var(--border) !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 2px !important;
+  }
+  
+  #toolbar-group-extra .toolbar-btn-group:not(:has(~ .toolbar-btn-group:not([style*="display: none"]))) {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
   }
 
 
@@ -3406,13 +3441,6 @@ body[data-menu-button-mode="icon"] #toolbar button:has(.btn-icon) {
   width: 32px !important;
   gap: 0 !important;
 }
-body[data-menu-button-mode="icon"] #toolbar-group-extra.open button {
-  width: 38px !important;
-  justify-content: center !important;
-}
-body[data-menu-button-mode="icon"] #toolbar-group-extra {
-  min-width: unset !important;
-}
 
 body[data-menu-button-mode="text"] #toolbar button:has(.btn-text) .btn-icon {
   display: none !important;
@@ -3435,6 +3463,40 @@ body[data-menu-button-mode="text"] #toolbar button {
     width: auto !important;
     height: 36px !important;
   }
+}
+
+/* Ensure mobile dropdown menu has standard styling and overrides icon/text mode overrides */
+html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra {
+  min-width: 170px !important;
+}
+
+html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button {
+  width: 100% !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  transform: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--text) !important;
+}
+
+html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button:hover {
+  background: var(--bg5) !important;
+}
+
+html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button:active {
+  background: var(--bg4) !important;
+}
+
+html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button .btn-text {
+  display: inline !important;
+}
+
+html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button .btn-icon {
+  display: inline-flex !important;
 }
 
 /* ── Zoom Controls Overlay ── */

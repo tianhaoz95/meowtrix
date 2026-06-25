@@ -299,6 +299,20 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(page.locator('#btn-menu')).toBeVisible();
     await expect(page.locator('#toolbar-group-extra')).not.toBeVisible();
 
+    // Click menu button to open dropdown
+    await page.locator('#btn-menu').click();
+    const dropdown = page.locator('#toolbar-group-extra');
+    await expect(dropdown).toBeVisible();
+
+    // Verify layout: button group should not be collapsed to desktop height (32px)
+    const grpWorkspace = page.locator('#grp-workspace');
+    const box = await grpWorkspace.boundingBox();
+    expect(box.height).toBeGreaterThan(50);
+
+    // Click outside or menu button again to close
+    await page.locator('#btn-menu').click();
+    await expect(dropdown).not.toBeVisible();
+
     // Resize viewport back to wide
     await page.setViewportSize({ width: 1920, height: 1080 });
 
