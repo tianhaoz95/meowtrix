@@ -63,6 +63,9 @@ function updateWorkspaceUI() {
   if (badge) {
     badge.textContent = currentWorkspaces[activeWorkspaceIndex].name;
   }
+  if (typeof updateUiMode === 'function') {
+    updateUiMode();
+  }
 }
 
 function switchWorkspace(index) {

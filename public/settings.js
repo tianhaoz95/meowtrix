@@ -68,6 +68,9 @@ function initClockVisibility() {
       stopClock();
     }
   }
+  if (typeof updateUiMode === 'function') {
+    updateUiMode();
+  }
 }
 
 function applyMenuButtonMode(mode) {

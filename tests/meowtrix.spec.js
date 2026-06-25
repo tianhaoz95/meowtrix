@@ -286,4 +286,25 @@ test.describe('Meowtrix E2E Tests', () => {
     await page.locator('#settings-close').click();
     await expect(settingsPanel).not.toBeVisible();
   });
+
+  test('should auto-collapse toolbar buttons on narrow viewport', async ({ page }) => {
+    const htmlElement = page.locator('html');
+    await expect(htmlElement).not.toHaveClass(/mobile-ui/);
+
+    // Resize viewport to narrow width where buttons don't fit
+    await page.setViewportSize({ width: 500, height: 720 });
+
+    // Should collapse and add mobile-ui class
+    await expect(htmlElement).toHaveClass(/mobile-ui/);
+    await expect(page.locator('#btn-menu')).toBeVisible();
+    await expect(page.locator('#toolbar-group-extra')).not.toBeVisible();
+
+    // Resize viewport back to wide
+    await page.setViewportSize({ width: 1920, height: 1080 });
+
+    // Should restore desktop view
+    await expect(htmlElement).not.toHaveClass(/mobile-ui/);
+    await expect(page.locator('#btn-menu')).not.toBeVisible();
+    await expect(page.locator('#toolbar-group-extra')).toBeVisible();
+  });
 });

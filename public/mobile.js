@@ -416,9 +416,74 @@ function initMobileMenu() {
   });
 }
 
+function checkToolbarButtonsFit() {
+  const toolbar = document.getElementById('toolbar');
+  const logo = document.getElementById('logo');
+  const clock = document.getElementById('toolbar-clock');
+  const actions = document.getElementById('toolbar-actions');
+  
+  if (!toolbar || !logo || !actions) return true;
+
+  // Verify that the stylesheet has loaded and applied
+  if (window.getComputedStyle(toolbar).display !== 'flex') {
+    return true;
+  }
+
+  const htmlEl = document.documentElement;
+  const wasMobile = htmlEl.classList.contains('mobile-ui');
+
+  // Temporarily remove mobile-ui to measure desktop layout
+  if (wasMobile) {
+    htmlEl.classList.remove('mobile-ui');
+  }
+
+  // Temporarily prevent actions from shrinking and force natural layout
+  const oldFlexShrink = actions.style.flexShrink;
+  const oldWidth = actions.style.width;
+  actions.style.flexShrink = '0';
+  actions.style.width = 'max-content';
+
+  // Measure widths
+  const logoWidth = logo.getBoundingClientRect().width;
+  const clockWidth = (clock && !clock.hidden) ? clock.getBoundingClientRect().width : 0;
+  const actionsWidth = actions.getBoundingClientRect().width;
+  const toolbarWidth = toolbar.getBoundingClientRect().width;
+
+  // Restore styles
+  actions.style.flexShrink = oldFlexShrink;
+  actions.style.width = oldWidth;
+
+  if (wasMobile) {
+    htmlEl.classList.add('mobile-ui');
+  }
+
+  // Width calculation:
+  // logo + clock (if visible) + actions + horizontal padding + gaps
+  // padding in desktop: 14px * 2 = 28px
+  // gap between logo and clock (or actions) = 24px
+  // gap between clock and actions = 12px (clock margin-right is 12px)
+  // Let's add a safety margin of 20px
+  const paddingAndGaps = (clockWidth > 0) ? (28 + 24 + 12 + 20) : (28 + 24 + 20);
+  const requiredWidth = logoWidth + clockWidth + actionsWidth + paddingAndGaps;
+  return toolbarWidth >= requiredWidth;
+}
+
 function updateUiMode() {
-  const isMobile = isMobileLike();
-  document.documentElement.classList.toggle('mobile-ui', isMobile);
+  const s = (typeof getSettings === 'function') ? getSettings() : {};
+  const mode = s.uiMode || 'auto';
+  
+  let shouldCollapse = false;
+  if (mode === 'mobile') {
+    shouldCollapse = true;
+  } else if (mode === 'desktop') {
+    shouldCollapse = false;
+  } else {
+    // auto mode
+    const fits = checkToolbarButtonsFit();
+    shouldCollapse = isMobileLike() || !fits;
+  }
+
+  document.documentElement.classList.toggle('mobile-ui', shouldCollapse);
 
   // Fit active terminals if UI mode changed
   if (typeof getAllPanes === 'function') {
@@ -446,6 +511,15 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUiMode();
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
   });
+  window.addEventListener('load', () => {
+    updateUiMode();
+    if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
+  });
+  if (document.fonts) {
+    document.fonts.ready.then(() => {
+      updateUiMode();
+    });
+  }
 });
 
 function getAllTerminalTabs() {
