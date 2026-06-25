@@ -452,7 +452,6 @@ function showTabTypePicker(e, pane) {
       empty.className = 'tab-type-loading';
       empty.textContent = 'No hosts in ~/.ssh/config';
       submenu.appendChild(empty);
-      return;
     }
     hosts.forEach(host => {
       const hb = document.createElement('button');
@@ -464,6 +463,25 @@ function showTabTypePicker(e, pane) {
       });
       submenu.appendChild(hb);
     });
+
+    // Always offer an entry to add a host: opens ~/.ssh/config (creating it if
+    // needed) in a code-editor tab so the user can append a new Host block.
+    const addBtn = document.createElement('button');
+    addBtn.className = 'tab-type-add-host';
+    addBtn.textContent = '➕  Add new host…';
+    addBtn.addEventListener('click', async () => {
+      closeAll();
+      let info;
+      try {
+        const res = await fetch('/api/ssh/ensure-config', { method: 'POST' });
+        info = await res.json();
+        if (!res.ok) throw new Error(info.error);
+      } catch { return; }
+      const tab = addTab(pane, 'editor', undefined, undefined, undefined, info.dir);
+      if (tab && typeof tab.openFile === 'function') tab.openFile(info.path);
+      saveSessionState();
+    });
+    submenu.appendChild(addBtn);
   }
 
   picker.style.left = Math.min(e.clientX, window.innerWidth - 160) + 'px';

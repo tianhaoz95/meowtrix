@@ -269,6 +269,21 @@ app.get('/api/ssh/hosts', (req, res) => {
   catch { res.json({ hosts: [] }); }
 });
 
+// Ensure ~/.ssh/config exists (creating ~/.ssh with 0700 and an empty config
+// with 0600 if needed) and return its path + directory, so the new-tab "Add
+// new host…" action can open it in a code-editor tab for editing.
+app.post('/api/ssh/ensure-config', (req, res) => {
+  try {
+    const sshDir = path.join(os.homedir(), '.ssh');
+    const configPath = path.join(sshDir, 'config');
+    if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { mode: 0o700 });
+    if (!fs.existsSync(configPath)) fs.writeFileSync(configPath, '', { mode: 0o600 });
+    res.json({ path: configPath, dir: sshDir });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // List a directory: dirs first, then files, each alphabetical (case-insensitive).
 app.get('/api/fs/list', (req, res) => {
   const p = req.query.path;

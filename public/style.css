@@ -1071,6 +1071,8 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .tab-type-submenu { max-height: 60vh; overflow-y: auto; }
 .tab-type-picker button.tab-type-loading { color: var(--text3, var(--text2)); cursor: default; opacity: 0.7; }
 .tab-type-picker button.tab-type-loading:hover { background: transparent; color: var(--text3, var(--text2)); box-shadow: none; }
+/* "Add new host…" sits below the host list, set off by a divider. */
+.tab-type-picker button.tab-type-add-host { margin-top: 4px; border-top: 1px solid var(--border3); border-radius: 0 0 8px 8px; }
 
 .tab-icon { font-size: 10px; }
 

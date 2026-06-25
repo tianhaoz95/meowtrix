@@ -2197,6 +2197,10 @@ function initEditorTab(tab, viewEl, dir) {
   const ro = new ResizeObserver(relayout);
   ro.observe(viewEl);
 
+  // Let external callers (e.g. the new-tab "Add new SSH host" action) open a
+  // specific file in this editor once it's been created.
+  tab.openFile = openFile;
+
   tab.updateTheme = () => {
     if (editor) editor.updateOptions({ theme: monacoTheme() });
     if (diffEditor) diffEditor.updateOptions({ theme: monacoTheme() });
