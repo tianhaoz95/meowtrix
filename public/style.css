@@ -3567,6 +3567,8 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
   background: var(--bg4);
   color: var(--text);
 }
+/* The zoom overlay is hover-driven and pointless on touch — hide it on mobile. */
+.mobile-ui .zoom-controls { display: none; }
 
 /* Drag and Drop File Move in Editor Sidebar */
 .editor-sidebar.is-dragging .editor-tree-row * {

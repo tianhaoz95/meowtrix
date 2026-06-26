@@ -301,15 +301,30 @@ function initMobileKeyBar() {
     }
   };
 
+  // The soft keyboard is up when the visual viewport is meaningfully shorter
+  // than the layout viewport (the keyboard eats the bottom of the screen).
+  const keyboardOpen = () => {
+    const vv = window.visualViewport;
+    if (!vv) return false;
+    return (window.innerHeight - vv.height) > 120;
+  };
+
+  // Once the keyboard has been seen open, a later resize that reports it closed
+  // means it was dismissed — even without a focusout (Android back/down gesture,
+  // iOS dismiss often keep the textarea focused). Used to drop the bar back out.
+  let kbWasOpen = false;
+
   let hideTimer;
   const show = () => {
     if (!isMobileLike()) return;
     clearTimeout(hideTimer);
+    kbWasOpen = false;
     bar.hidden = false;
     position();
   };
   const hide = () => {
     bar.hidden = true;
+    kbWasOpen = false;
     clearStickyMods();
     const appEl = document.getElementById('app');
     if (appEl) {
@@ -338,7 +353,20 @@ function initMobileKeyBar() {
     if (e.target.classList?.contains('xterm-helper-textarea')) hideTimer = setTimeout(hide, 150);
   });
 
-  window.visualViewport?.addEventListener('resize', () => { if (!bar.hidden) position(); });
+  const onViewportChange = () => {
+    if (bar.hidden) return;
+    if (keyboardOpen()) {
+      kbWasOpen = true;
+      position();
+    } else if (kbWasOpen) {
+      // Keyboard was dismissed without a focusout — drop the bar back to the bottom.
+      hide();
+    } else {
+      // Keyboard still animating up: keep the bar pinned to the viewport bottom.
+      position();
+    }
+  };
+  window.visualViewport?.addEventListener('resize', onViewportChange);
   window.visualViewport?.addEventListener('scroll', () => { if (!bar.hidden) position(); });
 
   // Prevent background rubber-band scrolling on touch gestures when keyboard is active
