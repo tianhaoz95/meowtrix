@@ -756,8 +756,10 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 
 
 /* ── Toolbar Button Groups (Capsule Styling) ── */
-/* Group headers only appear inside the mobile dropdown (see media query) */
-.group-header { display: none; }
+/* Group headers only appear inside the mobile dropdown (see html.mobile-ui).
+   Specificity must beat `#toolbar button` so they stay hidden on desktop and
+   don't inflate the toolbar-fit measurement that drives mobile detection. */
+#toolbar .group-header { display: none; }
 
 .toolbar-btn-group {
   display: inline-flex;
