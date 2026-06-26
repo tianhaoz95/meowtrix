@@ -3351,9 +3351,9 @@ body.resizing-console iframe {
   position: absolute;
   top: 8px;
   bottom: 8px;
-  right: 6px;
-  width: 12px;
-  border-radius: 8px;
+  right: 8px;
+  width: 18px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(8px) saturate(180%);
   -webkit-backdrop-filter: blur(8px) saturate(180%);
@@ -3376,7 +3376,7 @@ body.resizing-console iframe {
 
 .mobile-scrollbar-track:hover,
 .mobile-scrollbar-track.active {
-  width: 16px;
+  width: 22px;
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.12);
 }
@@ -3385,14 +3385,14 @@ body.resizing-console iframe {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  width: 8px;
-  min-height: 30px;
+  width: 10px;
+  min-height: 48px;
   border-radius: 6px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     0 0 6px var(--accent2);
@@ -3401,9 +3401,20 @@ body.resizing-console iframe {
   transition: width 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 
+/* Invisible, finger-sized hit area so the slim glass thumb is easy to grab and
+   drag on touch screens (the visual stays subtle; the tappable zone is ~44px). */
+.mobile-scrollbar-thumb::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: -18px;
+  right: -18px;
+}
+
 .mobile-scrollbar-track:hover .mobile-scrollbar-thumb,
 .mobile-scrollbar-track.active .mobile-scrollbar-thumb {
-  width: 12px;
+  width: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.12));
   border-color: rgba(255, 255, 255, 0.32);
   box-shadow: 
