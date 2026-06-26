@@ -64,9 +64,29 @@ fi
 
 echo "✅ Using port: $PORT"
 
+# Best-effort detection of the host's LAN IP so other devices can connect
+LAN_IP=""
+if command -v node &>/dev/null; then
+  LAN_IP=$(node -e '
+    const os = require("os");
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        if (net.family === "IPv4" && !net.internal) { console.log(net.address); process.exit(0); }
+      }
+    }
+  ' 2>/dev/null)
+fi
+if [ -z "$LAN_IP" ] && command -v ipconfig &>/dev/null; then
+  LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+fi
+
 URL="http://localhost:${PORT}"
 echo "🐾 Starting Meowtrix container..."
 echo "   URL:           $URL"
+if [ -n "$LAN_IP" ]; then
+  echo "   LAN URL:       http://${LAN_IP}:${PORT}   (open this on other devices)"
+fi
 echo "   Workspace:     $WORKSPACE_DIR"
 echo "   Settings Vol:  meowtrix-dev-settings"
 echo "   Ctrl-C to stop."
@@ -89,6 +109,9 @@ fi
 # -v mounts named volume for settings persistence
 # -e MEOWTRIX_WORKSPACE configures server.js to use that path for home/cwd
 # -e HOTRELOAD=1 enables hot reload in server.js
+# -e HOST=0.0.0.0 makes the in-container server bind to all interfaces so the
+#   published port (and thus other devices on the LAN) can actually reach it;
+#   binding to the container's loopback would be unreachable through -p.
 exec docker run --rm $DOCKER_FLAGS \
   -p "$PORT:9123" \
   -v "$APP_DIR:/app" \
@@ -97,6 +120,7 @@ exec docker run --rm $DOCKER_FLAGS \
   -v "meowtrix-dev-settings:/root/.meowtrix" \
   -e MEOWTRIX_WORKSPACE=/workspace \
   -e HOTRELOAD=1 \
+  -e HOST=0.0.0.0 \
   meowtrix-dev \
   bash start.sh
 
