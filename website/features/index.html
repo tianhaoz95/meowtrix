@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Features — Meowtrix</title>
+  <meta name="description" content="See every major Meowtrix feature in motion: tiling panes, persistent terminals, an embedded browser, the Monaco code editor, the command palette, scheduled Enter, and ten themes.">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cascadia+Code&display=swap">
+  <link rel="stylesheet" href="../assets/site.css">
+  <script>
+    /* Resolve the theme (mode may be system/light/dark; default system) before first paint to avoid a flash. */
+    (function(){try{var m=localStorage.getItem('meowtrix-theme');var t=(m==='light'||m==='dark')?m:((window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+  </script>
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-logo" href="../">
+      <span class="logo-icon">
+        <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="var(--logo-grad-start)" />
+              <stop offset="50%" stop-color="var(--logo-grad-mid)" />
+              <stop offset="100%" stop-color="var(--logo-grad-end)" />
+            </linearGradient>
+          </defs>
+          <path d="M12 14c-2.3 0-4.2 1.6-4.5 3.8-.2 1.5.8 2.8 2.3 3.1.7.1 1.4.1 2.2.1s1.5 0 2.2-.1c1.5-.3 2.5-1.6 2.3-3.1-.3-2.2-2.2-3.8-4.5-3.8z" fill="url(#logo-grad)"/>
+          <ellipse cx="6" cy="13.5" rx="1.6" ry="2.2" transform="rotate(-20 6 13.5)" fill="url(#logo-grad)"/>
+          <ellipse cx="9.5" cy="9.5" rx="1.8" ry="2.5" transform="rotate(-8 9.5 9.5)" fill="url(#logo-grad)"/>
+          <ellipse cx="14.5" cy="9.5" rx="1.8" ry="2.5" transform="rotate(8 14.5 9.5)" fill="url(#logo-grad)"/>
+          <ellipse cx="18" cy="13.5" rx="1.6" ry="2.2" transform="rotate(20 18 13.5)" fill="url(#logo-grad)"/>
+        </svg>
+      </span>
+      <span class="logo-text">Meow<span class="logo-trix">trix</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="../">Home</a>
+      <a href="../docs/">Docs</a>
+      <a href="../dev/">Developers</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+      <a class="cta" href="../demo/?demo" target="_blank" rel="noopener">Live demo →</a>
+      <button class="theme-toggle" id="theme-toggle" type="button" data-mode="system" aria-label="Toggle theme" title="Toggle theme"><span class="ico ico-system">🌗</span><span class="ico ico-light">☀️</span><span class="ico ico-moon">🌙</span></button>
+    </div>
+  </nav>
+
+  <header class="hero" style="padding-bottom:8px">
+    <span class="hero-badge"><span class="dot"></span> Every major feature, captured live</span>
+    <h1>Meowtrix,<br><span class="grad">in motion.</span></h1>
+    <p class="sub">
+      The same workspace that powers the screenshots on the home page — here each
+      capability gets a short screen recording so you can watch it work before you
+      install anything.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="../demo/?demo" target="_blank" rel="noopener">▶ Try the live demo</a>
+      <a class="btn btn-ghost" href="../docs/">Read the docs</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" style="padding-top:24px">
+      <div class="showcase">
+
+        <!-- Tiling panes -->
+        <div class="feat-row show-row">
+          <div class="show-text">
+            <div class="eyebrow">Tiling layout</div>
+            <h2>Split into as many panes as you need.</h2>
+            <p>Split vertically or horizontally, then drag the dividers to resize. Splits are flat and proportional, so the layout survives window and screen-size changes.</p>
+            <ul>
+              <li>Side-by-side or stacked — split with <code>⌘\</code> / <code>⌘-</code></li>
+              <li>Drag dividers for live, resize-proof proportions</li>
+              <li>Every pane holds tabs of any type</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/tiling-panes.gif" alt="Splitting a Meowtrix workspace into multiple panes and resizing the dividers">
+          </div>
+        </div>
+
+        <!-- Persistent terminal -->
+        <div class="feat-row show-row reverse">
+          <div class="show-text">
+            <div class="eyebrow">Persistent terminals</div>
+            <h2>Real PTY-backed shells that outlive the tab.</h2>
+            <p>Each terminal is a genuine PTY on the host. Shells keep running when you refresh, switch devices, or hit a network blip — the server replays the buffer and reattaches the live stream.</p>
+            <ul>
+              <li>xterm.js terminals with full color and TUI support</li>
+              <li>Output buffer replays on reconnect — refreshes are non-destructive</li>
+              <li>Broadcast input to every visible terminal at once</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/terminal.gif" alt="Typing and running commands in a persistent Meowtrix terminal">
+          </div>
+        </div>
+
+        <!-- Embedded browser -->
+        <div class="feat-row show-row">
+          <div class="show-text">
+            <div class="eyebrow">Embedded browser</div>
+            <h2>A real browser, right in a pane.</h2>
+            <p>Open a browser tab next to your terminal. A server-side proxy strips frame-blocking headers and rewrites URLs, so pages that normally refuse to embed render anyway.</p>
+            <ul>
+              <li>Preview your dev server beside the shell building it</li>
+              <li>Address bar, back/forward, reload, and open-in-window</li>
+              <li>Proxy routes requests so otherwise un-embeddable sites load</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/embedded-browser.gif" alt="Opening an embedded browser pane and navigating to a website">
+          </div>
+        </div>
+
+        <!-- Code editor -->
+        <div class="feat-row show-row reverse">
+          <div class="show-text">
+            <div class="eyebrow">Code editor &amp; Git</div>
+            <h2>Monaco, a file tree, and Source Control.</h2>
+            <p>Open any folder on the host as a code-editor tab: the VS Code editor with a file-tree sidebar and per-file tabs. Git repos gain a Source Control view backed by real <code>git</code> commands.</p>
+            <ul>
+              <li>Lazy-loaded Monaco with syntax highlighting and IntelliSense</li>
+              <li>Read/write files directly over a thin file API (<code>⌘S</code> to save)</li>
+              <li>Stage, diff, commit, push and pull from the sidebar</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/code-editor.gif" alt="Opening a folder in the Monaco code editor and browsing files">
+          </div>
+        </div>
+
+        <!-- Command palette -->
+        <div class="feat-row show-row">
+          <div class="show-text">
+            <div class="eyebrow">Command palette</div>
+            <h2>Everything, one fuzzy search away.</h2>
+            <p>Press <code>⌘K</code> (or <code>Ctrl/⌘+Shift+P</code>) for a fuzzy launcher. Split panes, open tabs, switch panes, toggle broadcast, change themes, open settings, schedule an Enter, or trigger an update — all without leaving the keyboard.</p>
+            <ul>
+              <li>Rebuilt on every open so commands reflect the current state</li>
+              <li>Shares the exact actions the toolbar buttons call</li>
+              <li>Shortcut avoids terminal readline bindings on purpose</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/command-palette.gif" alt="Opening the command palette and running a command by fuzzy search">
+          </div>
+        </div>
+
+        <!-- Scheduled Enter -->
+        <div class="feat-row show-row reverse">
+          <div class="show-text">
+            <div class="eyebrow">Scheduled Enter</div>
+            <h2>Queue an Enter for later.</h2>
+            <p>For agents gated behind a rolling usage quota: type the next command, then schedule an <code>Enter</code> to fire after a delay or at a clock time. The timer lives server-side, so it survives refreshes, reconnects, and device handoffs.</p>
+            <ul>
+              <li>Relative delay or absolute clock time</li>
+              <li>The terminal locks behind a blurred overlay until it fires</li>
+              <li>Server-side timer — close the tab and it still fires</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/scheduled-enter.gif" alt="Scheduling an Enter key press to fire into a terminal later">
+          </div>
+        </div>
+
+        <!-- Themes -->
+        <div class="feat-row show-row">
+          <div class="show-text">
+            <div class="eyebrow">Theming</div>
+            <h2>Ten themes, terminals included.</h2>
+            <p>Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Synthwave and more. Everything — including the xterm.js terminals — is driven from the same CSS variables, so a theme switch recolors the entire workspace at once.</p>
+            <ul>
+              <li>Light, dark, and system-following modes</li>
+              <li>Terminals re-theme from the shared palette for free</li>
+              <li>Switch instantly from settings or the command palette</li>
+            </ul>
+          </div>
+          <div class="feat-media">
+            <img loading="lazy" src="../assets/features/themes.gif" alt="Cycling through several Meowtrix color themes">
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="section-head">
+        <h2>And a few more</h2>
+        <p>The smaller touches that make it pleasant to live in.</p>
+      </div>
+      <div class="features">
+        <div class="feature"><div class="ico">📱</div><h3>Mobile-ready</h3><p>An on-screen key bar with sticky Ctrl/Alt/Cmd modifiers, double-tap autocomplete, and a layout that reflows for touch.</p></div>
+        <div class="feature"><div class="ico">🔒</div><h3>Single active session</h3><p>Server-coordinated handoff across devices: the newest client claims the workspace; others see a "move session here" overlay.</p></div>
+        <div class="feature"><div class="ico">🔄</div><h3>Self-updates</h3><p>Get notified via an in-app banner, then trigger a git-based pull and server restart directly from the workspace.</p></div>
+        <div class="feature"><div class="ico">🛡️</div><h3>Localhost by default</h3><p>Binds to 127.0.0.1 so it's off the network until you opt in with <code>--network</code>. Tunnel in over SSH for safe remote access.</p></div>
+        <div class="feature"><div class="ico">🐾</div><h3>On-device Chat Pet</h3><p>A customizable desktop pet companion (Mochi) powered locally by Chrome's built-in Gemini Nano model.</p></div>
+        <div class="feature"><div class="ico">🔥</div><h3>Keystroke Combo FX</h3><p>Reward typing streaks with interactive visuals: particle bursts, screen shake, edge glow, and heat readouts.</p></div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="section-head">
+        <h2>Ready to try it?</h2>
+        <p>Run the live demo in your browser, or install it on your own machine.</p>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="../demo/?demo" target="_blank" rel="noopener">▶ Try the live demo</a>
+        <a class="btn btn-ghost" href="../docs/#install">Install Meowtrix</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="../">Home</a>
+      <a href="../docs/">Documentation</a>
+      <a href="../dev/">Developer Docs</a>
+      <a href="../demo/?demo" target="_blank" rel="noopener">Live Demo</a>
+      <a href="https://github.com/tianhaoz95/meowtrix" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <p>🐾 Meowtrix — a browser-based remote vibe engineering tool.</p>
+  </footer>
+  <script src="../assets/theme.js"></script>
+</body>
+</html>

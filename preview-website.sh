@@ -17,8 +17,14 @@ done
 if [ "$CAPTURE" -eq 1 ]; then
   echo "🐾 Capturing fresh workspace screenshots using E2E Playwright test..."
   npm run screenshots
+  echo "🐾 Capturing fresh feature GIFs (screen recordings → GIF via ffmpeg)..."
+  if ! command -v ffmpeg &>/dev/null; then
+    echo "⚠️  ffmpeg not found — skipping feature GIF capture. Install ffmpeg to recapture the Features page recordings."
+  else
+    npm run gifs
+  fi
 else
-  echo "🐾 Skipping screenshot capture (pass --capture to recapture)."
+  echo "🐾 Skipping screenshot/GIF capture (pass --capture to recapture)."
 fi
 
 echo "🐾 Starting local web server to serve the website..."

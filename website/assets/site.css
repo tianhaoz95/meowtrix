@@ -512,6 +512,20 @@ html[data-theme="light"] .theme-dark { display: none; }
 .show-text li::before { content: '✓'; color: var(--green); font-weight: 800; flex-shrink: 0; }
 .show-text li code { background: var(--bg4); border: 1px solid var(--border2); padding: 1px 6px; border-radius: 6px; font-size: 12.5px; color: var(--accent-hi); }
 
+/* Features page: framed feature recording (GIF) beside each description.
+   .feat-row rows also carry .show-row, so the alternating layout + responsive
+   collapse are inherited; only the media frame needs its own styling. */
+.feat-media {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border3);
+  background: var(--bg3);
+  box-shadow: 0 24px 70px var(--shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.feat-media:hover { transform: translateY(-4px); box-shadow: 0 30px 90px var(--shadow); }
+.feat-media img { display: block; width: 100%; height: auto; }
+
 /* Generic mock window chrome (reused by the visualizations) */
 .win { border-radius: 14px; overflow: hidden; border: 1px solid var(--border3); background: var(--bg2); box-shadow: 0 24px 70px var(--shadow); }
 .win-bar { display: flex; align-items: center; gap: 8px; padding: 10px 13px; background: var(--bg3); border-bottom: 1px solid var(--border2); }
