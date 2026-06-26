@@ -60,6 +60,12 @@
       <a class="btn btn-ghost" href="docs/">Read the docs</a>
     </div>
 
+    <div class="hero-showcase" data-view="desktop">
+    <div class="view-toggle" role="tablist" aria-label="Preview device">
+      <button class="view-toggle-btn active" type="button" data-view="desktop" role="tab" aria-selected="true"><span class="vt-ico">🖥️</span> Desktop</button>
+      <button class="view-toggle-btn" type="button" data-view="mobile" role="tab" aria-selected="false"><span class="vt-ico">📱</span> Mobile</button>
+    </div>
+
     <div class="browser-mockup" aria-label="Meowtrix remote workspace running inside a web browser tab">
       <div class="browser-header">
         <div class="window-controls">
@@ -100,6 +106,36 @@
         <img class="app-screenshot theme-dark" src="assets/screenshot-dark.png" alt="Meowtrix remote workspace in dark theme">
         <img class="app-screenshot theme-light" src="assets/screenshot-light.png" alt="Meowtrix remote workspace in light theme">
       </div>
+    </div>
+
+    <div class="phone-frame" aria-label="Meowtrix workspace running in a mobile browser on a phone">
+      <div class="phone-screen">
+        <div class="mob-statusbar">
+          <span class="mob-time">9:41</span>
+          <span class="mob-status-icons">
+            <span class="mob-signal"><i></i><i></i><i></i><i></i></span>
+            <span class="mob-5g">5G</span>
+            <span class="mob-battery"></span>
+          </span>
+        </div>
+        <div class="mob-urlbar">
+          <span class="mob-lock">🔒</span>
+          <span class="mob-url">meowtrix.your-server.local:9123</span>
+          <span class="mob-reload">↻</span>
+        </div>
+        <div class="mob-viewport">
+          <img class="app-screenshot theme-dark" src="assets/screenshot-mobile-dark.png" alt="Meowtrix mobile workspace in dark theme">
+          <img class="app-screenshot theme-light" src="assets/screenshot-mobile-light.png" alt="Meowtrix mobile workspace in light theme">
+        </div>
+        <div class="mob-tabbar">
+          <span class="mob-nav-btn">‹</span>
+          <span class="mob-nav-btn">›</span>
+          <span class="mob-nav-btn">⤴</span>
+          <span class="mob-nav-btn mob-tabs-btn"></span>
+          <span class="mob-nav-btn">⋯</span>
+        </div>
+      </div>
+    </div>
     </div>
   </header>
 
@@ -271,6 +307,7 @@
     <p>🐾 Meowtrix — a browser-based remote vibe engineering tool.</p>
   </footer>
   <script src="assets/theme.js"></script>
+  <script src="assets/view-toggle.js"></script>
   <script src="assets/lightbox.js"></script>
 </body>
 </html>

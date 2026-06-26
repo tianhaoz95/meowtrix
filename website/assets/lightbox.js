@@ -4,8 +4,10 @@
    shown image follows the active theme (the visible .app-screenshot). */
 (function () {
   function init() {
-    var wrap = document.querySelector('.screenshot-wrapper');
-    if (!wrap) return;
+    // Both the desktop browser mockup and the phone frame hold a screenshot the
+    // user can click to enlarge; only one is visible at a time (device toggle).
+    var wraps = document.querySelectorAll('.screenshot-wrapper, .mob-viewport');
+    if (!wraps.length) return;
 
     var overlay = document.createElement('div');
     overlay.className = 'lightbox';
@@ -24,7 +26,7 @@
     overlay.appendChild(close);
     document.body.appendChild(overlay);
 
-    function visibleShot() {
+    function visibleShot(wrap) {
       var shots = wrap.querySelectorAll('.app-screenshot');
       for (var i = 0; i < shots.length; i++) {
         if (shots[i].offsetParent !== null) return shots[i];
@@ -32,8 +34,8 @@
       return shots[0];
     }
 
-    function open() {
-      var shot = visibleShot();
+    function open(wrap) {
+      var shot = visibleShot(wrap);
       if (!shot) return;
       img.src = shot.currentSrc || shot.src;
       img.alt = shot.alt || 'Enlarged screenshot';
@@ -46,7 +48,9 @@
       document.body.style.overflow = '';
     }
 
-    wrap.addEventListener('click', open);
+    wraps.forEach(function (wrap) {
+      wrap.addEventListener('click', function () { open(wrap); });
+    });
     overlay.addEventListener('click', hide);
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && overlay.classList.contains('open')) hide();

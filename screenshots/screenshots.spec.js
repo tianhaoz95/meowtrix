@@ -201,5 +201,36 @@ test.describe('Generate Showcase Screenshots', () => {
     const screenshotLightPath = path.resolve(__dirname, '../website/assets/screenshot-light.png');
     await page.screenshot({ path: screenshotLightPath });
     console.log(`Saved light theme screenshot to ${screenshotLightPath}`);
+
+    // 8. Mobile screenshots. Maximize the terminal pane and drop to a phone
+    // viewport so the capture is a single, full-bleed pane in the app's mobile
+    // layout — far cleaner inside the landing page's phone frame than the 3-pane
+    // desktop split squeezed onto a narrow screen. The terminal already shows
+    // `git status` output from step 4, which reads well on a phone.
+    await pane1.click(); // focus the top-right terminal pane
+    await page.evaluate(() => { if (typeof activePane !== 'undefined' && activePane) toggleMaximizePane(activePane); });
+    // A phone viewport (~iPhone 12/13/14 logical size). Width <= 640 trips the
+    // app's mobile detection, which toggles `mobile-ui` and reflows for touch.
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Let the mobile reflow run and the terminal refit/reflow to the new width.
+    await page.waitForTimeout(2000);
+
+    // Currently on Light theme — capture mobile light first.
+    const screenshotMobileLightPath = path.resolve(__dirname, '../website/assets/screenshot-mobile-light.png');
+    await page.screenshot({ path: screenshotMobileLightPath });
+    console.log(`Saved mobile light theme screenshot to ${screenshotMobileLightPath}`);
+
+    // Switch to Dark theme and capture mobile dark.
+    await page.evaluate(() => openSettings());
+    await expect(settingsPanel).toBeVisible();
+    await themeSelect.selectOption('dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.locator('#settings-close').click();
+    await expect(settingsPanel).not.toBeVisible();
+    await page.waitForTimeout(2000);
+
+    const screenshotMobileDarkPath = path.resolve(__dirname, '../website/assets/screenshot-mobile-dark.png');
+    await page.screenshot({ path: screenshotMobileDarkPath });
+    console.log(`Saved mobile dark theme screenshot to ${screenshotMobileDarkPath}`);
   });
 });
