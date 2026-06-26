@@ -2306,6 +2306,52 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* Collapsed state styling */
+#mobile-keybar.collapsed {
+  width: 46px !important;
+  height: 46px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  background: var(--glass-strong) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+
+#mobile-keybar.collapsed > .keybar-btn:not(.keybar-toggle-collapse) {
+  display: none !important;
+}
+
+#mobile-keybar.collapsed > .keybar-toggle-collapse {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 50% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+}
+
+.keybar-toggle-collapse {
+  background: var(--bg4);
+  color: var(--text2);
+  border-color: var(--border);
+  font-size: 14px;
+}
+.keybar-toggle-collapse:active {
+  background: var(--bg5);
+}
+
 /* ── Touch devices (no hover) ───────────────────────────────────────────────
    Hover-revealed affordances must be permanently visible, and hit targets
    need to be finger-sized. Keyed off pointer capability, not screen width, so

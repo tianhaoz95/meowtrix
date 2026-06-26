@@ -283,6 +283,8 @@ function populateControls(s) {
   document.getElementById('s-https-proxy').value = s.httpsProxy || '';
   document.getElementById('s-combo-fx').checked = s.comboFx !== false;
   document.getElementById('s-mobile-scrollbar').checked = s.mobileScrollbar !== false;
+  document.getElementById('s-mobile-keyboard-autocomplete').checked = s.mobileKeyboardAutocomplete === true;
+  if (typeof syncMobileAutocompleteVisibility === 'function') syncMobileAutocompleteVisibility();
   document.getElementById('s-show-time').checked = s.showTimeInMenu !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
   document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
@@ -564,6 +566,11 @@ function wireControls() {
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
   });
 
+  document.getElementById('s-mobile-keyboard-autocomplete').addEventListener('change', async (e) => {
+    await saveSetting('mobileKeyboardAutocomplete', e.target.checked);
+    if (typeof refreshAllMobileAutocompletes === 'function') refreshAllMobileAutocompletes();
+  });
+
   document.getElementById('s-show-time').addEventListener('change', async (e) => {
     await saveSetting('showTimeInMenu', e.target.checked);
     initClockVisibility();
@@ -720,6 +727,9 @@ function onSettingChanged(key) {
   }
   if (key === 'mobileScrollbar') {
     if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
+  }
+  if (key === 'mobileKeyboardAutocomplete') {
+    if (typeof refreshAllMobileAutocompletes === 'function') refreshAllMobileAutocompletes();
   }
   if (key === 'mobileKeys') {
     if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();

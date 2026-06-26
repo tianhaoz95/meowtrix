@@ -636,6 +636,10 @@ function initTerminalTab(tab, existingPtyId) {
     helperTextarea.addEventListener('blur', restoreReadonly);
     tab.viewEl.addEventListener('pointerdown', removeReadonly, true);
     tab.viewEl.addEventListener('touchstart', removeReadonly, true);
+
+    if (typeof refreshMobileAutocomplete === 'function') {
+      refreshMobileAutocomplete(tab);
+    }
   }
 
   tab.term = term;

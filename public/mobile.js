@@ -8,6 +8,8 @@
 
 const stickyMods = { ctrl: false, alt: false, meta: false };
 const modButtons = {};
+let mobileKeyBarCollapsed = localStorage.getItem('mobileKeyBarCollapsed') === 'true';
+let mobileKeyBarPositionFn = null;
 
 function isMobileLike() {
   const s = (typeof getSettings === 'function') ? getSettings() : {};
@@ -220,6 +222,7 @@ function rebuildMobileKeyBar() {
   const bar = document.getElementById('mobile-keybar');
   if (!bar) return;
   bar.innerHTML = '';
+  bar.classList.toggle('collapsed', mobileKeyBarCollapsed);
 
   for (const k in modButtons) {
     delete modButtons[k];
@@ -253,6 +256,34 @@ function rebuildMobileKeyBar() {
     bar.appendChild(btn);
   }
 
+  // Append a collapse/expand toggle button
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'keybar-btn keybar-toggle-collapse';
+  toggleBtn.textContent = mobileKeyBarCollapsed ? '⌨️' : '▼';
+  toggleBtn.title = mobileKeyBarCollapsed ? 'Expand key bar' : 'Collapse key bar';
+  toggleBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    mobileKeyBarCollapsed = !mobileKeyBarCollapsed;
+    localStorage.setItem('mobileKeyBarCollapsed', mobileKeyBarCollapsed);
+    bar.classList.toggle('collapsed', mobileKeyBarCollapsed);
+    toggleBtn.textContent = mobileKeyBarCollapsed ? '⌨️' : '▼';
+    toggleBtn.title = mobileKeyBarCollapsed ? 'Expand key bar' : 'Collapse key bar';
+
+    if (mobileKeyBarPositionFn) {
+      mobileKeyBarPositionFn();
+    }
+
+    if (activePane?.activeTab?.fitAddon) {
+      try {
+        activePane.activeTab.fitAddon.fit();
+        if (typeof refreshMobileScrollbar === 'function') {
+          refreshMobileScrollbar(activePane.activeTab);
+        }
+      } catch (err) {}
+    }
+  });
+  bar.appendChild(toggleBtn);
+
   refreshModButtons();
 }
 
@@ -270,21 +301,40 @@ function initMobileKeyBar() {
     const appEl = document.getElementById('app');
     if (appEl) {
       if (!bar.hidden) {
-        // Map #app to cover the visual viewport completely
-        appEl.style.position = 'absolute';
-        appEl.style.top = `${vv.offsetTop}px`;
-        appEl.style.left = `${vv.offsetLeft}px`;
-        appEl.style.width = `${vv.width}px`;
-        appEl.style.height = `${vv.height}px`;
-        appEl.style.paddingBottom = `${bar.offsetHeight}px`;
+        if (mobileKeyBarCollapsed) {
+          // Map #app to cover the visual viewport completely, but without bottom padding
+          appEl.style.position = 'absolute';
+          appEl.style.top = `${vv.offsetTop}px`;
+          appEl.style.left = `${vv.offsetLeft}px`;
+          appEl.style.width = `${vv.width}px`;
+          appEl.style.height = `${vv.height}px`;
+          appEl.style.paddingBottom = '0px';
 
-        // Position keybar at the bottom of the visual viewport
-        bar.style.position = 'absolute';
-        bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
-        bar.style.top = `${vv.offsetTop + vv.height - bar.offsetHeight}px`;
-        bar.style.left = `${vv.offsetLeft}px`;
-        bar.style.width = `${vv.width}px`;
-        bar.style.transform = '';
+          // Position keybar at the bottom right of the visual viewport
+          bar.style.position = 'absolute';
+          bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
+          const size = 46; // circular button height/width
+          bar.style.top = `${vv.offsetTop + vv.height - size - 12}px`;
+          bar.style.left = `${vv.offsetLeft + vv.width - size - 12}px`;
+          bar.style.width = `${size}px`;
+          bar.style.transform = '';
+        } else {
+          // Map #app to cover the visual viewport completely
+          appEl.style.position = 'absolute';
+          appEl.style.top = `${vv.offsetTop}px`;
+          appEl.style.left = `${vv.offsetLeft}px`;
+          appEl.style.width = `${vv.width}px`;
+          appEl.style.height = `${vv.height}px`;
+          appEl.style.paddingBottom = `${bar.offsetHeight}px`;
+
+          // Position keybar at the bottom of the visual viewport
+          bar.style.position = 'absolute';
+          bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
+          bar.style.top = `${vv.offsetTop + vv.height - bar.offsetHeight}px`;
+          bar.style.left = `${vv.offsetLeft}px`;
+          bar.style.width = `${vv.width}px`;
+          bar.style.transform = '';
+        }
       } else {
         appEl.style.position = '';
         appEl.style.top = '';
@@ -328,6 +378,8 @@ function initMobileKeyBar() {
       }
     }
   };
+
+  mobileKeyBarPositionFn = position;
 
   // The soft keyboard is up when the visual viewport is meaningfully shorter
   // than the layout viewport (the keyboard eats the bottom of the screen).
@@ -709,6 +761,8 @@ function updateUiMode() {
   }
 
   if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
+  if (typeof refreshAllMobileAutocompletes === 'function') refreshAllMobileAutocompletes();
+  if (typeof syncMobileAutocompleteVisibility === 'function') syncMobileAutocompleteVisibility();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -748,6 +802,50 @@ function refreshAllMobileScrollbars() {
   getAllTerminalTabs().forEach(tab => {
     refreshMobileScrollbar(tab);
   });
+}
+
+function refreshMobileAutocomplete(tab) {
+  if (tab.type !== 'terminal' || !tab.term) return;
+
+  const helperTextarea = tab.viewEl.querySelector('.xterm-helper-textarea');
+  if (!helperTextarea) return;
+
+  const s = (typeof getSettings === 'function') ? getSettings() : {};
+  const isMobile = isMobileLike();
+
+  if (isMobile) {
+    const autocompleteEnabled = s.mobileKeyboardAutocomplete === true;
+    if (autocompleteEnabled) {
+      helperTextarea.setAttribute('autocomplete', 'on');
+      helperTextarea.setAttribute('autocorrect', 'on');
+      helperTextarea.setAttribute('autocapitalize', 'sentences');
+      helperTextarea.setAttribute('spellcheck', 'true');
+    } else {
+      helperTextarea.setAttribute('autocomplete', 'off');
+      helperTextarea.setAttribute('autocorrect', 'off');
+      helperTextarea.setAttribute('autocapitalize', 'none');
+      helperTextarea.setAttribute('spellcheck', 'false');
+    }
+  } else {
+    // Desktop default
+    helperTextarea.setAttribute('autocomplete', 'off');
+    helperTextarea.removeAttribute('autocorrect');
+    helperTextarea.removeAttribute('autocapitalize');
+    helperTextarea.removeAttribute('spellcheck');
+  }
+}
+
+function refreshAllMobileAutocompletes() {
+  getAllTerminalTabs().forEach(tab => {
+    refreshMobileAutocomplete(tab);
+  });
+}
+
+function syncMobileAutocompleteVisibility() {
+  const row = document.getElementById('settings-row-mobile-autocomplete');
+  if (row) {
+    row.style.display = isMobileLike() ? 'flex' : 'none';
+  }
 }
 
 function refreshMobileScrollbar(tab) {

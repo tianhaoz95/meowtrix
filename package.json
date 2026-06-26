@@ -1,6 +1,6 @@
 {
   "name": "meowtrix",
-  "version": "1.14.10",
+  "version": "1.15.1",
   "description": "Meowtrix — remote vibe engineering tool with split panes, terminals, and browser",
   "main": "server.js",
   "scripts": {

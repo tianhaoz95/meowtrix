@@ -1,10 +1,10 @@
 const { test, expect } = require('@playwright/test');
 
 test.describe('Meowtrix E2E Tests', () => {
-  test.beforeAll(async ({ request }) => {
-    // Reset settings to default before any tests run
+  test.beforeEach(async ({ page, request }) => {
+    // Reset settings to default before each test run
     await request.post('/api/settings/reset');
-    // Reset layout state to a clean slate before any tests run
+    // Reset layout state to a clean slate before each test run
     await request.post('/api/session', {
       data: {
         workspaces: [
@@ -16,9 +16,6 @@ test.describe('Meowtrix E2E Tests', () => {
         activeWorkspaceIndex: 0
       }
     });
-  });
-
-  test.beforeEach(async ({ page }) => {
     // Inject mock for LanguageModel/Prompt API to enable chat pet in settings
     await page.addInitScript(() => {
       // Mock the browser Prompt API for Gemini Nano
@@ -204,6 +201,7 @@ test.describe('Meowtrix E2E Tests', () => {
 
     // Search and run 'New terminal tab'
     await paletteInput.fill('New terminal tab');
+    await expect(page.locator('.palette-item.active')).toContainText('New terminal tab');
     await page.keyboard.press('Enter');
 
     // Verify palette closed and tab was added
@@ -214,6 +212,7 @@ test.describe('Meowtrix E2E Tests', () => {
     await btnPalette.click();
     await expect(paletteOverlay).toBeVisible();
     await paletteInput.fill('Split pane vertically');
+    await expect(page.locator('.palette-item.active')).toContainText('Split pane vertically');
     await page.keyboard.press('Enter');
 
     // Verify layout is split into two panes
@@ -328,5 +327,42 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(htmlElement).not.toHaveClass(/mobile-ui/);
     await expect(page.locator('#btn-menu')).not.toBeVisible();
     await expect(page.locator('#toolbar-group-extra')).toBeVisible();
+  });
+
+  test('should allow collapsing and expanding the mobile utility key bar', async ({ page }) => {
+    // 1. Force mobile ui by making viewport narrow
+    await page.setViewportSize({ width: 500, height: 720 });
+
+    // 2. Open a terminal tab to ensure we can focus it and show the keybar
+    const addBtn = page.locator('.tab-add').first();
+    await addBtn.click();
+    await page.locator('.tab-type-picker button:has-text("Terminal")').click();
+    
+    // 3. Focus the terminal's hidden helper textarea to display the mobile-keybar
+    const terminalTextarea = page.locator('.xterm-helper-textarea').first();
+    await terminalTextarea.focus();
+    
+    const keybar = page.locator('#mobile-keybar');
+    await expect(keybar).toBeVisible();
+
+    // 4. Verify collapse button exists
+    const toggleBtn = page.locator('.keybar-toggle-collapse');
+    await expect(toggleBtn).toBeVisible();
+    await expect(toggleBtn).toHaveText('▼');
+
+    // 5. Click the toggle button to collapse the utility key bar
+    await toggleBtn.click();
+    await expect(keybar).toHaveClass(/collapsed/);
+    await expect(toggleBtn).toHaveText('⌨️');
+
+    // Verify other buttons are hidden
+    const escBtn = page.locator('.keybar-btn:has-text("Esc")');
+    await expect(escBtn).not.toBeVisible();
+
+    // 6. Click again to expand
+    await toggleBtn.click();
+    await expect(keybar).not.toHaveClass(/collapsed/);
+    await expect(toggleBtn).toHaveText('▼');
+    await expect(escBtn).toBeVisible();
   });
 });
