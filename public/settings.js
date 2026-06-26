@@ -213,7 +213,22 @@ function syncAboutVersion() {
   el.textContent = v ? ('Version ' + v) : 'Version —';
 }
 
+function toggleSettingsInputs(enabled) {
+  const panel = document.getElementById('settings-panel');
+  if (!panel) return;
+  const elements = panel.querySelectorAll('input, select, textarea, button');
+  elements.forEach(el => {
+    if (el.id === 'settings-close' || el.id === 'settings-reset') return;
+    if (enabled) {
+      el.removeAttribute('disabled');
+    } else {
+      el.setAttribute('disabled', 'true');
+    }
+  });
+}
+
 function openSettings() {
+  toggleSettingsInputs(true);
   document.getElementById('settings-panel').classList.add('open');
   document.getElementById('settings-overlay').classList.add('open');
   if (typeof syncSettingsUpdateStatus === 'function') syncSettingsUpdateStatus();
@@ -228,6 +243,7 @@ function closeSettings() {
   document.getElementById('settings-panel').classList.remove('open');
   document.getElementById('settings-overlay').classList.remove('open');
   clearSettingsSearch();
+  toggleSettingsInputs(false);
 }
 
 // ── Populate + wire controls ─────────────────────────────────────────────────
@@ -736,6 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const s = await loadSettings();
   populateControls(s);
   wireControls();
+  toggleSettingsInputs(false);
   // Server is source of truth for theme
   applyTheme(s.theme);
   if (typeof updateUiMode === 'function') updateUiMode();
