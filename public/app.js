@@ -68,12 +68,15 @@ function updateWorkspaceUI() {
   }
 }
 
-function switchWorkspace(index) {
+function switchWorkspace(index, opts = {}) {
   if (index < 0 || index > 3) return;
   if (index === activeWorkspaceIndex) return;
 
-  // Direction for the enter animation (slide from the side we're moving toward)
-  const goingNext = index > activeWorkspaceIndex;
+  // Direction for the enter animation (slide from the side we're moving toward).
+  // Callers that wrap around (prev/next buttons, swipe gestures) can pass an
+  // explicit direction so the slide follows travel direction rather than numeric
+  // index order — e.g. swiping from Workspace 1 back to 4 should slide as "prev".
+  const goingNext = opts.direction ? (opts.direction === 'next') : (index > activeWorkspaceIndex);
 
   // Flush any pending save for the current workspace first
   flushSessionState();
@@ -981,13 +984,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === '[' || e.key === 'ArrowLeft') {
         e.preventDefault();
         e.stopPropagation();
-        switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4);
+        switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4, { direction: 'prev' });
         return;
       }
       if (e.key === ']' || e.key === 'ArrowRight') {
         e.preventDefault();
         e.stopPropagation();
-        switchWorkspace((activeWorkspaceIndex + 1) % 4);
+        switchWorkspace((activeWorkspaceIndex + 1) % 4, { direction: 'next' });
         return;
       }
       if (['1', '2', '3', '4'].includes(e.key)) {
@@ -1069,13 +1072,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPrevWS = document.getElementById('btn-prev-workspace');
   if (btnPrevWS) {
     btnPrevWS.addEventListener('click', () => {
-      switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4);
+      switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4, { direction: 'prev' });
     });
   }
   const btnNextWS = document.getElementById('btn-next-workspace');
   if (btnNextWS) {
     btnNextWS.addEventListener('click', () => {
-      switchWorkspace((activeWorkspaceIndex + 1) % 4);
+      switchWorkspace((activeWorkspaceIndex + 1) % 4, { direction: 'next' });
     });
   }
   document.querySelectorAll('.logo-letter').forEach(el => {

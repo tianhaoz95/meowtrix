@@ -414,6 +414,100 @@ function initMobileKeyBar() {
   document.addEventListener('touchmove', preventScroll, { passive: false });
 }
 
+// ── Mobile workspace swipe ───────────────────────────────────────────────────
+// On touch devices, a horizontal swipe across the workspace cycles between the
+// four workspaces (swipe left → next, swipe right → previous), with the finger
+// dragging the current workspace and a slide-out/slide-in transition on commit.
+// We only hijack gestures that are clearly horizontal so vertical terminal
+// scrolling, tab-strip scrolling and the in-page browser keep working.
+function initWorkspaceSwipe() {
+  // Don't start a swipe on chrome/controls or independently-scrollable surfaces.
+  const EXCLUDE = '#toolbar, .pane-tabs, .browser-bar, .split-divider, ' +
+    '.mobile-scrollbar-track, #mobile-keybar, .settings-panel, .editor-sidebar, ' +
+    '.monaco-editor, input, textarea, select';
+
+  const COMMIT_PX = 60;   // horizontal distance that commits the switch
+  const DECIDE_PX = 12;   // movement before we lock the gesture axis
+  const FOLLOW = 0.45;    // how much the workspace trails the finger while dragging
+
+  let startX = 0, startY = 0, axis = null, tracking = false;
+
+  const ws = () => document.getElementById('workspace');
+
+  const reset = (animate) => {
+    const el = ws();
+    if (!el) return;
+    el.style.transition = animate ? 'transform 0.2s var(--ease), opacity 0.2s var(--ease)' : 'none';
+    el.style.transform = '';
+    el.style.opacity = '';
+    if (animate) setTimeout(() => { el.style.transition = ''; }, 220);
+    else el.style.transition = '';
+  };
+
+  document.addEventListener('touchstart', (e) => {
+    tracking = false; axis = null;
+    if (!isMobileLike() || e.touches.length !== 1) return;
+    if (e.target?.closest?.(EXCLUDE)) return;
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY;
+    tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (axis === null) {
+      if (Math.abs(dx) < DECIDE_PX && Math.abs(dy) < DECIDE_PX) return;
+      // Lock to horizontal only when clearly more horizontal than vertical.
+      axis = (Math.abs(dx) > Math.abs(dy) * 1.4) ? 'h' : 'v';
+      if (axis === 'v') { tracking = false; return; }
+    }
+
+    // Horizontal swipe: drag the workspace and suppress the default scroll/select.
+    if (e.cancelable) e.preventDefault();
+    const el = ws();
+    if (el) {
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${dx * FOLLOW}px)`;
+      el.style.opacity = String(Math.max(0.55, 1 - Math.abs(dx) / 900));
+    }
+  }, { passive: false });
+
+  const onEnd = (e) => {
+    if (!tracking) return;
+    tracking = false;
+    if (axis !== 'h') { reset(false); return; }
+
+    const t = (e.changedTouches && e.changedTouches[0]) || null;
+    const dx = t ? t.clientX - startX : 0;
+
+    if (Math.abs(dx) < COMMIT_PX) { reset(true); return; }
+
+    // Commit: slide the current workspace fully off in the swipe direction, then
+    // switch (switchWorkspace rebuilds the layout and plays the enter slide).
+    const dir = dx < 0 ? 'next' : 'prev';
+    const target = (typeof activeWorkspaceIndex === 'number')
+      ? (activeWorkspaceIndex + (dir === 'next' ? 1 : -1) + 4) % 4
+      : 0;
+    const el = ws();
+    if (el) {
+      el.style.transition = 'transform 0.16s var(--ease), opacity 0.16s var(--ease)';
+      el.style.transform = `translateX(${dir === 'next' ? '-100%' : '100%'})`;
+      el.style.opacity = '0';
+    }
+    setTimeout(() => {
+      if (el) { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }
+      if (typeof switchWorkspace === 'function') switchWorkspace(target, { direction: dir });
+    }, 160);
+  };
+
+  document.addEventListener('touchend', onEnd, { passive: true });
+  document.addEventListener('touchcancel', () => { if (tracking) { tracking = false; reset(false); } }, { passive: true });
+}
+
 function initMobileMenu() {
   const menuBtn = document.getElementById('btn-menu');
   const groupExtra = document.getElementById('toolbar-group-extra');
@@ -565,6 +659,7 @@ function updateUiMode() {
 document.addEventListener('DOMContentLoaded', () => {
   initMobileKeyBar();
   initMobileMenu();
+  initWorkspaceSwipe();
   updateUiMode();
   if (typeof refreshAllMobileScrollbars === 'function') refreshAllMobileScrollbars();
   window.addEventListener('resize', () => {
