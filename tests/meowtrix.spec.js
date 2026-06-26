@@ -16,6 +16,8 @@ test.describe('Meowtrix E2E Tests', () => {
         activeWorkspaceIndex: 0
       }
     });
+
+
     // Inject mock for LanguageModel/Prompt API to enable chat pet in settings
     await page.addInitScript(() => {
       // Mock the browser Prompt API for Gemini Nano

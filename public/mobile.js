@@ -262,6 +262,11 @@ function rebuildMobileKeyBar() {
   const keysContainer = document.createElement('div');
   keysContainer.className = 'keybar-keys';
  
+  // Add autocomplete toggle inside keysContainer so it scrolls like other keys
+  if (mobileAutocompleteToggle) {
+    keysContainer.appendChild(mobileAutocompleteToggle);
+  }
+
   const s = (typeof getSettings === 'function') ? getSettings() : {};
   const keys = s.mobileKeys || DEFAULT_MOBILE_KEYS;
  
@@ -291,9 +296,6 @@ function rebuildMobileKeyBar() {
   }
  
   bar.appendChild(toggleBtn);
-  if (mobileAutocompleteToggle) {
-    bar.appendChild(mobileAutocompleteToggle);
-  }
   bar.appendChild(keysContainer);
  
   refreshModButtons();
@@ -458,6 +460,12 @@ function initMobileKeyBar() {
     position();
   };
   const hide = () => {
+    // If mobile-like, the keybar (whether expanded or collapsed) should stay visible!
+    if (isMobileLike()) {
+      kbWasOpen = false;
+      position();
+      return;
+    }
     bar.hidden = true;
     if (mobileAutocompleteToggle) mobileAutocompleteToggle.hidden = true;
     kbWasOpen = false;
@@ -801,6 +809,33 @@ function updateUiMode() {
   const s = (typeof getSettings === 'function') ? getSettings() : {};
   const mode = s.uiMode || 'auto';
   
+  // Clean up mobile viewport absolute styles immediately if we are switching to desktop,
+  // otherwise checkToolbarButtonsFit() measures the narrow absolute width of #app.
+  if (!isMobileLike()) {
+    const bar = document.getElementById('mobile-keybar');
+    if (bar) {
+      bar.hidden = true;
+      if (mobileAutocompleteToggle) mobileAutocompleteToggle.hidden = true;
+      bar.style.position = '';
+      bar.style.bottom = '';
+      bar.style.top = '';
+      bar.style.left = '';
+      bar.style.right = '';
+      bar.style.width = '';
+      bar.style.transform = '';
+    }
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      appEl.style.position = '';
+      appEl.style.top = '';
+      appEl.style.left = '';
+      appEl.style.width = '';
+      appEl.style.height = '';
+      appEl.style.paddingBottom = '';
+      appEl.style.background = '';
+    }
+  }
+
   let shouldCollapse = false;
   if (mode === 'mobile') {
     shouldCollapse = true;
@@ -813,6 +848,21 @@ function updateUiMode() {
   }
 
   document.documentElement.classList.toggle('mobile-ui', shouldCollapse);
+
+  // Sync mobile keybar visibility
+  const bar = document.getElementById('mobile-keybar');
+  if (bar) {
+    if (isMobileLike()) {
+      bar.hidden = false;
+      if (mobileAutocompleteToggle) mobileAutocompleteToggle.hidden = false;
+      if (mobileKeyBarPositionFn) {
+        mobileKeyBarPositionFn();
+      }
+    } else {
+      bar.hidden = true;
+      if (mobileAutocompleteToggle) mobileAutocompleteToggle.hidden = true;
+    }
+  }
 
   // Fit active terminals if UI mode changed
   if (typeof getAllPanes === 'function') {
@@ -1057,6 +1107,7 @@ function refreshMobileScrollbar(tab) {
 function buildAutocompleteToggle() {
   const btn = document.createElement('button');
   btn.id = 'mobile-autocomplete-toggle';
+  btn.className = 'keybar-btn';
   btn.hidden = true;
   btn.title = 'Toggle Mobile Autocomplete';
   btn.innerHTML = '🪄';
