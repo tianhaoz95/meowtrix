@@ -10,6 +10,7 @@ const stickyMods = { ctrl: false, alt: false, meta: false };
 const modButtons = {};
 let mobileKeyBarCollapsed = localStorage.getItem('mobileKeyBarCollapsed') === 'true';
 let mobileKeyBarPositionFn = null;
+let mobileAutocompleteToggle = null;
 
 function isMobileLike() {
   const s = (typeof getSettings === 'function') ? getSettings() : {};
@@ -224,20 +225,53 @@ function rebuildMobileKeyBar() {
   bar.innerHTML = '';
   bar.classList.toggle('collapsed', mobileKeyBarCollapsed);
 
+  if (typeof refreshMobileAutocompleteToggle === 'function') {
+    refreshMobileAutocompleteToggle();
+  }
+
   for (const k in modButtons) {
     delete modButtons[k];
   }
 
+  // Create the collapse/expand toggle button
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'keybar-btn keybar-toggle-collapse';
+  toggleBtn.textContent = mobileKeyBarCollapsed ? '📱' : '▼';
+  toggleBtn.title = mobileKeyBarCollapsed ? 'Expand key bar' : 'Collapse key bar';
+  toggleBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    mobileKeyBarCollapsed = !mobileKeyBarCollapsed;
+    localStorage.setItem('mobileKeyBarCollapsed', mobileKeyBarCollapsed);
+    rebuildMobileKeyBar();
+ 
+    if (mobileKeyBarPositionFn) {
+      mobileKeyBarPositionFn();
+    }
+ 
+    if (activePane?.activeTab?.fitAddon) {
+      try {
+        activePane.activeTab.fitAddon.fit();
+        if (typeof refreshMobileScrollbar === 'function') {
+          refreshMobileScrollbar(activePane.activeTab);
+        }
+      } catch (err) {}
+    }
+  });
+ 
+  // Container for the rest of the buttons (scrolling area)
+  const keysContainer = document.createElement('div');
+  keysContainer.className = 'keybar-keys';
+ 
   const s = (typeof getSettings === 'function') ? getSettings() : {};
   const keys = s.mobileKeys || DEFAULT_MOBILE_KEYS;
-
+ 
   for (const item of keys) {
     const { label, kind, payload } = item;
     const btn = document.createElement('button');
     btn.className = 'keybar-btn' + (kind === 'mod' ? ' keybar-mod' : '') + (kind === 'hide' ? ' keybar-hide' : '');
     btn.textContent = label;
     if (kind === 'mod') modButtons[payload] = btn;
-
+ 
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       if (kind === 'mod') {
@@ -253,42 +287,21 @@ function rebuildMobileKeyBar() {
         sendToActiveTerm(unescapePayload(payload));
       }
     });
-    bar.appendChild(btn);
+    keysContainer.appendChild(btn);
   }
-
-  // Append a collapse/expand toggle button
-  const toggleBtn = document.createElement('button');
-  toggleBtn.className = 'keybar-btn keybar-toggle-collapse';
-  toggleBtn.textContent = mobileKeyBarCollapsed ? '⌨️' : '▼';
-  toggleBtn.title = mobileKeyBarCollapsed ? 'Expand key bar' : 'Collapse key bar';
-  toggleBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    mobileKeyBarCollapsed = !mobileKeyBarCollapsed;
-    localStorage.setItem('mobileKeyBarCollapsed', mobileKeyBarCollapsed);
-    bar.classList.toggle('collapsed', mobileKeyBarCollapsed);
-    toggleBtn.textContent = mobileKeyBarCollapsed ? '⌨️' : '▼';
-    toggleBtn.title = mobileKeyBarCollapsed ? 'Expand key bar' : 'Collapse key bar';
-
-    if (mobileKeyBarPositionFn) {
-      mobileKeyBarPositionFn();
-    }
-
-    if (activePane?.activeTab?.fitAddon) {
-      try {
-        activePane.activeTab.fitAddon.fit();
-        if (typeof refreshMobileScrollbar === 'function') {
-          refreshMobileScrollbar(activePane.activeTab);
-        }
-      } catch (err) {}
-    }
-  });
+ 
   bar.appendChild(toggleBtn);
-
+  if (mobileAutocompleteToggle) {
+    bar.appendChild(mobileAutocompleteToggle);
+  }
+  bar.appendChild(keysContainer);
+ 
   refreshModButtons();
 }
 
 function initMobileKeyBar() {
   const bar = buildKeyBar();
+  mobileAutocompleteToggle = buildAutocompleteToggle();
   rebuildMobileKeyBar();
 
   // Ride just above the soft keyboard using visualViewport tracking.
@@ -301,6 +314,7 @@ function initMobileKeyBar() {
     const appEl = document.getElementById('app');
     if (appEl) {
       if (!bar.hidden) {
+        const size = 46;
         if (mobileKeyBarCollapsed) {
           // Map #app to cover the visual viewport completely, but without bottom padding
           appEl.style.position = 'absolute';
@@ -309,31 +323,59 @@ function initMobileKeyBar() {
           appEl.style.width = `${vv.width}px`;
           appEl.style.height = `${vv.height}px`;
           appEl.style.paddingBottom = '0px';
+          appEl.style.background = '';
 
           // Position keybar at the bottom right of the visual viewport
           bar.style.position = 'absolute';
           bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
-          const size = 46; // circular button height/width
           bar.style.top = `${vv.offsetTop + vv.height - size - 12}px`;
           bar.style.left = `${vv.offsetLeft + vv.width - size - 12}px`;
           bar.style.width = `${size}px`;
-          bar.style.transform = '';
+          bar.style.right = 'auto';
+          bar.style.transform = 'none';
+
+          // Reset autocomplete toggle inline style since it's hidden
+          if (mobileAutocompleteToggle) {
+            mobileAutocompleteToggle.style.position = '';
+            mobileAutocompleteToggle.style.bottom = '';
+            mobileAutocompleteToggle.style.top = '';
+            mobileAutocompleteToggle.style.left = '';
+            mobileAutocompleteToggle.style.width = '';
+            mobileAutocompleteToggle.style.height = '';
+            mobileAutocompleteToggle.style.right = '';
+          }
         } else {
           // Map #app to cover the visual viewport completely
+          const margin = 10;
           appEl.style.position = 'absolute';
           appEl.style.top = `${vv.offsetTop}px`;
           appEl.style.left = `${vv.offsetLeft}px`;
           appEl.style.width = `${vv.width}px`;
           appEl.style.height = `${vv.height}px`;
-          appEl.style.paddingBottom = `${bar.offsetHeight}px`;
+          appEl.style.paddingBottom = `${bar.offsetHeight + margin * 2}px`;
+          appEl.style.background = 'var(--term-bg)';
 
-          // Position keybar at the bottom of the visual viewport
+          // Position keybar taking full viewport width minus margins
+          const actualWidth = vv.width - margin * 2;
+
           bar.style.position = 'absolute';
           bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
-          bar.style.top = `${vv.offsetTop + vv.height - bar.offsetHeight}px`;
-          bar.style.left = `${vv.offsetLeft}px`;
-          bar.style.width = `${vv.width}px`;
-          bar.style.transform = '';
+          bar.style.top = `${vv.offsetTop + vv.height - bar.offsetHeight - margin}px`;
+          bar.style.left = `${vv.offsetLeft + margin}px`;
+          bar.style.width = `${actualWidth}px`;
+          bar.style.right = 'auto';
+          bar.style.transform = 'none';
+
+          // Clear autocomplete styles so it flows naturally inside the keybar flexbox
+          if (mobileAutocompleteToggle) {
+            mobileAutocompleteToggle.style.position = '';
+            mobileAutocompleteToggle.style.bottom = '';
+            mobileAutocompleteToggle.style.top = '';
+            mobileAutocompleteToggle.style.left = '';
+            mobileAutocompleteToggle.style.width = '';
+            mobileAutocompleteToggle.style.height = '';
+            mobileAutocompleteToggle.style.right = '';
+          }
         }
       } else {
         appEl.style.position = '';
@@ -342,13 +384,25 @@ function initMobileKeyBar() {
         appEl.style.width = '';
         appEl.style.height = '';
         appEl.style.paddingBottom = '';
+        appEl.style.background = '';
 
         bar.style.position = '';
         bar.style.bottom = ''; // Restore CSS bottom: 0
         bar.style.top = '';
         bar.style.left = '';
+        bar.style.right = '';
         bar.style.width = '';
         bar.style.transform = '';
+
+        if (mobileAutocompleteToggle) {
+          mobileAutocompleteToggle.style.position = '';
+          mobileAutocompleteToggle.style.bottom = '';
+          mobileAutocompleteToggle.style.top = '';
+          mobileAutocompleteToggle.style.left = '';
+          mobileAutocompleteToggle.style.right = '';
+          mobileAutocompleteToggle.style.width = '';
+          mobileAutocompleteToggle.style.height = '';
+        }
       }
     }
 
@@ -400,10 +454,12 @@ function initMobileKeyBar() {
     clearTimeout(hideTimer);
     kbWasOpen = false;
     bar.hidden = false;
+    if (mobileAutocompleteToggle) mobileAutocompleteToggle.hidden = false;
     position();
   };
   const hide = () => {
     bar.hidden = true;
+    if (mobileAutocompleteToggle) mobileAutocompleteToggle.hidden = true;
     kbWasOpen = false;
     clearStickyMods();
     const appEl = document.getElementById('app');
@@ -414,13 +470,25 @@ function initMobileKeyBar() {
       appEl.style.width = '';
       appEl.style.height = '';
       appEl.style.paddingBottom = '';
+      appEl.style.background = '';
     }
     bar.style.position = '';
     bar.style.bottom = ''; // Restore CSS bottom: 0
     bar.style.top = '';
     bar.style.left = '';
+    bar.style.right = '';
     bar.style.width = '';
     bar.style.transform = '';
+
+    if (mobileAutocompleteToggle) {
+      mobileAutocompleteToggle.style.position = '';
+      mobileAutocompleteToggle.style.bottom = '';
+      mobileAutocompleteToggle.style.top = '';
+      mobileAutocompleteToggle.style.left = '';
+      mobileAutocompleteToggle.style.right = '';
+      mobileAutocompleteToggle.style.width = '';
+      mobileAutocompleteToggle.style.transform = '';
+    }
 
     // Reset scroll offset back to top-left
     window.scrollTo(0, 0);
@@ -983,5 +1051,32 @@ function refreshMobileScrollbar(tab) {
     requestAnimationFrame(updateScrollbar);
   } else if (tab.updateMobileScrollbar) {
     tab.updateMobileScrollbar();
+  }
+}
+
+function buildAutocompleteToggle() {
+  const btn = document.createElement('button');
+  btn.id = 'mobile-autocomplete-toggle';
+  btn.hidden = true;
+  btn.title = 'Toggle Mobile Autocomplete';
+  btn.innerHTML = '🪄';
+  document.body.appendChild(btn);
+
+  btn.addEventListener('pointerdown', async (e) => {
+    e.preventDefault();
+    const s = (typeof getSettings === 'function') ? getSettings() : {};
+    const enabled = s.mobileKeyboardAutocomplete === true;
+    await saveSetting('mobileKeyboardAutocomplete', !enabled);
+    btn.classList.toggle('active', !enabled);
+    if (typeof refreshAllMobileAutocompletes === 'function') refreshAllMobileAutocompletes();
+  });
+
+  return btn;
+}
+
+function refreshMobileAutocompleteToggle() {
+  if (mobileAutocompleteToggle) {
+    const s = (typeof getSettings === 'function') ? getSettings() : {};
+    mobileAutocompleteToggle.classList.toggle('active', s.mobileKeyboardAutocomplete === true);
   }
 }

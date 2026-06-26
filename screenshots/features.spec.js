@@ -34,6 +34,7 @@ const VIEWPORT = { width: 1920, height: 1080 };
 // while staying smooth enough to read the interactions.
 const GIF_FPS = 11;
 const GIF_WIDTH = 840;
+const GIF_WIDTH_HD = 1600;
 
 function ensureGifDir() {
   fs.mkdirSync(GIF_DIR, { recursive: true });
@@ -42,10 +43,10 @@ function ensureGifDir() {
 // Convert a recorded webm to an optimized, looping GIF. Two-pass palette
 // (palettegen → paletteuse) gives far cleaner color than ffmpeg's default
 // single-pass quantization.
-function convertToGif(input, output) {
+function convertToGif(input, output, width, maxColors = 160) {
   const vf =
-    `fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[s0][s1];` +
-    `[s0]palettegen=max_colors=160:stats_mode=diff[p];` +
+    `fps=${GIF_FPS},scale=${width}:-1:flags=lanczos,split[s0][s1];` +
+    `[s0]palettegen=max_colors=${maxColors}:stats_mode=diff[p];` +
     `[s1][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle`;
   execFileSync('ffmpeg', ['-y', '-i', input, '-vf', vf, '-loop', '0', output], {
     stdio: 'inherit',
@@ -137,17 +138,19 @@ async function captureFeature(browser, name, theme, scenario) {
   await context.close(); // finalizes the webm
   const webm = await video.path();
   const fileName = `${name}-${theme}.gif`;
-  convertToGif(webm, path.join(GIF_DIR, fileName));
+  convertToGif(webm, path.join(GIF_DIR, fileName), GIF_WIDTH, 160);
+  const hdFileName = `${name}-${theme}-hd.gif`;
+  convertToGif(webm, path.join(GIF_DIR, hdFileName), GIF_WIDTH_HD, 256);
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  console.log(`Saved feature GIF: ${fileName}`);
+  console.log(`Saved feature GIFs: ${fileName} and ${hdFileName}`);
 }
 
 // Focus the terminal in the given pane and return its input textarea locator.
 async function focusTerminal(page, pane) {
-  const screen = pane.locator('.xterm-screen');
+  const screen = pane.locator('.xterm-screen').first();
   await expect(screen).toBeVisible();
   await screen.click();
-  const textarea = pane.locator('textarea.xterm-helper-textarea');
+  const textarea = pane.locator('textarea.xterm-helper-textarea').first();
   await textarea.focus();
   await page.waitForTimeout(500);
 }

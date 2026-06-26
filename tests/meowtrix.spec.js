@@ -353,7 +353,7 @@ test.describe('Meowtrix E2E Tests', () => {
     // 5. Click the toggle button to collapse the utility key bar
     await toggleBtn.click();
     await expect(keybar).toHaveClass(/collapsed/);
-    await expect(toggleBtn).toHaveText('⌨️');
+    await expect(toggleBtn).toHaveText('📱');
 
     // Verify other buttons are hidden
     const escBtn = page.locator('.keybar-btn:has-text("Esc")');

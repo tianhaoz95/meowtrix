@@ -2267,17 +2267,74 @@ body.session-inactive #toolbar button:not(#btn-settings) {
    Floats above the soft keyboard (positioned via JS) and gives touch keyboards
    the Esc/Tab/Ctrl/Alt/Cmd/arrow keys they lack. */
 #mobile-keybar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
-  display: flex; gap: 6px;
-  padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+  position: fixed;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
   background: var(--glass-strong);
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-  border-top: 1px solid var(--border);
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  width: 340px;
+  height: 56px;
+  max-width: calc(100% - 20px);
   will-change: transform;
 }
 #mobile-keybar[hidden] { display: none; }
 #mobile-keybar::-webkit-scrollbar { display: none; }
+
+#mobile-autocomplete-toggle {
+  position: fixed;
+  z-index: 90;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--glass-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--text2);
+  font-size: 18px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+#mobile-autocomplete-toggle[hidden] {
+  display: none !important;
+}
+#mobile-autocomplete-toggle:active {
+  background: var(--bg5);
+}
+#mobile-autocomplete-toggle.active {
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: var(--glow-active);
+}
+
+.keybar-keys {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  scrollbar-width: none;
+}
+.keybar-keys::-webkit-scrollbar { display: none; }
 
 .keybar-btn {
   flex: 0 0 auto; min-width: 46px; height: 40px; padding: 0 12px;
@@ -2308,6 +2365,10 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 
 /* Collapsed state styling */
 #mobile-keybar.collapsed {
+  left: auto !important;
+  right: 12px !important;
+  bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+  transform: none !important;
   width: 46px !important;
   height: 46px !important;
   padding: 0 !important;
@@ -2323,6 +2384,8 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   -webkit-backdrop-filter: var(--glass-blur) !important;
 }
 
+#mobile-keybar.collapsed > .keybar-keys,
+#mobile-keybar.collapsed > #mobile-autocomplete-toggle,
 #mobile-keybar.collapsed > .keybar-btn:not(.keybar-toggle-collapse) {
   display: none !important;
 }
@@ -2340,6 +2403,30 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   align-items: center !important;
   justify-content: center !important;
   font-size: 18px !important;
+}
+
+#mobile-keybar:not(.collapsed) > #mobile-autocomplete-toggle {
+  position: static !important;
+  flex: 0 0 auto !important;
+  width: 46px !important;
+  height: 40px !important;
+  min-width: 46px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--border3) !important;
+  background: var(--bg3) !important;
+  box-shadow: none !important;
+  font-size: 15px !important;
+}
+
+#mobile-keybar:not(.collapsed) > #mobile-autocomplete-toggle:active {
+  background: var(--bg5) !important;
+}
+
+#mobile-keybar:not(.collapsed) > #mobile-autocomplete-toggle.active {
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: var(--glow-active) !important;
 }
 
 .keybar-toggle-collapse {

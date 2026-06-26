@@ -28,6 +28,8 @@
     overlay.appendChild(close);
     document.body.appendChild(overlay);
 
+    var currentHighresLoad = null;
+
     function visibleShot(wrap) {
       // Prefer the theme-aware .app-screenshot pair (landing page); fall back to
       // the single <img> inside a wrapper (feature GIFs).
@@ -42,15 +44,46 @@
     function open(wrap) {
       var shot = visibleShot(wrap);
       if (!shot) return;
-      img.src = shot.currentSrc || shot.src;
+      var lowresUrl = shot.currentSrc || shot.src;
+      var highresUrl = shot.getAttribute('data-highres');
+
+      if (currentHighresLoad) {
+        currentHighresLoad.onload = null;
+        currentHighresLoad = null;
+      }
+
+      // Show low-res version immediately
+      img.src = lowresUrl;
       img.alt = shot.alt || 'Enlarged screenshot';
       overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
+
+      if (highresUrl) {
+        var loader = new Image();
+        currentHighresLoad = loader;
+
+        loader.onload = function () {
+          if (currentHighresLoad === loader) {
+            img.src = highresUrl;
+          }
+        };
+
+        loader.src = highresUrl;
+
+        // If already cached and loaded
+        if (loader.complete) {
+          img.src = highresUrl;
+        }
+      }
     }
 
     function hide() {
       overlay.classList.remove('open');
       document.body.style.overflow = '';
+      if (currentHighresLoad) {
+        currentHighresLoad.onload = null;
+        currentHighresLoad = null;
+      }
     }
 
     wraps.forEach(function (wrap) {
@@ -59,6 +92,20 @@
     overlay.addEventListener('click', hide);
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && overlay.classList.contains('open')) hide();
+    });
+
+    // Background preload of high-res images after the page loads
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var shots = document.querySelectorAll('img[data-highres]');
+        shots.forEach(function (shot) {
+          var highresUrl = shot.getAttribute('data-highres');
+          if (highresUrl) {
+            var tempImg = new Image();
+            tempImg.src = highresUrl;
+          }
+        });
+      }, 500);
     });
   }
 
