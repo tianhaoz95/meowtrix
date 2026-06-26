@@ -57,7 +57,7 @@ const DEFAULT_SETTINGS = {
   httpProxy: '', // optional HTTP proxy for updates
   httpsProxy: '', // optional HTTPS proxy for updates
   autoUpdate: true, // background-check the git clone for updates (see self-update below)
-  comboFx: true, // keystroke-streak visual effects (see public/combo.js)
+  comboFx: false, // keystroke-streak visual effects, opt-in (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
   petFace: 'cat', // pet appearance id (see PET_FACES in public/pet.js)
   petSpeed: 3, // pet wander speed, 1 (lazy) … 10 (zoomies)

@@ -68,6 +68,10 @@ async function captureFeature(browser, name, scenario) {
   // a later feature would restore the prior one's panes/tabs instead of a fresh
   // single-terminal workspace — making the capture (and its assertions) flaky.
   await context.request.post('/api/settings/reset');
+  // Keystroke Combo FX is opt-in (off by default), so keep it off in the
+  // captures too — set it explicitly rather than relying on the server's
+  // default, so the recordings stay clean even against an older server build.
+  await context.request.post('/api/settings', { data: { comboFx: false } });
   await context.request.post('/api/session', {
     data: {
       workspaces: [

@@ -1,12 +1,14 @@
 /* Meowtrix project site — screenshot lightbox.
-   Clicking the hero screenshot opens an enlarged copy floating over the page.
-   Closes on click anywhere in the overlay, the × button, or the Esc key. The
-   shown image follows the active theme (the visible .app-screenshot). */
+   Clicking the hero screenshot (landing page) or a feature recording (features
+   page) opens an enlarged copy floating over the page. Closes on click anywhere
+   in the overlay, the × button, or the Esc key. The shown image follows the
+   active theme (the visible .app-screenshot) when there's more than one. */
 (function () {
   function init() {
-    // Both the desktop browser mockup and the phone frame hold a screenshot the
-    // user can click to enlarge; only one is visible at a time (device toggle).
-    var wraps = document.querySelectorAll('.screenshot-wrapper, .mob-viewport');
+    // Landing page: the desktop browser mockup and the phone frame each hold a
+    // screenshot (only one visible at a time via the device toggle). Features
+    // page: each .feat-media holds a single GIF. Both enlarge on click.
+    var wraps = document.querySelectorAll('.screenshot-wrapper, .mob-viewport, .feat-media');
     if (!wraps.length) return;
 
     var overlay = document.createElement('div');
@@ -27,7 +29,10 @@
     document.body.appendChild(overlay);
 
     function visibleShot(wrap) {
+      // Prefer the theme-aware .app-screenshot pair (landing page); fall back to
+      // the single <img> inside a wrapper (feature GIFs).
       var shots = wrap.querySelectorAll('.app-screenshot');
+      if (!shots.length) shots = wrap.querySelectorAll('img');
       for (var i = 0; i < shots.length; i++) {
         if (shots[i].offsetParent !== null) return shots[i];
       }

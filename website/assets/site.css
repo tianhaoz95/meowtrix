@@ -521,6 +521,7 @@ html[data-theme="light"] .theme-dark { display: none; }
   border: 1px solid var(--border3);
   background: var(--bg3);
   box-shadow: 0 24px 70px var(--shadow);
+  cursor: zoom-in;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .feat-media:hover { transform: translateY(-4px); box-shadow: 0 30px 90px var(--shadow); }

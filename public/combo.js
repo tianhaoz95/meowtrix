@@ -22,7 +22,7 @@
   let intensity = 0;          // smoothed 0..1, drives all visuals
   let targetIntensity = 0;
   const hits = [];            // recent keystroke timestamps (for speed)
-  let enabled = true;
+  let enabled = false; // opt-in; synced from the persisted comboFx setting on boot
 
   // Effect surfaces (created on boot).
   let canvas, ctx, hud, hudCount, hudTier, glow;
