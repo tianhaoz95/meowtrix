@@ -325,11 +325,11 @@ function initMobileKeyBar() {
           appEl.style.paddingBottom = '0px';
           appEl.style.background = '';
 
-          // Position keybar at the bottom right of the visual viewport
+          // Position keybar at the bottom left of the visual viewport
           bar.style.position = 'absolute';
           bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
           bar.style.top = `${vv.offsetTop + vv.height - size - 12}px`;
-          bar.style.left = `${vv.offsetLeft + vv.width - size - 12}px`;
+          bar.style.left = `${vv.offsetLeft + 12}px`;
           bar.style.width = `${size}px`;
           bar.style.right = 'auto';
           bar.style.transform = 'none';

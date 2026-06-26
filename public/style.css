@@ -2365,8 +2365,8 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 
 /* Collapsed state styling */
 #mobile-keybar.collapsed {
-  left: auto !important;
-  right: 12px !important;
+  left: 12px !important;
+  right: auto !important;
   bottom: calc(12px + env(safe-area-inset-bottom)) !important;
   transform: none !important;
   width: 46px !important;
