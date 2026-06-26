@@ -419,15 +419,36 @@ function initMobileMenu() {
   const groupExtra = document.getElementById('toolbar-group-extra');
   if (!menuBtn || !groupExtra) return;
 
+  const collapseAllGroups = () => {
+    groupExtra.querySelectorAll('.toolbar-btn-group.expanded').forEach((g) => {
+      g.classList.remove('expanded');
+      const header = g.querySelector('.group-header');
+      if (header) header.setAttribute('aria-expanded', 'false');
+    });
+  };
+
   const closeMenu = () => {
     groupExtra.classList.remove('open');
     menuBtn.classList.remove('active');
   };
 
   const openMenu = () => {
+    // Groups start collapsed every time the menu opens to keep it compact.
+    collapseAllGroups();
     groupExtra.classList.add('open');
     menuBtn.classList.add('active');
   };
+
+  // Toggle a button group open/closed when its header is tapped.
+  groupExtra.addEventListener('click', (e) => {
+    const header = e.target.closest('.group-header');
+    if (!header) return;
+    e.stopPropagation();
+    const group = header.closest('.toolbar-btn-group');
+    if (!group) return;
+    const expanded = group.classList.toggle('expanded');
+    header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  });
 
   menuBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -439,9 +460,10 @@ function initMobileMenu() {
   });
 
   // Close the menu when clicking on any action button inside the dropdown
+  // (but not the group headers, which only expand/collapse their group).
   groupExtra.addEventListener('click', (e) => {
     const button = e.target.closest('button');
-    if (button) {
+    if (button && !button.classList.contains('group-header')) {
       closeMenu();
     }
   });

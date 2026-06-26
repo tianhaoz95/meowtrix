@@ -756,6 +756,9 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 
 
 /* ── Toolbar Button Groups (Capsule Styling) ── */
+/* Group headers only appear inside the mobile dropdown (see media query) */
+.group-header { display: none; }
+
 .toolbar-btn-group {
   display: inline-flex;
   align-items: center;
@@ -2426,6 +2429,47 @@ html.mobile-ui {
     margin-bottom: 0 !important;
   }
 
+  /* Collapsible groups: each group is an accordion, collapsed by default to
+     save vertical space on small screens. Tap the header to expand. */
+  #toolbar-group-extra .group-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 34px !important;
+    color: var(--text-dim) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  #toolbar-group-extra .group-header .group-header-label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+
+  #toolbar-group-extra .group-header .group-chevron {
+    font-size: 11px !important;
+    opacity: 0.7;
+    transition: transform 0.15s var(--ease);
+  }
+
+  #toolbar-group-extra .toolbar-btn-group.expanded .group-header .group-chevron {
+    transform: rotate(90deg);
+  }
+
+  /* Hide a group's action buttons until it's expanded */
+  #toolbar-group-extra .toolbar-btn-group > button:not(.group-header) {
+    display: none !important;
+  }
+
+  #toolbar-group-extra .toolbar-btn-group.expanded > button:not(.group-header):not([hidden]) {
+    display: flex !important;
+  }
+
+  /* Indent the action buttons so they read as children of the header */
+  #toolbar-group-extra .toolbar-btn-group.expanded > button:not(.group-header) {
+    padding-left: 24px !important;
+  }
 
 
   /* Settings slides over the full width instead of a fixed sidebar */
