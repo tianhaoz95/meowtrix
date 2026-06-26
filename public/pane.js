@@ -612,6 +612,32 @@ function initTerminalTab(tab, existingPtyId) {
   }
 
   term.open(tab.viewEl);
+
+  // Prevent browser autofill and password manager popups on the terminal input textarea
+  const helperTextarea = tab.viewEl.querySelector('.xterm-helper-textarea');
+  if (helperTextarea) {
+    // Start as readonly to prevent browser/extension autofill indexing
+    helperTextarea.setAttribute('readonly', 'true');
+    helperTextarea.setAttribute('autocomplete', 'off');
+    helperTextarea.setAttribute('name', 'xterm-terminal-input');
+    helperTextarea.setAttribute('data-1p-ignore', 'true');
+    helperTextarea.setAttribute('data-lpignore', 'true');
+    helperTextarea.setAttribute('data-protonpass-ignore', 'true');
+
+    const removeReadonly = () => {
+      helperTextarea.removeAttribute('readonly');
+    };
+    const restoreReadonly = () => {
+      helperTextarea.setAttribute('readonly', 'true');
+    };
+
+    // Remove readonly on user interaction or programmatic focus so typing works
+    helperTextarea.addEventListener('focus', removeReadonly);
+    helperTextarea.addEventListener('blur', restoreReadonly);
+    tab.viewEl.addEventListener('pointerdown', removeReadonly, true);
+    tab.viewEl.addEventListener('touchstart', removeReadonly, true);
+  }
+
   tab.term = term;
   tab.fitAddon = fitAddon;
 
