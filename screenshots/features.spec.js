@@ -71,16 +71,30 @@ async function captureFeature(browser, name, theme, scenario) {
       window.ai = { languageModel: { availability: async () => 'readily' } };
     }
   });
+  // Force the theme before any app script (or first paint) runs, so the GIF is
+  // the target theme from frame one. The app otherwise applies localStorage.theme
+  // (|| 'auto' → light on headless Chromium) on DOMContentLoaded and only flips
+  // after settings load. We seed localStorage.theme, set data-theme up front, and
+  // paint the document background to the theme's --bg so even the brief pre-render
+  // loading frame isn't a white flash.
+  await context.addInitScript(({ t, bg }) => {
+    try {
+      localStorage.setItem('theme', t);
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.style.backgroundColor = bg;
+    } catch (e) {}
+  }, { t: theme, bg: theme === 'light' ? '#f4f4f7' : '#0a0a0e' });
 
   // Reset server state to a clean slate before each feature. The previous
   // feature's layout gets persisted to the host's session.json, so without this
   // a later feature would restore the prior one's panes/tabs instead of a fresh
   // single-terminal workspace — making the capture (and its assertions) flaky.
   await context.request.post('/api/settings/reset');
-  // Keystroke Combo FX is opt-in (off by default), so keep it off in the
-  // captures too — set it explicitly rather than relying on the server's
-  // default, so the recordings stay clean even against an older server build.
-  await context.request.post('/api/settings', { data: { comboFx: false } });
+  // Persist the variant theme + keep Keystroke Combo FX off (it's opt-in). The
+  // theme also goes into the server settings so the app's async settings load
+  // (settings.js → applyTheme(s.theme)) doesn't briefly flip the theme back to
+  // the server default mid-recording — together with the seeded localStorage.
+  await context.request.post('/api/settings', { data: { comboFx: false, theme } });
   await context.request.post('/api/session', {
     data: {
       workspaces: [
