@@ -354,7 +354,17 @@ function initMobileKeyBar() {
   });
 
   const onViewportChange = () => {
-    if (bar.hidden) return;
+    if (bar.hidden) {
+      // The bar was dropped while the terminal textarea kept focus (keyboard
+      // dismissed via its own close gesture, no focusout). If the keyboard comes
+      // back up while that textarea is still focused, no focusin fires to re-show
+      // the bar — so resurrect it here.
+      if (keyboardOpen() && document.activeElement?.classList?.contains('xterm-helper-textarea')) {
+        show();
+        kbWasOpen = true;
+      }
+      return;
+    }
     if (keyboardOpen()) {
       kbWasOpen = true;
       position();
