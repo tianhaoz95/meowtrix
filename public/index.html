@@ -384,6 +384,38 @@
             </div>
           </div>
         </details>
+        <details class="settings-section">
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            About
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label>Meowtrix</label>
+              <span id="s-about-version" style="font-size: 12px; color: var(--text3);">Version —</span>
+            </div>
+            <div class="about-doc">
+              <h4 class="about-doc-title">Privacy Notice</h4>
+              <p>Meowtrix is a self-hosted tool that runs entirely on your own host machine. There is no Meowtrix cloud service, account, or telemetry — we do not collect, transmit, or store any of your data on our servers.</p>
+              <ul>
+                <li><strong>What stays on your machine.</strong> Your settings and workspace layout are saved locally under <code>~/.meowtrix/</code>. Terminal sessions, files opened in the editor, and command output never leave your host except over the network connection you choose to expose.</li>
+                <li><strong>Network exposure is your choice.</strong> By default the server binds to localhost only. If you enable LAN/remote access or a tunnel (e.g. ngrok), anyone who can reach the server gets full shell access to your machine — there is no built-in authentication. Secure the connection yourself (SSH tunnel, firewall, VPN).</li>
+                <li><strong>Third-party resources.</strong> The interface loads some assets (the terminal and editor libraries) from public CDNs, and the embedded browser/proxy fetches whatever pages you navigate to. Those requests are subject to the privacy practices of the respective providers and sites.</li>
+                <li><strong>Updates.</strong> If automatic update checks are enabled, the app contacts the Meowtrix source repository (GitHub) to compare versions. This can be turned off in the Updates section.</li>
+              </ul>
+              <h4 class="about-doc-title">User Agreement</h4>
+              <p>By using Meowtrix you agree to the following terms:</p>
+              <ul>
+                <li><strong>Authorized use only.</strong> Use Meowtrix only on machines you own or are explicitly authorized to access. You are solely responsible for how the tool and any shell access it provides are used.</li>
+                <li><strong>Security responsibility.</strong> Because reaching the server grants a shell with no built-in authentication, you are responsible for restricting access and protecting any exposed endpoint. Do not expose it to untrusted networks without your own access controls.</li>
+                <li><strong>No warranty.</strong> Meowtrix is provided "as is", without warranty of any kind, express or implied. To the maximum extent permitted by law, the authors and contributors are not liable for any damages, data loss, or security incidents arising from its use.</li>
+                <li><strong>Open source.</strong> Meowtrix is open-source software distributed under the terms of its license. Your use is also governed by that license.</li>
+              </ul>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>

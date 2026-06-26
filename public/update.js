@@ -19,6 +19,7 @@ function onUpdateState(info) {
   if (info && typeof info.supervised === 'boolean') _isSupervised = info.supervised;
   renderUpdateBanner();
   syncSettingsUpdateStatus();
+  if (typeof syncAboutVersion === 'function') syncAboutVersion();
   syncRestartUi();
 }
 

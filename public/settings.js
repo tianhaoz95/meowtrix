@@ -206,10 +206,18 @@ function clearSettingsSearch() {
 }
 
 // ── Panel open/close ─────────────────────────────────────────────────────────
+function syncAboutVersion() {
+  const el = document.getElementById('s-about-version');
+  if (!el) return;
+  const v = (typeof latestUpdateInfo !== 'undefined' && latestUpdateInfo && latestUpdateInfo.version) || '';
+  el.textContent = v ? ('Version ' + v) : 'Version —';
+}
+
 function openSettings() {
   document.getElementById('settings-panel').classList.add('open');
   document.getElementById('settings-overlay').classList.add('open');
   if (typeof syncSettingsUpdateStatus === 'function') syncSettingsUpdateStatus();
+  syncAboutVersion();
   if (typeof refreshRestartAvailability === 'function') refreshRestartAvailability();
   const searchInput = document.getElementById('settings-search');
   if (searchInput) {
