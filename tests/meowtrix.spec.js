@@ -309,6 +309,9 @@ test.describe('Meowtrix E2E Tests', () => {
     const dropdown = page.locator('#toolbar-group-extra');
     await expect(dropdown).toBeVisible();
 
+    // Click header to expand group in mobile accordion
+    await page.locator('#grp-workspace .group-header').click();
+
     // Verify layout: button group should not be collapsed to desktop height (32px)
     const grpWorkspace = page.locator('#grp-workspace');
     const box = await grpWorkspace.boundingBox();

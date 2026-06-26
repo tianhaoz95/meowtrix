@@ -1081,6 +1081,28 @@ document.addEventListener('DOMContentLoaded', () => {
       switchWorkspace((activeWorkspaceIndex + 1) % 4, { direction: 'next' });
     });
   }
+  const focusTriggerPrev = document.getElementById('focus-trigger-prev-ws');
+  if (focusTriggerPrev) {
+    focusTriggerPrev.addEventListener('focus', () => {
+      switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4, { direction: 'prev' });
+      requestAnimationFrame(() => {
+        if (document.activeElement === focusTriggerPrev) {
+          focusTriggerPrev.blur();
+        }
+      });
+    });
+  }
+  const focusTriggerNext = document.getElementById('focus-trigger-next-ws');
+  if (focusTriggerNext) {
+    focusTriggerNext.addEventListener('focus', () => {
+      switchWorkspace((activeWorkspaceIndex + 1) % 4, { direction: 'next' });
+      requestAnimationFrame(() => {
+        if (document.activeElement === focusTriggerNext) {
+          focusTriggerNext.blur();
+        }
+      });
+    });
+  }
   document.querySelectorAll('.logo-letter').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.getAttribute('data-index'), 10);

@@ -280,6 +280,7 @@ function initMobileKeyBar() {
 
         // Position keybar at the bottom of the visual viewport
         bar.style.position = 'absolute';
+        bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
         bar.style.top = `${vv.offsetTop + vv.height - bar.offsetHeight}px`;
         bar.style.left = `${vv.offsetLeft}px`;
         bar.style.width = `${vv.width}px`;
@@ -293,10 +294,37 @@ function initMobileKeyBar() {
         appEl.style.paddingBottom = '';
 
         bar.style.position = '';
+        bar.style.bottom = ''; // Restore CSS bottom: 0
         bar.style.top = '';
         bar.style.left = '';
         bar.style.width = '';
         bar.style.transform = '';
+      }
+    }
+
+    // Position focus triggers at the same spot as the active input/textarea
+    // to prevent the browser from scrolling the viewport when focus moves to them.
+    const activeEl = document.activeElement;
+    if (activeEl && 
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && 
+        activeEl.id !== 'focus-trigger-prev-ws' && 
+        activeEl.id !== 'focus-trigger-next-ws') {
+      const rect = activeEl.getBoundingClientRect();
+      const prevWS = document.getElementById('focus-trigger-prev-ws');
+      const nextWS = document.getElementById('focus-trigger-next-ws');
+      if (prevWS) {
+        prevWS.style.position = 'fixed';
+        prevWS.style.left = `${rect.left}px`;
+        prevWS.style.top = `${rect.top}px`;
+        prevWS.style.width = `${rect.width}px`;
+        prevWS.style.height = `${rect.height}px`;
+      }
+      if (nextWS) {
+        nextWS.style.position = 'fixed';
+        nextWS.style.left = `${rect.left}px`;
+        nextWS.style.top = `${rect.top}px`;
+        nextWS.style.width = `${rect.width}px`;
+        nextWS.style.height = `${rect.height}px`;
       }
     }
   };
@@ -336,6 +364,7 @@ function initMobileKeyBar() {
       appEl.style.paddingBottom = '';
     }
     bar.style.position = '';
+    bar.style.bottom = ''; // Restore CSS bottom: 0
     bar.style.top = '';
     bar.style.left = '';
     bar.style.width = '';
@@ -348,6 +377,32 @@ function initMobileKeyBar() {
   // Show only while a terminal's hidden textarea is focused (keyboard is up).
   document.addEventListener('focusin', (e) => {
     if (e.target.classList?.contains('xterm-helper-textarea')) show();
+
+    // Position focus triggers at the same spot as the active input/textarea
+    // to prevent the browser from scrolling the viewport when focus moves to them.
+    const activeEl = e.target;
+    if (activeEl && 
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && 
+        activeEl.id !== 'focus-trigger-prev-ws' && 
+        activeEl.id !== 'focus-trigger-next-ws') {
+      const rect = activeEl.getBoundingClientRect();
+      const prevWS = document.getElementById('focus-trigger-prev-ws');
+      const nextWS = document.getElementById('focus-trigger-next-ws');
+      if (prevWS) {
+        prevWS.style.position = 'fixed';
+        prevWS.style.left = `${rect.left}px`;
+        prevWS.style.top = `${rect.top}px`;
+        prevWS.style.width = `${rect.width}px`;
+        prevWS.style.height = `${rect.height}px`;
+      }
+      if (nextWS) {
+        nextWS.style.position = 'fixed';
+        nextWS.style.left = `${rect.left}px`;
+        nextWS.style.top = `${rect.top}px`;
+        nextWS.style.width = `${rect.width}px`;
+        nextWS.style.height = `${rect.height}px`;
+      }
+    }
   });
   document.addEventListener('focusout', (e) => {
     if (e.target.classList?.contains('xterm-helper-textarea')) hideTimer = setTimeout(hide, 150);

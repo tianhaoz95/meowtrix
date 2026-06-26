@@ -74,6 +74,11 @@
         <a href="#demo">Serverless demo</a>
       </div>
       <div class="group">
+        <div class="group-title">Testing &amp; debugging</div>
+        <a href="#docker-testing">Docker-based testing</a>
+        <a href="#debugging">Debugging hints</a>
+      </div>
+      <div class="group">
         <div class="group-title">Shipping</div>
         <a href="#dist">Distribution</a>
         <a href="#site">Project site &amp; deploy</a>
@@ -94,7 +99,7 @@
           scope and are loaded with ordered <code>&lt;script&gt;</code> tags. The backend
           is a single <code>server.js</code> with two responsibilities.
         </p>
-        <p>There is no test suite, linter, or build step. After editing frontend code, reload the page (or use <code>./start.sh</code> for auto-reload).</p>
+        <p>There is no linter or build step. A Playwright E2E test suite lives in <code>tests/</code> and can be run locally or inside Docker — see <a href="#docker-testing">Docker-based testing</a>. After editing frontend code, reload the page (or use <code>./start.sh</code> for auto-reload).</p>
         <div class="callout">
           <span class="ico">📐</span>
           <p>The canonical architecture notes live in <code>CLAUDE.md</code> at the repo root. This page mirrors them in a browsable form.</p>
@@ -131,7 +136,62 @@
         <pre><code>npm install        # install deps (node-pty compiles natively)
 npm start          # run the server on PORT (default 3000)
 ./start.sh         # dev mode: nodemon + browser hot-reload (HOTRELOAD=1)
-./demo.sh          # serve public/ statically in serverless demo mode</code></pre>
+./demo.sh          # serve public/ statically in serverless demo mode
+npm run test:e2e   # run Playwright E2E tests against a locally running server
+npm run screenshots # capture landing-page showcase screenshots</code></pre>
+      </section>
+
+      <section id="docker-testing">
+        <h2>Docker-based testing</h2>
+        <p>Because <code>node-pty</code> compiles a native addon, binaries built on macOS are incompatible with Linux Docker images. Two workflows exist to work around this.</p>
+
+        <h3>Full E2E suite via Docker Compose</h3>
+        <p>The repo ships a <code>docker-compose.test.yml</code> that spins up two services:</p>
+        <ul>
+          <li><strong>meowtrix</strong> — builds the app image from <code>Dockerfile</code>, binds the container port to host port <code>9234</code>, and exposes a health-check endpoint so Playwright waits until the server is ready.</li>
+          <li><strong>playwright</strong> — uses the official <code>mcr.microsoft.com/playwright</code> image, installs dev-only deps (including Playwright itself), and runs <code>npx playwright test</code> with <code>BASE_URL=http://meowtrix:9123</code>.</li>
+        </ul>
+        <pre><code># Run the full test suite in a clean Linux environment
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+
+# Tear down volumes afterwards (optional)
+docker compose -f docker-compose.test.yml down -v</code></pre>
+        <div class="callout">
+          <span class="ico">⚠️</span>
+          <p>The <code>node_modules</code> directory inside the container is intentionally isolated from the host via an anonymous volume — this prevents macOS-compiled native binaries from polluting the Linux container.</p>
+        </div>
+
+        <h3>Interactive dev container via docker-run.sh</h3>
+        <p>For live development against a containerised server (e.g. to test on a different OS or to expose the app on a LAN), use <code>docker-run.sh</code>:</p>
+        <pre><code># Build the image and start Meowtrix on a random free host port
+./docker-run.sh
+
+# Optionally pass a specific workspace directory to mount
+./docker-run.sh /path/to/your/project</code></pre>
+        <p>The script auto-detects a free host port, mounts the repo as <code>/app</code> inside the container, and binds your chosen workspace directory to <code>/workspace</code>. Settings are persisted to the <code>meowtrix-dev-settings</code> named Docker volume across restarts. Hot-reload (<code>HOTRELOAD=1</code>) is enabled, so editing files in the mounted <code>/app</code> directory triggers a live server restart.</p>
+      </section>
+
+      <section id="debugging">
+        <h2>Debugging hints</h2>
+
+        <h3>Server-side (Node.js)</h3>
+        <ul>
+          <li><strong>Verbose logging:</strong> Set <code>DEBUG=1</code> before starting the server (<code>DEBUG=1 npm start</code>) to enable additional console output for PTY lifecycle events and WebSocket messages where those log branches exist.</li>
+          <li><strong>Inspect mode:</strong> Run <code>node --inspect server.js</code> and open <code>chrome://inspect</code> in Chrome to attach the V8 debugger — useful for stepping through WebSocket handlers and REST endpoints.</li>
+          <li><strong>PTY output buffer:</strong> Each PTY keeps a rolling ~200&nbsp;KB ring buffer in <code>ptys.get(id).buf</code>. You can dump it from a Node REPL or a breakpoint to understand what a client would see on reconnect.</li>
+          <li><strong>git API endpoints:</strong> Hit them directly with <code>curl</code> to rule out frontend bugs, e.g. <code>curl http://localhost:9123/api/git/status?root=/path/to/repo</code>.</li>
+        </ul>
+
+        <h3>PTY replay issues</h3>
+        <p>If the terminal looks garbled after a refresh, the likely cause is a width mismatch between the PTY's recorded grid size and the current pane size. The server sends <code>pty:created {cols, rows}</code> (the PTY's generation size) <em>before</em> the buffer on reconnect; the client snaps xterm to that size, writes the buffer, then re-fits. Check the <code>onPtyRestore</code> / <code>onReplayDone</code> path in <code>pane.js</code>.</p>
+
+        <h3>Frontend (browser DevTools)</h3>
+        <ul>
+          <li><strong>Script load order:</strong> All frontend files are globals — if a function is undefined at call-time, the most likely cause is a missing or out-of-order <code>&lt;script&gt;</code> tag in <code>index.html</code>. Check the Network panel to confirm all scripts loaded.</li>
+          <li><strong>WebSocket traffic:</strong> Open DevTools → Network → WS, select the socket connection, and watch the Frames tab. Every PTY input, schedule update, and session broadcast is visible there in real time.</li>
+          <li><strong>Monaco editor:</strong> Monaco is lazy-loaded from CDN by <code>ensureMonaco()</code>. If the editor tab is blank, check the Console for AMD loader errors and confirm the CDN URLs are reachable from your network.</li>
+          <li><strong>Session/workspace state:</strong> The active workspace JSON is written to <code>~/.meowtrix/session.json</code> on the host. Inspect or delete it to reset the layout without restarting the server.</li>
+        </ul>
       </section>
 
       <section id="server">
