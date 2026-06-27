@@ -21,6 +21,7 @@ npm-debug.log*
 # Build Artifacts
 build-temp/
 dist/
+_site/
 
 # Test Artifacts
 playwright-report/

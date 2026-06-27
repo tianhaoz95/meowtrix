@@ -27,19 +27,27 @@ else
   echo "🐾 Skipping screenshot/GIF capture (pass --capture to recapture)."
 fi
 
+echo "🐾 Assembling site locally into './_site' (matching GitHub Pages layout)..."
+rm -rf _site
+mkdir -p _site
+cp -R website/. _site/
+mkdir -p _site/demo
+cp -R public/. _site/demo/
+touch _site/.nojekyll
+
 echo "🐾 Starting local web server to serve the website..."
 PORT=5173
 URL="http://localhost:${PORT}"
 
 if command -v npx &>/dev/null; then
-  echo "→ Serving './website' folder on ${URL} using http-server..."
+  echo "→ Serving './_site' folder on ${URL} using http-server..."
   # -p specifies port, -o automatically opens the URL in the default browser
-  npx --yes http-server website -p $PORT -o
+  npx --yes http-server _site -p $PORT -o
 elif command -v python3 &>/dev/null; then
-  echo "→ Serving './website' folder on ${URL} using python3 http.server..."
+  echo "→ Serving './_site' folder on ${URL} using python3 http.server..."
   
   # Run python server in background
-  python3 -m http.server $PORT --directory website &
+  python3 -m http.server $PORT --directory _site &
   PY_PID=$!
   
   # Trap to kill python process on exit

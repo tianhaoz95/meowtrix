@@ -205,6 +205,43 @@ function clearSettingsSearch() {
   }
 }
 
+async function loadLegalContent() {
+  const container = document.getElementById('about-legal-content');
+  if (!container) return;
+  try {
+    const res = await fetch('legal.json');
+    if (!res.ok) throw new Error('Failed to fetch legal.json');
+    const data = await res.json();
+    
+    let html = '';
+    
+    if (data.privacyNotice) {
+      html += `<h4 class="about-doc-title">${data.privacyNotice.title}</h4>`;
+      html += `<p>${data.privacyNotice.intro}</p>`;
+      html += `<ul>`;
+      data.privacyNotice.items.forEach(item => {
+        html += `<li><strong>${item.title}.</strong> ${item.description}</li>`;
+      });
+      html += `</ul>`;
+    }
+    
+    if (data.userAgreement) {
+      html += `<h4 class="about-doc-title">${data.userAgreement.title}</h4>`;
+      html += `<p>${data.userAgreement.intro}</p>`;
+      html += `<ul>`;
+      data.userAgreement.items.forEach(item => {
+        html += `<li><strong>${item.title}.</strong> ${item.description}</li>`;
+      });
+      html += `</ul>`;
+    }
+    
+    container.innerHTML = html;
+  } catch (e) {
+    console.error('Error loading legal content:', e);
+    container.innerHTML = '<p style="color: var(--text3);">Failed to load privacy notice and user agreement.</p>';
+  }
+}
+
 // ── Panel open/close ─────────────────────────────────────────────────────────
 function syncAboutVersion() {
   const el = document.getElementById('s-about-version');
@@ -770,6 +807,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateControls(s);
   wireControls();
   toggleSettingsInputs(false);
+  loadLegalContent();
   // Server is source of truth for theme
   applyTheme(s.theme);
   if (typeof updateUiMode === 'function') updateUiMode();

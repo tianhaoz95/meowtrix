@@ -1,0 +1,46 @@
+{
+  "privacyNotice": {
+    "title": "Privacy Notice",
+    "intro": "Meowtrix is a self-hosted tool that runs entirely on your own host machine. There is no Meowtrix cloud service, account, or telemetry — we do not collect, transmit, or store any of your data on our servers.",
+    "items": [
+      {
+        "title": "What stays on your machine",
+        "description": "Your settings and workspace layout are saved locally under <code>~/.meowtrix/</code>. Terminal sessions, files opened in the editor, and command output never leave your host except over the network connection you choose to expose."
+      },
+      {
+        "title": "Network exposure is your choice",
+        "description": "By default the server binds to localhost only. If you enable LAN/remote access or a tunnel (e.g. ngrok), anyone who can reach the server gets full shell access to your machine — there is no built-in authentication. Secure the connection yourself (SSH tunnel, firewall, VPN)."
+      },
+      {
+        "title": "Third-party resources",
+        "description": "The interface loads some assets (the terminal and editor libraries) from public CDNs, and the embedded browser/proxy fetches whatever pages you navigate to. Those requests are subject to the privacy practices of the respective providers and sites."
+      },
+      {
+        "title": "Updates",
+        "description": "If automatic update checks are enabled, the app contacts the Meowtrix source repository (GitHub) to compare versions. This can be turned off in the Updates section."
+      }
+    ]
+  },
+  "userAgreement": {
+    "title": "User Agreement",
+    "intro": "By using Meowtrix you agree to the following terms:",
+    "items": [
+      {
+        "title": "Authorized use only",
+        "description": "Use Meowtrix only on machines you own or are explicitly authorized to access. You are solely responsible for how the tool and any shell access it provides are used."
+      },
+      {
+        "title": "Security responsibility",
+        "description": "Because reaching the server grants a shell with no built-in authentication, you are responsible for restricting access and protecting any exposed endpoint. Do not expose it to untrusted networks without your own access controls."
+      },
+      {
+        "title": "No warranty",
+        "description": "Meowtrix is provided \"as is\", without warranty of any kind, express or implied. To the maximum extent permitted by law, the authors and contributors are not liable for any damages, data loss, or security incidents arising from its use."
+      },
+      {
+        "title": "Open source",
+        "description": "Meowtrix is open-source software distributed under the terms of its license. Your use is also governed by that license."
+      }
+    ]
+  }
+}
