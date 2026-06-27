@@ -13,12 +13,28 @@ let _monacoPromise = null;
 function ensureMonaco() {
   if (_monacoPromise) return _monacoPromise;
   _monacoPromise = new Promise((resolve, reject) => {
-    // Web workers must be same-origin, so point Monaco at a blob shim that
-    // re-imports the real worker from the CDN (the standard CDN-Monaco pattern).
+    // Web workers must be same-origin, so wrap each CDN worker in a blob shim
+    // (the standard CDN-Monaco pattern). Route language-specific labels to their
+    // dedicated language service workers so IntelliSense/autocomplete gets the
+    // correct context; fall back to workerMain.js for the base editor worker.
     self.MonacoEnvironment = {
-      getWorkerUrl() {
-        const src = `self.MonacoEnvironment={baseUrl:'${MONACO_BASE}/'};` +
-                    `importScripts('${MONACO_BASE}/vs/base/worker/workerMain.js');`;
+      getWorkerUrl(_moduleId, label) {
+        let workerPath;
+        if (label === 'typescript' || label === 'javascript') {
+          workerPath = `${MONACO_BASE}/vs/language/typescript/tsWorker.js`;
+        } else if (label === 'json') {
+          workerPath = `${MONACO_BASE}/vs/language/json/jsonWorker.js`;
+        } else if (label === 'css' || label === 'scss' || label === 'less') {
+          workerPath = `${MONACO_BASE}/vs/language/css/cssWorker.js`;
+        } else if (label === 'html' || label === 'handlebars' || label === 'razor') {
+          workerPath = `${MONACO_BASE}/vs/language/html/htmlWorker.js`;
+        } else {
+          // Base editor worker (syntax highlighting, bracket matching, etc.)
+          const src = `self.MonacoEnvironment={baseUrl:'${MONACO_BASE}/'};` +
+                      `importScripts('${MONACO_BASE}/vs/base/worker/workerMain.js');`;
+          return URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+        }
+        const src = `importScripts('${workerPath}');`;
         return URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
       },
     };

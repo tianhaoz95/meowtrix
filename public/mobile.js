@@ -12,6 +12,16 @@ let mobileKeyBarCollapsed = localStorage.getItem('mobileKeyBarCollapsed') === 't
 let mobileKeyBarPositionFn = null;
 let mobileAutocompleteToggle = null;
 
+let mobileKeyBarPctX = null;
+let mobileKeyBarPctY = null;
+
+const storedPctX = localStorage.getItem('mobileKeyBarPctX');
+const storedPctY = localStorage.getItem('mobileKeyBarPctY');
+if (storedPctX !== null && storedPctY !== null) {
+  mobileKeyBarPctX = parseFloat(storedPctX);
+  mobileKeyBarPctY = parseFloat(storedPctY);
+}
+
 function isMobileLike() {
   const s = (typeof getSettings === 'function') ? getSettings() : {};
   const mode = s.uiMode || 'auto';
@@ -238,25 +248,114 @@ function rebuildMobileKeyBar() {
   toggleBtn.className = 'keybar-btn keybar-toggle-collapse';
   toggleBtn.textContent = mobileKeyBarCollapsed ? '📱' : '▼';
   toggleBtn.title = mobileKeyBarCollapsed ? 'Expand key bar' : 'Collapse key bar';
+  let startPointerX = 0;
+  let startPointerY = 0;
+  let startBarX = 0;
+  let startBarY = 0;
+  let isDragging = false;
+  let hasPointerCapture = false;
+
   toggleBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    mobileKeyBarCollapsed = !mobileKeyBarCollapsed;
-    localStorage.setItem('mobileKeyBarCollapsed', mobileKeyBarCollapsed);
-    rebuildMobileKeyBar();
+    if (!mobileKeyBarCollapsed) {
+      e.preventDefault();
+      mobileKeyBarCollapsed = !mobileKeyBarCollapsed;
+      localStorage.setItem('mobileKeyBarCollapsed', mobileKeyBarCollapsed);
+      rebuildMobileKeyBar();
  
-    if (mobileKeyBarPositionFn) {
-      mobileKeyBarPositionFn();
+      if (mobileKeyBarPositionFn) {
+        mobileKeyBarPositionFn();
+      }
+ 
+      if (activePane?.activeTab?.fitAddon) {
+        try {
+          activePane.activeTab.fitAddon.fit();
+          if (typeof refreshMobileScrollbar === 'function') {
+            refreshMobileScrollbar(activePane.activeTab);
+          }
+        } catch (err) {}
+      }
+      return;
     }
- 
-    if (activePane?.activeTab?.fitAddon) {
-      try {
-        activePane.activeTab.fitAddon.fit();
-        if (typeof refreshMobileScrollbar === 'function') {
-          refreshMobileScrollbar(activePane.activeTab);
-        }
-      } catch (err) {}
+
+    e.preventDefault();
+    startPointerX = e.clientX;
+    startPointerY = e.clientY;
+    
+    const vv = window.visualViewport;
+    const currentLeft = bar.offsetLeft;
+    const currentTop = bar.offsetTop;
+    
+    startBarX = currentLeft - (vv ? vv.offsetLeft : 0);
+    startBarY = currentTop - (vv ? vv.offsetTop : 0);
+    
+    isDragging = false;
+    toggleBtn.setPointerCapture(e.pointerId);
+    hasPointerCapture = true;
+  });
+
+  toggleBtn.addEventListener('pointermove', (e) => {
+    if (!hasPointerCapture) return;
+    e.preventDefault();
+    const dx = e.clientX - startPointerX;
+    const dy = e.clientY - startPointerY;
+    
+    if (!isDragging && Math.hypot(dx, dy) > 5) {
+      isDragging = true;
+    }
+    
+    if (isDragging) {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      
+      const newX = startBarX + dx;
+      const newY = startBarY + dy;
+      
+      const size = 46;
+      const x = Math.max(0, Math.min(vv.width - size, newX));
+      const y = Math.max(0, Math.min(vv.height - size, newY));
+      
+      bar.style.left = `${vv.offsetLeft + x}px`;
+      bar.style.top = `${vv.offsetTop + y}px`;
+      
+      mobileKeyBarPctX = x / vv.width;
+      mobileKeyBarPctY = y / vv.height;
     }
   });
+
+  const handlePointerUp = (e) => {
+    if (!hasPointerCapture) return;
+    e.preventDefault();
+    try {
+      toggleBtn.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+    hasPointerCapture = false;
+    
+    if (isDragging) {
+      localStorage.setItem('mobileKeyBarPctX', mobileKeyBarPctX);
+      localStorage.setItem('mobileKeyBarPctY', mobileKeyBarPctY);
+    } else {
+      mobileKeyBarCollapsed = !mobileKeyBarCollapsed;
+      localStorage.setItem('mobileKeyBarCollapsed', mobileKeyBarCollapsed);
+      rebuildMobileKeyBar();
+ 
+      if (mobileKeyBarPositionFn) {
+        mobileKeyBarPositionFn();
+      }
+ 
+      if (activePane?.activeTab?.fitAddon) {
+        try {
+          activePane.activeTab.fitAddon.fit();
+          if (typeof refreshMobileScrollbar === 'function') {
+            refreshMobileScrollbar(activePane.activeTab);
+          }
+        } catch (err) {}
+      }
+    }
+    isDragging = false;
+  };
+
+  toggleBtn.addEventListener('pointerup', handlePointerUp);
+  toggleBtn.addEventListener('pointercancel', handlePointerUp);
  
   // Container for the rest of the buttons (scrolling area)
   const keysContainer = document.createElement('div');
@@ -327,11 +426,20 @@ function initMobileKeyBar() {
           appEl.style.paddingBottom = '0px';
           appEl.style.background = '';
 
-          // Position keybar at the bottom left of the visual viewport
+          let x, y;
+          if (mobileKeyBarPctX !== null && mobileKeyBarPctY !== null) {
+            x = Math.max(0, Math.min(vv.width - size, mobileKeyBarPctX * vv.width));
+            y = Math.max(0, Math.min(vv.height - size, mobileKeyBarPctY * vv.height));
+          } else {
+            x = 12;
+            y = vv.height - size - 12;
+          }
+
+          // Position keybar at the bottom left of the visual viewport or custom location
           bar.style.position = 'absolute';
           bar.style.bottom = 'auto'; // Prevent stretching when top is set (CSS has bottom: 0)
-          bar.style.top = `${vv.offsetTop + vv.height - size - 12}px`;
-          bar.style.left = `${vv.offsetLeft + 12}px`;
+          bar.style.top = `${vv.offsetTop + y}px`;
+          bar.style.left = `${vv.offsetLeft + x}px`;
           bar.style.width = `${size}px`;
           bar.style.right = 'auto';
           bar.style.transform = 'none';

@@ -909,6 +909,11 @@ body.has-maximized-pane {
   background: var(--bg2); border-bottom: 1px solid var(--border2);
   flex-shrink: 0; height: 38px; padding: 0 4px;
   overflow-x: auto; overflow-y: hidden; position: relative;
+  /* Fade the right edge so overflowing tab labels dissolve gracefully
+     instead of hard-clipping. The ~40px zone sits before the + button,
+     giving a premium "there's more" hint without hiding the add button. */
+  mask-image: linear-gradient(to right, black calc(100% - 44px), transparent calc(100% - 4px));
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 44px), transparent calc(100% - 4px));
 }
 .pane-tabs::-webkit-scrollbar { height: 2px; }
 .pane-tabs::-webkit-scrollbar-thumb { background: var(--border3); border-radius: 1px; }
@@ -2340,10 +2345,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 
 /* Collapsed state styling */
 #mobile-keybar.collapsed {
-  left: 12px !important;
   right: auto !important;
-  bottom: calc(12px + env(safe-area-inset-bottom)) !important;
-  transform: none !important;
   width: 46px !important;
   height: 46px !important;
   padding: 0 !important;
