@@ -164,7 +164,18 @@ function moveTab(srcPane, tabId, destPane, refEl) {
   activateTab(destPane, tabId);
   // Reparenting can drop the xterm's rendered rows; refit + repaint.
   if (tab.type === 'terminal' && tab.term) {
-    requestAnimationFrame(() => { tab.fitAddon?.fit(); tab.term.refresh(0, tab.term.rows - 1); });
+    const fit = () => {
+      if (tab.fitAddon && tab.viewEl.classList.contains('active')) {
+        try {
+          tab.fitAddon.fit();
+          tab.term.refresh(0, tab.term.rows - 1);
+        } catch {}
+      }
+    };
+    requestAnimationFrame(() => {
+      fit();
+      setTimeout(fit, 150);
+    });
   }
   saveSessionState();
 }
@@ -266,14 +277,20 @@ function toggleMaximizePane(pane) {
   }
 
   // Trigger resize observer / fit for all panes to adjust xterm/monaco sizes
-  requestAnimationFrame(() => {
+  const refit = () => {
     getAllPanes().forEach(p => {
       const tab = p.activeTab;
-      if (tab?.fitAddon) tab.fitAddon.fit();
+      if (tab && tab.type === 'terminal' && tab.fitAddon && tab.viewEl && tab.viewEl.classList.contains('active')) {
+        try { tab.fitAddon.fit(); } catch {}
+      }
       if (tab?.type === 'editor' && typeof tab.onActivate === 'function') {
         tab.onActivate();
       }
     });
+  };
+  requestAnimationFrame(() => {
+    refit();
+    setTimeout(refit, 150);
   });
 }
 
@@ -422,12 +439,20 @@ function activateTab(pane, id) {
   });
   pane.activeTab = pane.tabs.find(t => t.id === id);
   if (pane.activeTab?.type === 'terminal' && pane.activeTab.fitAddon) {
-    requestAnimationFrame(() => {
-      if (pane.activeTab?.type === 'terminal' && pane.activeTab.fitAddon) {
-        pane.activeTab.fitAddon.fit();
-        pane.activeTab.term?.focus();
-        if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(pane.activeTab);
+    const tab = pane.activeTab;
+    const fit = () => {
+      if (pane.activeTab === tab && tab.fitAddon && tab.viewEl.classList.contains('active')) {
+        try {
+          tab.fitAddon.fit();
+          tab.term?.focus();
+          if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
+        } catch (e) {}
       }
+    };
+    requestAnimationFrame(() => {
+      fit();
+      setTimeout(fit, 50);
+      setTimeout(fit, 150);
     });
   }
   if (pane.activeTab?.onActivate) requestAnimationFrame(() => pane.activeTab.onActivate());
@@ -670,7 +695,9 @@ function initTerminalTab(tab, existingPtyId) {
   }
 
   const initPty = () => {
-    fitAddon.fit();
+    if (tab.viewEl.classList.contains('active')) {
+      try { fitAddon.fit(); } catch {}
+    }
     createPty(ptyId, term, term.cols, term.rows, tab.terminalDir, inheritFromPtyId, tab.sshHost);
     if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
   };
@@ -680,7 +707,7 @@ function initTerminalTab(tab, existingPtyId) {
   // so re-fit (which resizes the PTY too) once the real font is ready.
   if (document.fonts?.ready) document.fonts.ready.then(() => {
     if (tab.viewEl.classList.contains('active')) {
-      fitAddon.fit();
+      try { fitAddon.fit(); } catch {}
       if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
     }
   });
@@ -762,8 +789,17 @@ function initTerminalTab(tab, existingPtyId) {
 
   const ro = new ResizeObserver(() => {
     if (tab.viewEl.classList.contains('active')) {
-      fitAddon.fit();
-      if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
+      const fit = () => {
+        if (tab.viewEl.classList.contains('active') && tab.fitAddon) {
+          try {
+            tab.fitAddon.fit();
+            if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
+          } catch (e) {}
+        }
+      };
+      fit();
+      requestAnimationFrame(fit);
+      setTimeout(fit, 150);
     }
   });
   ro.observe(tab.viewEl);
@@ -771,8 +807,8 @@ function initTerminalTab(tab, existingPtyId) {
     tab.zoomLevel = zoomLevel;
     const baseFontSize = (getSettings().termFontSize || 13);
     term.options.fontSize = Math.round(baseFontSize * zoomLevel);
-    if (tab.fitAddon) {
-      tab.fitAddon.fit();
+    if (tab.fitAddon && tab.viewEl && tab.viewEl.classList.contains('active')) {
+      try { tab.fitAddon.fit(); } catch {}
     }
   };
   tab.disposeTerminal = () => {
@@ -1074,7 +1110,15 @@ function onPtyRestore(ptyId, cols, rows) {
 function onReplayDone(ptyId) {
   const tab = tabByPtyId(ptyId);
   if (tab?.fitAddon && tab.viewEl.classList.contains('active')) {
-    requestAnimationFrame(() => { try { tab.fitAddon.fit(); } catch {} });
+    const fit = () => {
+      if (tab.fitAddon && tab.viewEl.classList.contains('active')) {
+        try { tab.fitAddon.fit(); } catch {}
+      }
+    };
+    requestAnimationFrame(() => {
+      fit();
+      setTimeout(fit, 150);
+    });
   }
 }
 

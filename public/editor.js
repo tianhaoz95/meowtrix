@@ -95,8 +95,28 @@ function isHtmlFile(filePath) {
   return ext === 'html' || ext === 'htm';
 }
 
+function isPdfFile(filePath) {
+  if (!filePath) return false;
+  const ext = filePath.split('.').pop().toLowerCase();
+  return ext === 'pdf';
+}
+
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico']);
+function isImageFile(filePath) {
+  if (!filePath) return false;
+  const ext = filePath.split('.').pop().toLowerCase();
+  return IMAGE_EXTS.has(ext);
+}
+
+const VIDEO_EXTS = new Set(['mp4', 'webm', 'ogg', 'mov', 'm4v']);
+function isVideoFile(filePath) {
+  if (!filePath) return false;
+  const ext = filePath.split('.').pop().toLowerCase();
+  return VIDEO_EXTS.has(ext);
+}
+
 function isPreviewableFile(filePath) {
-  return isMarkdownFile(filePath) || isHtmlFile(filePath);
+  return isMarkdownFile(filePath) || isHtmlFile(filePath) || isPdfFile(filePath) || isImageFile(filePath) || isVideoFile(filePath);
 }
 
 async function checkAICapabilities() {
@@ -262,6 +282,8 @@ function getFileIconSvg(filename, type, isOpen = false) {
     case 'bash':
     case 'zsh':
       return getFileSvg('#41b883', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="4.5" font-weight="800" fill="#41b883" text-anchor="middle">&gt;_</text>`);
+    case 'pdf':
+      return getFileSvg('#e74c3c', `<text x="8" y="11" font-family="'Inter', sans-serif" font-size="4.5" font-weight="800" fill="#e74c3c" text-anchor="middle">PDF</text>`);
     case 'png':
     case 'jpg':
     case 'jpeg':
@@ -507,6 +529,8 @@ function initEditorTab(tab, viewEl, dir) {
       const dragSource = window.dragSourcePath;
       if (dragSource && isValidMove(dragSource, dir)) {
         treeEl.classList.add('drag-hover');
+      } else if (!dragSource && e.dataTransfer.types.includes('Files')) {
+        treeEl.classList.add('drag-hover');
       }
     }
   });
@@ -516,6 +540,9 @@ function initEditorTab(tab, viewEl, dir) {
       if (dragSource && isValidMove(dragSource, dir)) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+      } else if (!dragSource && e.dataTransfer.types.includes('Files')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
       }
     }
   });
@@ -532,6 +559,9 @@ function initEditorTab(tab, viewEl, dir) {
         e.preventDefault();
         const targetPath = join(dir, basename(dragSource));
         await moveItem(dragSource, targetPath);
+      } else if (!dragSource && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        e.preventDefault();
+        await handleHostFilesDrop(e.dataTransfer.files, dir);
       }
     }
   });
@@ -848,6 +878,32 @@ function initEditorTab(tab, viewEl, dir) {
       }
     } catch (err) {
       toast('Failed to move');
+    }
+  }
+
+  async function handleHostFilesDrop(files, destDir) {
+    toast(`Uploading ${files.length} file(s)...`);
+    let successCount = 0;
+    for (const file of files) {
+      try {
+        const url = `/api/upload?name=${encodeURIComponent(file.name)}&dir=${encodeURIComponent(destDir)}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          body: file
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          successCount++;
+        } else {
+          toast(`Failed to upload ${file.name}: ${data.error || 'unknown error'}`);
+        }
+      } catch (err) {
+        toast(`Failed to upload ${file.name}`);
+      }
+    }
+    if (successCount > 0) {
+      toast(`Uploaded ${successCount} of ${files.length} file(s)`);
+      refreshFiles();
     }
   }
 
@@ -1649,6 +1705,44 @@ function initEditorTab(tab, viewEl, dir) {
     markdownPreviewHost.appendChild(iframe);
   }
 
+  function renderPdfContent(st) {
+    markdownPreviewHost.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.className = 'editor-pdf-iframe';
+    iframe.src = '/api/download?path=' + encodeURIComponent(st.path) + '&inline=1&t=' + Date.now();
+    markdownPreviewHost.appendChild(iframe);
+  }
+
+  function renderImageContent(st) {
+    markdownPreviewHost.innerHTML = '';
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'editor-image-wrap';
+    const img = document.createElement('img');
+    img.className = 'editor-image-preview';
+    img.src = '/api/download?path=' + encodeURIComponent(st.path) + '&inline=1&t=' + Date.now();
+    img.alt = basename(st.path);
+    imgWrap.appendChild(img);
+    markdownPreviewHost.appendChild(imgWrap);
+  }
+
+  function renderVideoContent(st) {
+    markdownPreviewHost.innerHTML = '';
+    const videoWrap = document.createElement('div');
+    videoWrap.className = 'editor-video-wrap';
+    const video = document.createElement('video');
+    video.className = 'editor-video-preview';
+    video.controls = true;
+    video.autoplay = true;
+    video.muted = true;
+    const source = document.createElement('source');
+    source.src = '/api/download?path=' + encodeURIComponent(st.path) + '&inline=1';
+    const ext = st.path.split('.').pop().toLowerCase();
+    source.type = ext === 'mov' ? 'video/mp4' : `video/${ext}`;
+    video.appendChild(source);
+    videoWrap.appendChild(video);
+    markdownPreviewHost.appendChild(videoWrap);
+  }
+
   function togglePreviewMode(previewMode) {
     if (!activePath) return;
     const st = open.get(activePath);
@@ -1676,12 +1770,16 @@ function initEditorTab(tab, viewEl, dir) {
     
     const st = open.get(p);
     
-    // Determine if markdown or HTML is active
+    // Determine if markdown or HTML or PDF or Image or Video is active
     const isPreviewable = isPreviewableFile(p);
     if (isPreviewable && st) {
-      markdownToggleWrap.hidden = false;
-      btnEdit.classList.toggle('active', !st.previewActive);
-      btnPreview.classList.toggle('active', st.previewActive);
+      if (isPdfFile(p) || isImageFile(p) || isVideoFile(p)) {
+        markdownToggleWrap.hidden = true;
+      } else {
+        markdownToggleWrap.hidden = false;
+        btnEdit.classList.toggle('active', !st.previewActive);
+        btnPreview.classList.toggle('active', st.previewActive);
+      }
     } else {
       markdownToggleWrap.hidden = true;
     }
@@ -1698,30 +1796,44 @@ function initEditorTab(tab, viewEl, dir) {
       monacoHost.hidden = true;
       markdownPreviewHost.hidden = false;
       statusbar.style.display = 'none';
+      markdownPreviewHost.classList.remove('is-html', 'is-pdf', 'is-image', 'is-video');
       if (isMarkdownFile(p)) {
-        markdownPreviewHost.classList.remove('is-html');
         renderMarkdownContent(st);
       } else if (isHtmlFile(p)) {
         markdownPreviewHost.classList.add('is-html');
         renderHtmlContent(st);
+      } else if (isPdfFile(p)) {
+        markdownPreviewHost.classList.add('is-pdf');
+        renderPdfContent(st);
+      } else if (isImageFile(p)) {
+        markdownPreviewHost.classList.add('is-image');
+        renderImageContent(st);
+      } else if (isVideoFile(p)) {
+        markdownPreviewHost.classList.add('is-video');
+        renderVideoContent(st);
       }
     } else {
       monacoHost.hidden = false;
       markdownPreviewHost.hidden = true;
-      markdownPreviewHost.classList.remove('is-html');
-      editor?.setModel(st.model);
-      
-      statusbar.style.display = 'flex';
-      const modelLang = st.model.getLanguageId();
-      langSelect.value = modelLang;
-      const selectedOpt = langSelect.options[langSelect.selectedIndex];
-      langLabel.textContent = selectedOpt ? selectedOpt.textContent : modelLang;
-      
-      if (st.viewState) editor?.restoreViewState(st.viewState);
-      if (editor) editor.focus();
-      if (line !== null && editor) {
-        editor.revealLineInCenter(line);
-        editor.setPosition({ lineNumber: line, column: 1 });
+      markdownPreviewHost.classList.remove('is-html', 'is-pdf', 'is-image', 'is-video');
+      if (st.model) {
+        editor?.setModel(st.model);
+        
+        statusbar.style.display = 'flex';
+        const modelLang = st.model.getLanguageId();
+        langSelect.value = modelLang;
+        const selectedOpt = langSelect.options[langSelect.selectedIndex];
+        langLabel.textContent = selectedOpt ? selectedOpt.textContent : modelLang;
+        
+        if (st.viewState) editor?.restoreViewState(st.viewState);
+        if (editor) editor.focus();
+        if (line !== null && editor) {
+          editor.revealLineInCenter(line);
+          editor.setPosition({ lineNumber: line, column: 1 });
+        }
+      } else {
+        editor?.setModel(null);
+        statusbar.style.display = 'none';
       }
     }
   }
@@ -1730,7 +1842,7 @@ function initEditorTab(tab, viewEl, dir) {
     const st = open.get(p);
     if (!st) return;
     st.tabEl.remove();
-    st.model.dispose();
+    if (st.model) st.model.dispose();
     open.delete(p);
     if (activePath === p) {
       const next = [...open.keys()].pop() || null;
@@ -1763,6 +1875,28 @@ function initEditorTab(tab, viewEl, dir) {
 
   async function openFile(filePath, line = null) {
     if (open.has(filePath)) { setActive(filePath, line); return; }
+    
+    if (isPdfFile(filePath) || isImageFile(filePath) || isVideoFile(filePath)) {
+      const tabEl = document.createElement('div');
+      tabEl.className = 'editor-filetab';
+      const dotEl = document.createElement('span');
+      dotEl.className = 'editor-filetab-dot';
+      const nameEl = document.createElement('span');
+      nameEl.textContent = basename(filePath);
+      const closeEl = document.createElement('span');
+      closeEl.className = 'editor-filetab-close';
+      closeEl.textContent = '✕';
+      tabEl.append(dotEl, nameEl, closeEl);
+      tabEl.title = filePath;
+      tabEl.addEventListener('click', () => setActive(filePath));
+      closeEl.addEventListener('click', (e) => { e.stopPropagation(); closeFile(filePath); });
+      fileTabs.appendChild(tabEl);
+
+      open.set(filePath, { model: null, viewState: null, dirty: false, tabEl, dotEl, previewActive: true, path: filePath });
+      setActive(filePath, line);
+      return;
+    }
+
     let data;
     try {
       const res = await fetch('/api/fs/read?path=' + encodeURIComponent(filePath));
@@ -2106,6 +2240,8 @@ function initEditorTab(tab, viewEl, dir) {
         const destDir = entry.type === 'dir' ? full : dirPath;
         if (dragSource && isValidMove(dragSource, destDir)) {
           row.classList.add('drag-hover');
+        } else if (!dragSource && e.dataTransfer.types.includes('Files')) {
+          row.classList.add('drag-hover');
         }
       });
 
@@ -2116,6 +2252,9 @@ function initEditorTab(tab, viewEl, dir) {
         if (dragSource && isValidMove(dragSource, destDir)) {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
+        } else if (!dragSource && e.dataTransfer.types.includes('Files')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
         }
       });
 
@@ -2133,6 +2272,9 @@ function initEditorTab(tab, viewEl, dir) {
           e.preventDefault();
           const targetPath = join(destDir, basename(dragSource));
           await moveItem(dragSource, targetPath);
+        } else if (!dragSource && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          await handleHostFilesDrop(e.dataTransfer.files, destDir);
         }
       });
       
@@ -2235,6 +2377,24 @@ function initEditorTab(tab, viewEl, dir) {
     if (!activePath) return;
     const st = open.get(activePath);
     if (!st || st.dirty) return;
+    if (isPdfFile(activePath)) {
+      if (st.previewActive) {
+        renderPdfContent(st);
+      }
+      return;
+    }
+    if (isImageFile(activePath)) {
+      if (st.previewActive) {
+        renderImageContent(st);
+      }
+      return;
+    }
+    if (isVideoFile(activePath)) {
+      if (st.previewActive) {
+        renderVideoContent(st);
+      }
+      return;
+    }
     try {
       const res = await fetch('/api/fs/read?path=' + encodeURIComponent(activePath));
       const data = await res.json();

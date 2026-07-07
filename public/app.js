@@ -241,7 +241,12 @@ function flushSessionState() {
 }
 
 function fitAllTerminals() {
-  const fit = () => getAllPanes().forEach(p => p.tabs.forEach(t => { if (t.fitAddon) t.fitAddon.fit(); }));
+  const fit = () => getAllPanes().forEach(p => {
+    const t = p.activeTab;
+    if (t && t.type === 'terminal' && t.fitAddon && t.viewEl && t.viewEl.classList.contains('active')) {
+      try { t.fitAddon.fit(); } catch {}
+    }
+  });
   requestAnimationFrame(() => { fit(); setTimeout(fit, 150); });
   // Re-fit once the terminal web font has loaded: fitting with fallback-font
   // metrics picks the wrong row count and clips the bottom line.

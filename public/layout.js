@@ -79,7 +79,9 @@ function makeDraggable(divider, container, dir) {
       next.style.flex = `${combinedGrow - newPrevGrow} 1 0`;
       getAllPanes().forEach(p => {
         const tab = p.activeTab;
-        if (tab?.fitAddon) tab.fitAddon.fit();
+        if (tab && tab.type === 'terminal' && tab.fitAddon && tab.viewEl && tab.viewEl.classList.contains('active')) {
+          try { tab.fitAddon.fit(); } catch {}
+        }
       });
     };
 
@@ -91,6 +93,22 @@ function makeDraggable(divider, container, dir) {
       divider.removeEventListener('pointerup', onUp);
       divider.removeEventListener('pointercancel', onUp);
       saveSessionState();
+
+      // Fit active terminals on drag end to ensure perfect layout alignment
+      getAllPanes().forEach(p => {
+        const tab = p.activeTab;
+        if (tab && tab.type === 'terminal' && tab.fitAddon && tab.viewEl && tab.viewEl.classList.contains('active')) {
+          const fit = () => {
+            if (tab.fitAddon && tab.viewEl.classList.contains('active')) {
+              try { tab.fitAddon.fit(); } catch {}
+            }
+          };
+          requestAnimationFrame(() => {
+            fit();
+            setTimeout(fit, 150);
+          });
+        }
+      });
     };
 
     // With pointer capture, move/up events retarget to the divider itself.

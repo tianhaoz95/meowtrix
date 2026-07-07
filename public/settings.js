@@ -105,7 +105,9 @@ function applyTermSettings() {
     t.term.options.fontSize = Math.round((currentSettings.termFontSize || 13) * (t.zoomLevel || 1.0));
     t.term.options.fontFamily = currentSettings.termFontFamily;
     t.term.options.scrollback = currentSettings.termScrollback;
-    if (t.fitAddon) t.fitAddon.fit();
+    if (t.fitAddon && t.viewEl && t.viewEl.classList.contains('active')) {
+      try { t.fitAddon.fit(); } catch {}
+    }
   }));
 }
 

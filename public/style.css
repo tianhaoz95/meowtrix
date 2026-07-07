@@ -975,7 +975,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
 .pane-view.active { display: flex; flex-direction: column; }
 
 /* ── Terminal ── */
-.terminal-view { background: var(--term-bg); padding: 8px; }
+.terminal-view { background: var(--term-bg); padding: 8px; bottom: 8px; }
 .xterm-viewport { overflow-y: auto !important; }
 /* xterm renders its own canvas — ensure container bg matches to avoid flash */
 .xterm { background: var(--term-bg) !important; }
@@ -3336,6 +3336,84 @@ body.resizing-console iframe {
   border: none;
   background: #ffffff;
   display: block;
+}
+
+/* PDF Preview Styles */
+.editor-markdown-preview.is-pdf {
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.editor-pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--bg);
+  display: block;
+}
+
+/* Image Preview Styles */
+.editor-markdown-preview.is-image {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  /* Checkered pattern for transparent images */
+  background-image: 
+    linear-gradient(45deg, var(--bg2) 25%, transparent 25%), 
+    linear-gradient(-45deg, var(--bg2) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, var(--bg2) 75%), 
+    linear-gradient(-45deg, transparent 75%, var(--bg2) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  overflow: auto;
+}
+
+.editor-image-wrap {
+  padding: 24px;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.editor-image-preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  background: transparent;
+}
+
+/* Video Preview Styles */
+.editor-markdown-preview.is-video {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+}
+
+.editor-video-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.editor-video-preview {
+  max-width: 100%;
+  max-height: 100%;
+  outline: none;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
 }
 
 /* Tree row actions */

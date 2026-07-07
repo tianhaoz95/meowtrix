@@ -15,7 +15,8 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static assets with a max-age of 1 day to enable browser caching and reduce load latency
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
 
 // ── Hot reload (dev only) ────────────────────────────────────────────────────
 if (process.env.HOTRELOAD) {
@@ -181,7 +182,7 @@ app.post('/api/upload', (req, res) => {
   req.pipe(out);
 });
 
-// Download: stream the requested host file to the browser as an attachment.
+// Download: stream the requested host file to the browser as an attachment or inline.
 // Triggered by the `mtx` command, which prints an OSC sequence the client turns
 // into a GET here (see public/pane.js).
 app.get('/api/download', (req, res) => {
@@ -190,7 +191,11 @@ app.get('/api/download', (req, res) => {
   const resolved = path.resolve(p);
   fs.stat(resolved, (err, st) => {
     if (err || !st.isFile()) return res.status(404).send('Not found');
-    res.download(resolved, path.basename(resolved));
+    if (req.query.inline === '1') {
+      res.sendFile(resolved);
+    } else {
+      res.download(resolved, path.basename(resolved));
+    }
   });
 });
 

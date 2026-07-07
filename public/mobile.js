@@ -976,11 +976,17 @@ function updateUiMode() {
   if (typeof getAllPanes === 'function') {
     getAllPanes().forEach(p => p.tabs.forEach(t => {
       if (t.term && t.fitAddon && t.viewEl.classList.contains('active')) {
+        const fit = () => {
+          if (t.fitAddon && t.viewEl.classList.contains('active')) {
+            try {
+              t.fitAddon.fit();
+              if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(t);
+            } catch {}
+          }
+        };
         requestAnimationFrame(() => {
-          try {
-            t.fitAddon.fit();
-            if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(t);
-          } catch {}
+          fit();
+          setTimeout(fit, 150);
         });
       }
     }));
