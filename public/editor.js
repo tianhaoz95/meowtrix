@@ -6,7 +6,7 @@
 // Created via the tab-type picker (which prompts for a folder), the command
 // palette, or `mtx code <dir>` in a terminal (OSC 5380 → triggerOpenEditor).
 
-const MONACO_BASE = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min';
+const MONACO_BASE = '/vendor/monaco-editor/min';
 
 // Lazily load + configure Monaco exactly once. Resolves to the global `monaco`.
 let _monacoPromise = null;
@@ -53,7 +53,7 @@ function ensureMarked() {
       window.define = undefined;
     }
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js';
+    script.src = '/vendor/marked/marked.umd.js';
     script.onload = () => {
       if (oldDefine) window.define = oldDefine;
       resolve(window.marked);

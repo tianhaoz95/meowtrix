@@ -10,11 +10,22 @@ const fs = require('fs');
 const { URL } = require('url');
 const { execFile, exec, execSync } = require('child_process');
 
+const compression = require('compression');
+
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  perMessageDeflate: true
+});
 
+app.use(compression());
 app.use(express.json());
+
+// Serve local monaco-editor and marked assets from node_modules for offline-readiness and reduced load latency
+app.use('/vendor/monaco-editor', express.static(path.join(__dirname, 'node_modules', 'monaco-editor')));
+app.use('/vendor/marked', express.static(path.join(__dirname, 'node_modules', 'marked', 'lib')));
+
 // Serve static assets with a max-age of 1 day to enable browser caching and reduce load latency
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
 
