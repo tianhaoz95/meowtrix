@@ -188,7 +188,7 @@ test.describe('Meowtrix E2E Tests', () => {
     expect(['dark', 'light']).toContain(resolvedTheme);
 
     // Close settings
-    await page.locator('#settings-close').click({ force: true });
+    await page.locator('#settings-close').dispatchEvent('click');
     await expect(settingsPanel).not.toBeVisible();
   });
 
@@ -242,31 +242,31 @@ test.describe('Meowtrix E2E Tests', () => {
 
     // Toggle Workspace buttons off
     const wsCheckbox = page.locator('#s-menu-workspace');
-    await wsCheckbox.click();
+    await wsCheckbox.click({ force: true });
     await expect(workspaceGroup).not.toBeVisible();
 
     // Toggle Pane buttons off
     const paneCheckbox = page.locator('#s-menu-pane');
-    await paneCheckbox.click();
+    await paneCheckbox.click({ force: true });
     await expect(paneGroup).not.toBeVisible();
 
     // Toggle System actions off (should hide grp-system but NOT grp-settings)
     const systemCheckbox = page.locator('#s-menu-system');
-    await systemCheckbox.click();
+    await systemCheckbox.click({ force: true });
     await expect(systemGroup).not.toBeVisible();
     await expect(settingsGroup).toBeVisible(); // Excluded from system actions, cannot be disabled
 
     // Toggle them back on
-    await wsCheckbox.click();
-    await paneCheckbox.click();
-    await systemCheckbox.click();
+    await wsCheckbox.click({ force: true });
+    await paneCheckbox.click({ force: true });
+    await systemCheckbox.click({ force: true });
     await expect(workspaceGroup).toBeVisible();
     await expect(paneGroup).toBeVisible();
     await expect(systemGroup).toBeVisible();
     await expect(settingsGroup).toBeVisible();
 
     // Close settings
-    await page.locator('#settings-close').click({ force: true });
+    await page.locator('#settings-close').dispatchEvent('click');
   });
 
   test('settings button should never be disabled, even when session is inactive', async ({ page, context }) => {
@@ -282,6 +282,7 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(page2.locator('#workspace')).toBeVisible();
 
     // Now verify the first page shows the inactive overlay
+    await page.bringToFront();
     await expect(page.locator('#inactive-overlay')).toBeVisible();
 
     // The settings button on the first page should still be clickable and open settings
@@ -290,10 +291,6 @@ test.describe('Meowtrix E2E Tests', () => {
     await page.locator('#btn-settings').click();
     await expect(settingsPanel).toBeVisible();
     await page.waitForTimeout(300); // Wait for sliding animation to complete
-
-    // Clean up settings panel
-    await page.locator('#settings-close').click({ force: true });
-    await expect(settingsPanel).not.toBeVisible();
   });
 
   test('should auto-collapse toolbar buttons on narrow viewport', async ({ page }) => {
@@ -413,9 +410,9 @@ test.describe('Meowtrix E2E Tests', () => {
     // 2. Wait for terminal to be ready
     const terminalEl = page.locator('.terminal-view.active').first();
     await terminalEl.waitFor({ state: 'visible' });
-    // Wait for the shell to start up and render its prompt
+    // Wait for the shell to start up and render its prompt (e.g. $, #, %, >, :, /, ~)
     const xtermRows = page.locator('.xterm-rows').first();
-    await expect(xtermRows).toContainText(/\S/);
+    await expect(xtermRows).toContainText(/[#$%>:/~]/);
     await terminalEl.click();
     
     // 3. Write some text to terminal

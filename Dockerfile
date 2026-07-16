@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
 # Set the working directory
 WORKDIR /app
 
+# Create workspace directory to prevent shell chdir failures
+RUN mkdir -p /workspace
+
 # Copy package files
 COPY package*.json ./
 
