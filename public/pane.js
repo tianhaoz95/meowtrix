@@ -448,7 +448,11 @@ function activateTab(pane, id) {
         try {
           tab.fitAddon.fit();
           if (!tab.searchEl || !tab.searchEl.classList.contains('active')) {
-            tab.term?.focus();
+            const active = document.activeElement;
+            const isTypingElsewhere = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') && !active.classList.contains('xterm-helper-textarea');
+            if (!isTypingElsewhere) {
+              tab.term?.focus();
+            }
           }
           if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
         } catch (e) {}

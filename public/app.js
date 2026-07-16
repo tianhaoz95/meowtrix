@@ -433,46 +433,68 @@ function onWsConnected() {
 // have changed the layout (split/closed panes, added/moved tabs), so our DOM is
 // stale. Rebuilding also re-creates the terminals, which reconnects their PTYs.
 async function resyncWorkspace() {
+  if (_saveTimer) return;
   try {
     const saved = await fetch('/api/session').then(r => r.json());
-    if (saved) {
-      deactivateAllWorkspaces();
-      if (saved.workspaces && Array.isArray(saved.workspaces)) {
-        currentWorkspaces = saved.workspaces.map(ws => ({
-          name: ws.name,
-          layout: ws.layout
-        }));
-        activeWorkspaceIndex = typeof saved.activeWorkspaceIndex === 'number' ? saved.activeWorkspaceIndex : 0;
-      } else {
-        currentWorkspaces = [
+    if (!saved) return;
+
+    let normalizedSaved = saved;
+    if (!saved.workspaces || !Array.isArray(saved.workspaces)) {
+      normalizedSaved = {
+        workspaces: [
           { name: "Workspace 1", layout: saved },
           { name: "Workspace 2", layout: null },
           { name: "Workspace 3", layout: null },
           { name: "Workspace 4", layout: null }
-        ];
-        activeWorkspaceIndex = 0;
-      }
+        ],
+        activeWorkspaceIndex: 0
+      };
+    }
 
-      // Update workspace active/inactive class states
+    // Check if saved state matches local state exactly to avoid unnecessary rebuild
+    let unchanged = true;
+    if (normalizedSaved.activeWorkspaceIndex !== activeWorkspaceIndex) unchanged = false;
+    if (unchanged) {
       for (let i = 0; i < 4; i++) {
-        const container = document.querySelector(`.workspace-view[data-index="${i}"]`);
-        if (container) {
-          if (i === activeWorkspaceIndex) {
-            container.classList.remove('inactive');
-            container.classList.add('active');
-          } else {
-            container.classList.remove('active');
-            container.classList.add('inactive');
-          }
+        const localLayout = captureWorkspaceState(i);
+        const savedLayout = normalizedSaved.workspaces[i]?.layout || null;
+        if (JSON.stringify(localLayout) !== JSON.stringify(savedLayout)) {
+          unchanged = false;
+          break;
         }
       }
+    }
 
-      const activeLayout = currentWorkspaces[activeWorkspaceIndex].layout;
-      if (activeLayout) {
-        restoreWorkspaceState(activeLayout);
-      } else {
-        initWorkspace();
+    if (unchanged) {
+      return;
+    }
+
+    deactivateAllWorkspaces();
+    currentWorkspaces = normalizedSaved.workspaces.map(ws => ({
+      name: ws.name,
+      layout: ws.layout
+    }));
+    activeWorkspaceIndex = typeof normalizedSaved.activeWorkspaceIndex === 'number' ? normalizedSaved.activeWorkspaceIndex : 0;
+
+    // Update workspace active/inactive class states
+    for (let i = 0; i < 4; i++) {
+      const container = document.querySelector(`.workspace-view[data-index="${i}"]`);
+      if (container) {
+        if (i === activeWorkspaceIndex) {
+          container.classList.remove('inactive');
+          container.classList.add('active');
+        } else {
+          container.classList.remove('active');
+          container.classList.add('inactive');
+        }
       }
+    }
+
+    const activeLayout = currentWorkspaces[activeWorkspaceIndex].layout;
+    if (activeLayout) {
+      restoreWorkspaceState(activeLayout);
+    } else {
+      initWorkspace();
     }
   } catch {}
   updateWorkspaceUI();
