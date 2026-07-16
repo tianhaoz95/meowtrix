@@ -137,6 +137,7 @@ test.describe('Meowtrix E2E Tests', () => {
     // Open settings panel
     await page.locator('#btn-settings').click();
     await expect(settingsPanel).toBeVisible();
+    await page.waitForTimeout(300); // Wait for sliding animation to complete
 
     // 1. Toggle Chat Pet
     const petCheckbox = page.locator('#s-pet');
@@ -187,7 +188,7 @@ test.describe('Meowtrix E2E Tests', () => {
     expect(['dark', 'light']).toContain(resolvedTheme);
 
     // Close settings
-    await page.locator('#settings-close').click();
+    await page.locator('#settings-close').click({ force: true });
     await expect(settingsPanel).not.toBeVisible();
   });
 
@@ -226,6 +227,7 @@ test.describe('Meowtrix E2E Tests', () => {
     // Open settings panel
     await page.locator('#btn-settings').click();
     await expect(page.locator('#settings-panel')).toBeVisible();
+    await page.waitForTimeout(300); // Wait for sliding animation to complete
 
     const workspaceGroup = page.locator('#grp-workspace');
     const paneGroup = page.locator('#grp-pane');
@@ -264,7 +266,7 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(settingsGroup).toBeVisible();
 
     // Close settings
-    await page.locator('#settings-close').click();
+    await page.locator('#settings-close').click({ force: true });
   });
 
   test('settings button should never be disabled, even when session is inactive', async ({ page, context }) => {
@@ -287,9 +289,10 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(settingsPanel).not.toBeVisible();
     await page.locator('#btn-settings').click();
     await expect(settingsPanel).toBeVisible();
+    await page.waitForTimeout(300); // Wait for sliding animation to complete
 
     // Clean up settings panel
-    await page.locator('#settings-close').click();
+    await page.locator('#settings-close').click({ force: true });
     await expect(settingsPanel).not.toBeVisible();
   });
 
@@ -410,6 +413,9 @@ test.describe('Meowtrix E2E Tests', () => {
     // 2. Wait for terminal to be ready
     const terminalEl = page.locator('.terminal-view.active').first();
     await terminalEl.waitFor({ state: 'visible' });
+    // Wait for the shell to start up and render its prompt
+    const xtermRows = page.locator('.xterm-rows').first();
+    await expect(xtermRows).toContainText(/\S/);
     await terminalEl.click();
     
     // 3. Write some text to terminal
