@@ -90,10 +90,10 @@ function buildCommands() {
   }));
 
   // Workspaces navigation and renaming commands
-  cmds.push({ icon: '◀', title: 'Previous workspace', hint: 'Ctrl+Alt+[', keywords: 'workspace prev backward swap switch', run: () => {
+  cmds.push({ icon: '◀', title: 'Previous workspace', hint: isMac ? '⌘+Left' : 'Ctrl+Left', keywords: 'workspace prev backward swap switch', run: () => {
     if (typeof switchWorkspace === 'function') switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4);
   } });
-  cmds.push({ icon: '▶', title: 'Next workspace', hint: 'Ctrl+Alt+]', keywords: 'workspace next forward swap switch', run: () => {
+  cmds.push({ icon: '▶', title: 'Next workspace', hint: isMac ? '⌘+Right' : 'Ctrl+Right', keywords: 'workspace next forward swap switch', run: () => {
     if (typeof switchWorkspace === 'function') switchWorkspace((activeWorkspaceIndex + 1) % 4);
   } });
   cmds.push({ icon: '✏️', title: 'Rename current workspace', keywords: 'workspace title name label retitle rename', keepOpen: true, run: () => {
@@ -110,7 +110,7 @@ function buildCommands() {
       cmds.push({
         icon: '🐾',
         title: `Switch to ${ws.name}`,
-        hint: `Ctrl+Alt+${idx + 1}`,
+        hint: isMac ? `⌘+Alt+${idx + 1}` : `Ctrl+Alt+${idx + 1}`,
         keywords: `workspace switch select jump ${ws.name}`,
         run: () => {
           if (typeof switchWorkspace === 'function') switchWorkspace(idx);

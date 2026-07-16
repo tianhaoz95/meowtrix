@@ -905,8 +905,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (el) { el.dataset.kbd = t; el.removeAttribute('title'); }
   };
-  setBtnTip('btn-prev-workspace', `Previous workspace (${modKey}+Alt+[)`);
-  setBtnTip('btn-next-workspace', `Next workspace (${modKey}+Alt+])`);
+  setBtnTip('btn-prev-workspace', `Previous workspace (${modKey}+Left)`);
+  setBtnTip('btn-next-workspace', `Next workspace (${modKey}+Right)`);
   setBtnTip('btn-split-v', `Split vertically — side by side (${modKey}+\\)`);
   setBtnTip('btn-split-h', `Split horizontally — top / bottom (${modKey}+-)`);
   setBtnTip('btn-close-pane', `Close active pane (${modKey}+Shift+W)`);
@@ -983,21 +983,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
-    // Check for workspace shortcuts (Ctrl+Alt or Cmd+Alt)
+    // Check for workspace cycle shortcuts:
+    // Mac: Command + Left/Right Arrow
+    // Windows/Linux: Control + Left/Right Arrow
+    const isPrevKey = e.key === 'ArrowLeft';
+    const isNextKey = e.key === 'ArrowRight';
+    if (isPrevKey || isNextKey) {
+      const isMacCmd = isMacUI && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
+      const isWinLinuxCtrl = !isMacUI && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
+      if (isMacCmd || isWinLinuxCtrl) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isPrevKey) {
+          switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4, { direction: 'prev' });
+        } else {
+          switchWorkspace((activeWorkspaceIndex + 1) % 4, { direction: 'next' });
+        }
+        return;
+      }
+    }
+
+    // Check for workspace direct selection shortcuts (Ctrl+Alt or Cmd+Alt + 1/2/3/4)
     const isAltCmd = (e.ctrlKey || e.metaKey) && e.altKey;
     if (isAltCmd) {
-      if (e.key === '[' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        e.stopPropagation();
-        switchWorkspace((activeWorkspaceIndex - 1 + 4) % 4, { direction: 'prev' });
-        return;
-      }
-      if (e.key === ']' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        e.stopPropagation();
-        switchWorkspace((activeWorkspaceIndex + 1) % 4, { direction: 'next' });
-        return;
-      }
       if (['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault();
         e.stopPropagation();
