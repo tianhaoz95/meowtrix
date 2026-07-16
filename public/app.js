@@ -592,6 +592,14 @@ function runAppShortcut(key, e) {
     case '\\': if (activePane) splitPane(activePane, 'vertical'); return true;
     case '-':  if (activePane) splitPane(activePane, 'horizontal'); return true;
     case 't':  if (activePane) showTabTypePicker({ clientX: 60, clientY: 40 }, activePane); return true;
+    case 'f': {
+      const tab = activePane?.activeTab;
+      if (tab && tab.type === 'terminal') {
+        showTerminalSearch(tab);
+        return true;
+      }
+      return false;
+    }
     case 'w':  if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); return true;
     // Cmd/Ctrl+Shift+W closes the whole pane (vs Cmd/Ctrl+W which closes a tab).
     case 'W':  closeActivePane(); return true;
@@ -1038,7 +1046,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!(e.metaKey || e.ctrlKey)) return;
-    if (runAppShortcut(e.key, e)) e.preventDefault();
+    if (runAppShortcut(e.key, e)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, true); // Use capture phase so terminal doesn't swallow
 
   // Double-click / double-tap anywhere → autocomplete (Tab) in active terminal.

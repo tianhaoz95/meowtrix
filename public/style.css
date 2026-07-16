@@ -3825,5 +3825,107 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
   opacity: 0.4;
 }
 
+/* ── Terminal Search Bar ── */
+.term-search-container {
+  position: absolute;
+  top: 12px;
+  right: 28px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border3);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  font-family: inherit;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+.term-search-container.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.term-search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 180px;
+  outline: none;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+.term-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--glow-soft);
+}
+
+.term-search-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text2);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s var(--ease);
+  user-select: none;
+}
+
+.term-search-btn:hover {
+  background: var(--bg5);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.term-search-btn.active-option {
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+  border-color: var(--accent);
+}
+
+.term-search-close {
+  color: var(--text3);
+}
+
+.term-search-close:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+@media (max-width: 480px) {
+  .term-search-container {
+    right: 8px;
+    left: 8px;
+    top: 8px;
+    justify-content: space-between;
+  }
+  .term-search-input {
+    flex: 1;
+    width: auto;
+  }
+}
+
+.term-search-input.no-results {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
 
 

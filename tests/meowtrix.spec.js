@@ -367,4 +367,73 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(toggleBtn).toHaveText('▼');
     await expect(escBtn).toBeVisible();
   });
+
+  test('should open, search, and close the terminal search bar', async ({ page }) => {
+    // 1. Create a terminal tab
+    const addBtn = page.locator('.tab-add').first();
+    await addBtn.click();
+    await page.locator('.tab-type-picker button:has-text("Terminal")').click();
+    
+    // 2. Open search bar using shortcut (Control+f)
+    const terminalEl = page.locator('.terminal-view.active').first();
+    await terminalEl.waitFor({ state: 'visible' });
+    await terminalEl.click();
+    
+    await page.keyboard.press('Control+f');
+    
+    // 3. Verify search container is visible
+    const searchContainer = page.locator('.term-search-container');
+    await expect(searchContainer).toBeVisible();
+    await expect(searchContainer).toHaveClass(/active/);
+    
+    // 4. Type a search query
+    const searchInput = page.locator('.term-search-input');
+    await expect(searchInput).toBeFocused();
+    await searchInput.fill('testquery');
+    
+    // 5. Toggle Match Case option
+    const caseBtn = page.locator('.term-search-case');
+    await caseBtn.click();
+    await expect(caseBtn).toHaveClass(/active-option/);
+    
+    // 6. Press Escape to close search bar
+    await page.keyboard.press('Escape');
+    await expect(searchContainer).not.toHaveClass(/active/);
+  });
+
+  test('should find text in the terminal buffer', async ({ page }) => {
+    // 1. Create a terminal tab
+    const addBtn = page.locator('.tab-add').first();
+    await addBtn.click();
+    await page.locator('.tab-type-picker button:has-text("Terminal")').click();
+    
+    // 2. Wait for terminal to be ready
+    const terminalEl = page.locator('.terminal-view.active').first();
+    await terminalEl.waitFor({ state: 'visible' });
+    await terminalEl.click();
+    
+    // 3. Write some text to terminal
+    await page.keyboard.type('echo hello-search-target');
+    await page.keyboard.press('Enter');
+    
+    // Wait for the text to render in xterm
+    await page.waitForTimeout(1000);
+    
+    // 4. Open search bar
+    await page.keyboard.press('Control+f');
+    const searchContainer = page.locator('.term-search-container');
+    await expect(searchContainer).toBeVisible();
+    
+    // 5. Search for target
+    const searchInput = page.locator('.term-search-input');
+    await expect(searchInput).toBeFocused();
+    await searchInput.fill('hello-search-target');
+    
+    // 6. Verify found (does not have no-results class)
+    await expect(searchInput).not.toHaveClass(/no-results/);
+    
+    // 7. Search for a non-existing term
+    await searchInput.fill('non-existent-search-term-12345');
+    await expect(searchInput).toHaveClass(/no-results/);
+  });
 });

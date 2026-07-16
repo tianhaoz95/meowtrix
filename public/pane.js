@@ -444,7 +444,9 @@ function activateTab(pane, id) {
       if (pane.activeTab === tab && tab.fitAddon && tab.viewEl.classList.contains('active')) {
         try {
           tab.fitAddon.fit();
-          tab.term?.focus();
+          if (!tab.searchEl || !tab.searchEl.classList.contains('active')) {
+            tab.term?.focus();
+          }
           if (typeof refreshMobileScrollbar === 'function') refreshMobileScrollbar(tab);
         } catch (e) {}
       }
@@ -489,9 +491,16 @@ function initTerminalTab(tab, existingPtyId) {
     fontFamily: s.termFontFamily || '"Cascadia Code", "JetBrains Mono", Menlo, Monaco, monospace',
     cursorBlink: true,
     scrollback: s.termScrollback || 10000,
+    allowProposedApi: true,
   });
   const fitAddon = new FitAddon.FitAddon();
   term.loadAddon(fitAddon);
+
+  let searchAddon = null;
+  if (window.SearchAddon) {
+    searchAddon = new window.SearchAddon.SearchAddon();
+    term.loadAddon(searchAddon);
+  }
 
   if (window.WebLinksAddon) {
     const webLinksAddon = new window.WebLinksAddon.WebLinksAddon((event, uri) => {
@@ -669,6 +678,7 @@ function initTerminalTab(tab, existingPtyId) {
 
   tab.term = term;
   tab.fitAddon = fitAddon;
+  tab.searchAddon = searchAddon;
 
   const ptyId = existingPtyId || uid();
   tab.ptyId = ptyId;
@@ -1746,4 +1756,175 @@ function createZoomControls(tab) {
   });
 
   tab.viewEl.appendChild(container);
+}
+
+function showTerminalSearch(tab) {
+  if (!tab.searchAddon) return;
+
+  if (!tab.searchEl) {
+    const container = document.createElement('div');
+    container.className = 'term-search-container';
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'term-search-input';
+    input.placeholder = 'Find...';
+    
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'term-search-btn term-search-prev';
+    prevBtn.title = 'Previous (Shift+Enter)';
+    prevBtn.innerHTML = '▲';
+    
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'term-search-btn term-search-next';
+    nextBtn.title = 'Next (Enter)';
+    nextBtn.innerHTML = '▼';
+    
+    const caseBtn = document.createElement('button');
+    caseBtn.className = 'term-search-btn term-search-case';
+    caseBtn.title = 'Match Case';
+    caseBtn.textContent = 'Aa';
+    
+    const wordBtn = document.createElement('button');
+    wordBtn.className = 'term-search-btn term-search-word';
+    wordBtn.title = 'Match Whole Word';
+    wordBtn.textContent = 'Ab';
+    
+    const regexBtn = document.createElement('button');
+    regexBtn.className = 'term-search-btn term-search-regex';
+    regexBtn.title = 'Use Regular Expression';
+    regexBtn.textContent = '.*';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'term-search-btn term-search-close';
+    closeBtn.title = 'Close (Esc)';
+    closeBtn.textContent = '✕';
+    
+    container.append(input, prevBtn, nextBtn, caseBtn, wordBtn, regexBtn, closeBtn);
+    tab.viewEl.appendChild(container);
+    
+    tab.searchEl = container;
+    tab.searchInput = input;
+    
+    const performSearch = (incremental = false, findPrevious = false) => {
+      const val = input.value;
+      if (!val) {
+        tab.searchAddon.clearDecorations();
+        tab.term.clearSelection();
+        input.classList.remove('no-results');
+        return;
+      }
+      
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const opts = {
+        caseSensitive: caseBtn.classList.contains('active-option'),
+        wholeWord: wordBtn.classList.contains('active-option'),
+        regex: regexBtn.classList.contains('active-option'),
+        incremental: incremental,
+        decorations: isLight ? {
+          activeMatchBackground: '#7c3aed',
+          activeMatchBorder: '#9061f9',
+          activeMatchColorOverviewRuler: '#7c3aed',
+          matchBackground: '#ddd6fe',
+          matchBorder: '#c7d2fe',
+          matchOverviewRuler: '#ddd6fe'
+        } : {
+          activeMatchBackground: '#8b5cf6',
+          activeMatchBorder: '#a78bfa',
+          activeMatchColorOverviewRuler: '#8b5cf6',
+          matchBackground: '#4c2885',
+          matchBorder: '#3b2c60',
+          matchOverviewRuler: '#4c2885'
+        }
+      };
+      
+      let found = false;
+      if (findPrevious) {
+        found = tab.searchAddon.findPrevious(val, opts);
+      } else {
+        found = tab.searchAddon.findNext(val, opts);
+      }
+      
+      if (found) {
+        input.classList.remove('no-results');
+      } else {
+        input.classList.add('no-results');
+      }
+    };
+    
+    // Toggle options handlers
+    caseBtn.addEventListener('click', () => {
+      caseBtn.classList.toggle('active-option');
+      performSearch(true);
+      input.focus();
+    });
+    
+    wordBtn.addEventListener('click', () => {
+      wordBtn.classList.toggle('active-option');
+      performSearch(true);
+      input.focus();
+    });
+    
+    regexBtn.addEventListener('click', () => {
+      regexBtn.classList.toggle('active-option');
+      performSearch(true);
+      input.focus();
+    });
+    
+    input.addEventListener('input', () => {
+      performSearch(true);
+    });
+    
+    container.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        hideSearch();
+      } else if (e.key === 'Enter' && e.target === input) {
+        e.preventDefault();
+        e.stopPropagation();
+        performSearch(false, e.shiftKey);
+      }
+    });
+    
+    prevBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      performSearch(false, true);
+      input.focus();
+    });
+    
+    nextBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      performSearch(false, false);
+      input.focus();
+    });
+    
+    const hideSearch = () => {
+      container.classList.remove('active');
+      tab.searchAddon.clearDecorations();
+      tab.term.clearSelection();
+      input.classList.remove('no-results');
+      tab.term.focus();
+    };
+    
+    closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideSearch();
+    });
+    
+    // Prevent mouse down inside search box from stealing terminal focus / closing link menus
+    container.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+  }
+  
+  // Show it
+  tab.searchEl.classList.add('active');
+  setTimeout(() => {
+    tab.searchInput.focus();
+    tab.searchInput.select();
+  }, 0);
 }
