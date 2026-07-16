@@ -924,30 +924,84 @@ body.has-maximized-pane {
   height: 28px; padding: 0 11px; cursor: pointer; border-radius: 8px;
   font-size: 12px; font-weight: 500; color: var(--text3); white-space: nowrap;
   flex-shrink: 0; user-select: none; position: relative;
-  transition: color 0.12s var(--ease), background 0.12s var(--ease);
+  transition: color 0.12s var(--ease), background 0.12s var(--ease), border-color 0.12s var(--ease);
   touch-action: none; /* enable pointer-based touch drag without the bar scrolling */
+  border: 1px solid var(--border3);
 }
-.tab:hover { color: var(--text); background: var(--bg3); }
+.tab:hover { color: var(--text); background: var(--bg3); border-color: var(--text2); }
 .tab.active {
   color: var(--text); background: var(--tab-bg);
-  box-shadow: var(--shadow), var(--glow-soft), inset 0 0 0 1px var(--border3);
+  border-color: var(--accent);
+  box-shadow: var(--shadow), var(--glow-soft);
 }
 
-.tab-close {
-  opacity: 0; font-size: 11px; color: var(--text3); line-height: 1;
-  padding: 3px 4px; border-radius: 5px; margin-left: 2px;
+.tab-close, .tab-maximize {
+  opacity: 0.45; font-size: 10px; color: var(--text2); line-height: 1;
+  width: 18px; height: 18px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 2px;
   transition: opacity 0.12s var(--ease), background 0.12s var(--ease), color 0.12s var(--ease);
 }
-.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
-.tab-close:hover { background: var(--bg5); color: var(--text) !important; }
+.tab:hover .tab-close, .tab.active .tab-close,
+.tab:hover .tab-maximize, .tab.active .tab-maximize {
+  opacity: 0.75;
+}
+.tab-close:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171 !important;
+}
+.tab-maximize:hover {
+  opacity: 1;
+  background: var(--accent-soft);
+  color: var(--accent-hi) !important;
+}
 
-.tab-maximize {
-  opacity: 0; font-size: 11px; color: var(--text3); line-height: 1;
-  padding: 3px 4px; border-radius: 5px; margin-left: 2px;
-  transition: opacity 0.12s var(--ease), background 0.12s var(--ease), color 0.12s var(--ease);
+/* Tab Context Menu */
+.tab-context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: var(--glass-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border3);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  min-width: 160px;
+  padding: 4px 0;
+  font-family: inherit;
 }
-.tab:hover .tab-maximize, .tab.active .tab-maximize { opacity: 1; }
-.tab-maximize:hover { background: var(--bg5); color: var(--text) !important; }
+.tab-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s var(--ease), color 0.1s var(--ease);
+}
+.tab-context-menu-item:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+.tab-context-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+.tab-context-menu-item-label {
+  flex: 1;
+}
+.tab-context-menu-divider {
+  height: 1px;
+  background: var(--border3);
+  margin: 4px 0;
+}
 
 .tab-add {
   width: 28px; height: 28px; margin-left: 2px; border-radius: 8px;
@@ -2399,8 +2453,8 @@ body.session-inactive #toolbar button:not(#btn-settings) {
    need to be finger-sized. Keyed off pointer capability, not screen width, so
    a touchscreen laptop gets these too. */
 @media (hover: none), (pointer: coarse) {
-  /* Close buttons can't rely on hover to appear */
-  .tab-close { opacity: 1; padding: 4px 5px; font-size: 12px; }
+  /* Close & maximize buttons can't rely on hover to appear, and need larger tap targets */
+  .tab-close, .tab-maximize { opacity: 1; width: 22px; height: 22px; font-size: 12px; }
   .tab { padding: 0 8px 0 12px; }
   /* Wider grab zone around split dividers for fingertips */
   .split-divider::after { inset: -8px; }

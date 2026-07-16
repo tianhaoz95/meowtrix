@@ -436,4 +436,38 @@ test.describe('Meowtrix E2E Tests', () => {
     await searchInput.fill('non-existent-search-term-12345');
     await expect(searchInput).toHaveClass(/no-results/);
   });
+
+  test('should open context menu on right click on tab and support renaming', async ({ page }) => {
+    // 1. Create a terminal tab
+    const addBtn = page.locator('.tab-add').first();
+    await addBtn.click();
+    await page.locator('.tab-type-picker button:has-text("Terminal")').click();
+    
+    const tabEl = page.locator('.tab').first();
+    await expect(tabEl).toBeVisible();
+    await expect(tabEl).toContainText('Terminal');
+
+    // 2. Right-click on the tab to open the context menu
+    await tabEl.click({ button: 'right' });
+    const contextMenu = page.locator('.tab-context-menu');
+    await expect(contextMenu).toBeVisible();
+
+    // 3. Click the Rename option
+    const renameOption = contextMenu.locator('.tab-context-menu-item:has-text("Rename")');
+    await expect(renameOption).toBeVisible();
+    await renameOption.click();
+
+    // 4. Verify context menu is closed and rename input is open inside the tab
+    await expect(contextMenu).not.toBeVisible();
+    const renameInput = tabEl.locator('.tab-rename-input');
+    await expect(renameInput).toBeVisible();
+
+    // 5. Fill new name and press Enter
+    await renameInput.fill('My Custom Shell');
+    await page.keyboard.press('Enter');
+
+    // 6. Verify input is removed and tab label has updated text
+    await expect(renameInput).not.toBeVisible();
+    await expect(tabEl).toContainText('My Custom Shell');
+  });
 });

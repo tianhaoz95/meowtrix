@@ -381,6 +381,9 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   });
   tabEl.addEventListener('pointerdown', (e) => onTabPointerDown(e, tab));
   tabEl.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); const p = paneOfTab(tabEl); if (p) closeTab(p, id); } });
+  tabEl.addEventListener('contextmenu', (e) => {
+    showTabContextMenu(e, tab);
+  });
   pane.tabBar.insertBefore(tabEl, pane.tabBar.lastChild);
 
   const tab = {
@@ -1927,4 +1930,210 @@ function showTerminalSearch(tab) {
     tab.searchInput.focus();
     tab.searchInput.select();
   }, 0);
+}
+
+let activeTabContextMenu = null;
+
+function closeTabContextMenu() {
+  if (activeTabContextMenu) {
+    activeTabContextMenu.remove();
+    activeTabContextMenu = null;
+  }
+}
+
+// Add global listener to close tab context menu on click or scroll
+document.addEventListener('click', () => closeTabContextMenu());
+document.addEventListener('contextmenu', (e) => {
+  // If we didn't click inside a tab, close it
+  if (!e.target.closest('.tab')) {
+    closeTabContextMenu();
+  }
+});
+document.addEventListener('scroll', () => closeTabContextMenu(), { passive: true });
+
+function renameTabInline(tab) {
+  if (tab.tabEl.querySelector('.tab-rename-input')) return;
+
+  const originalText = tab.label.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tab-rename-input';
+  input.value = originalText;
+  
+  // Style the input to fit nicely inside the tab
+  input.style.background = 'var(--bg4)';
+  input.style.border = '1px solid var(--accent)';
+  input.style.color = 'var(--text)';
+  input.style.borderRadius = '4px';
+  input.style.padding = '2px 6px';
+  input.style.fontSize = '11px';
+  input.style.outline = 'none';
+  input.style.width = '100px';
+  input.style.fontFamily = 'inherit';
+
+  // Hide original elements
+  tab.label.style.display = 'none';
+  const closeBtn = tab.tabEl.querySelector('.tab-close');
+  const maxBtn = tab.tabEl.querySelector('.tab-maximize');
+  if (closeBtn) closeBtn.style.display = 'none';
+  if (maxBtn) maxBtn.style.display = 'none';
+
+  // Disable dragging during edit
+  const originalDraggable = tab.tabEl.draggable;
+  tab.tabEl.draggable = false;
+
+  // Insert input
+  const icon = tab.tabEl.querySelector('.tab-icon');
+  if (icon) {
+    icon.after(input);
+  } else {
+    tab.tabEl.prepend(input);
+  }
+
+  input.focus();
+  input.select();
+
+  let finished = false;
+  const finish = (commit) => {
+    if (finished) return;
+    finished = true;
+
+    if (commit) {
+      const newName = input.value.trim();
+      if (newName) {
+        tab.label.textContent = newName;
+        tab.isCustomLabel = true;
+      } else {
+        tab.isCustomLabel = false;
+        if (tab.type === 'terminal') {
+          tab.label.textContent = tab.term?.title || 'Terminal';
+        } else if (tab.type === 'editor') {
+          const baseName = tab.editorDir ? tab.editorDir.split('/').pop() || tab.editorDir : 'Editor';
+          tab.label.textContent = baseName;
+        } else if (tab.type === 'browser') {
+          if (tab.currentUrl) {
+            try { tab.label.textContent = new URL(tab.currentUrl).hostname.replace('www.', ''); }
+            catch { tab.label.textContent = 'Browser'; }
+          } else {
+            tab.label.textContent = 'New Tab';
+          }
+        }
+      }
+      if (typeof saveSessionState === 'function') saveSessionState();
+    }
+
+    input.remove();
+    tab.label.style.display = '';
+    if (closeBtn) closeBtn.style.display = '';
+    if (maxBtn) maxBtn.style.display = '';
+    tab.tabEl.draggable = originalDraggable;
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finish(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      finish(false);
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    finish(true);
+  });
+}
+
+function showTabContextMenu(e, tab) {
+  e.preventDefault();
+  e.stopPropagation();
+  closeTabContextMenu();
+  if (typeof closeContextMenu === 'function') {
+    closeContextMenu(); // close file tree context menu if open
+  }
+
+  const menu = document.createElement('div');
+  menu.className = 'tab-context-menu';
+  
+  const isMaximized = tab.tabEl.querySelector('.tab-maximize')?.title === 'Restore layout';
+
+  const items = [
+    {
+      label: 'Rename Tab...',
+      icon: '✏️',
+      onClick: () => renameTabInline(tab)
+    },
+    {
+      label: isMaximized ? 'Restore Layout' : 'Maximize Tab',
+      icon: isMaximized ? '⤣' : '⤢',
+      onClick: () => {
+        const p = paneOfTab(tab.tabEl);
+        if (p) {
+          if (p.activeTab?.id !== tab.id) {
+            activateTab(p, tab.id);
+          }
+          toggleMaximizePane(p);
+        }
+      }
+    },
+    {
+      type: 'divider'
+    },
+    {
+      label: 'Close Tab',
+      icon: '✕',
+      onClick: () => {
+        const p = paneOfTab(tab.tabEl);
+        if (p) closeTab(p, tab.id);
+      }
+    }
+  ];
+
+  items.forEach(item => {
+    if (item.type === 'divider') {
+      const divider = document.createElement('div');
+      divider.className = 'tab-context-menu-divider';
+      menu.appendChild(divider);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'tab-context-menu-item';
+      
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'tab-context-menu-item-icon';
+      iconSpan.textContent = item.icon;
+      
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'tab-context-menu-item-label';
+      labelSpan.textContent = item.label;
+      
+      el.appendChild(iconSpan);
+      el.appendChild(labelSpan);
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        closeTabContextMenu();
+        item.onClick();
+      });
+      menu.appendChild(el);
+    }
+  });
+
+  document.body.appendChild(menu);
+  
+  // Position menu relative to viewport
+  const menuWidth = 160;
+  const menuHeight = 120; // approximate
+  let x = e.clientX;
+  let y = e.clientY;
+  
+  if (x + menuWidth > window.innerWidth) {
+    x = window.innerWidth - menuWidth - 8;
+  }
+  if (y + menuHeight > window.innerHeight) {
+    y = window.innerHeight - menuHeight - 8;
+  }
+  
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  
+  activeTabContextMenu = menu;
 }
