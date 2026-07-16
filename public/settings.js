@@ -100,19 +100,22 @@ function applyMenuButtonGroupsVisibility() {
 
 // ── Apply settings live ──────────────────────────────────────────────────────
 function applyTermSettings() {
-  getAllPanes().forEach(p => p.tabs.forEach(t => {
+  getAllPanesAllWorkspaces().forEach(p => p.tabs.forEach(t => {
     if (!t.term) return;
     t.term.options.fontSize = Math.round((currentSettings.termFontSize || 13) * (t.zoomLevel || 1.0));
     t.term.options.fontFamily = currentSettings.termFontFamily;
     t.term.options.scrollback = currentSettings.termScrollback;
     if (t.fitAddon && t.viewEl && t.viewEl.classList.contains('active')) {
-      try { t.fitAddon.fit(); } catch {}
+      const wsView = t.viewEl.closest('.workspace-view');
+      if (!wsView || wsView.classList.contains('active')) {
+        try { t.fitAddon.fit(); } catch {}
+      }
     }
   }));
 }
 
 function applyEditorSettings() {
-  getAllPanes().forEach(p => p.tabs.forEach(t => {
+  getAllPanesAllWorkspaces().forEach(p => p.tabs.forEach(t => {
     if (typeof t.updateMinimap === 'function') t.updateMinimap();
   }));
 }

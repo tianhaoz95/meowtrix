@@ -2484,8 +2484,8 @@ function initEditorTab(tab, viewEl, dir) {
 }
 
 function rewatchAllEditors() {
-  if (typeof getAllPanes !== 'function') return;
-  for (const pane of getAllPanes()) {
+  if (typeof getAllPanesAllWorkspaces !== 'function') return;
+  for (const pane of getAllPanesAllWorkspaces()) {
     for (const tab of pane.tabs) {
       if (tab.type === 'editor' && tab.editorDir) {
         wsSend({ type: 'fs:watch', path: tab.editorDir });
@@ -2496,8 +2496,8 @@ function rewatchAllEditors() {
 window.rewatchAllEditors = rewatchAllEditors;
 
 function onFsChange(watchPath, eventType, filename) {
-  if (typeof getAllPanes !== 'function') return;
-  for (const pane of getAllPanes()) {
+  if (typeof getAllPanesAllWorkspaces !== 'function') return;
+  for (const pane of getAllPanesAllWorkspaces()) {
     for (const tab of pane.tabs) {
       if (tab.type === 'editor' && tab.editorDir === watchPath) {
         if (typeof tab.handleFsChange === 'function') {

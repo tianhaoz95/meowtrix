@@ -35,8 +35,35 @@ let currentWorkspaces = [
 ];
 let activeWorkspaceIndex = 0;
 
-function deactivateCurrentWorkspace() {
-  getAllPanes().forEach(pane => {
+function ensureWorkspaceViews() {
+  const workspace = document.getElementById('workspace');
+  if (!workspace) return;
+  if (workspace.querySelector('.workspace-view')) return; // already created
+  
+  workspace.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const view = document.createElement('div');
+    view.className = 'workspace-view inactive';
+    view.setAttribute('data-index', i);
+    workspace.appendChild(view);
+  }
+}
+
+function deactivateWorkspace(index) {
+  const viewEl = document.querySelector(`.workspace-view[data-index="${index}"]`);
+  if (!viewEl) return;
+  
+  const panes = [];
+  function walk(el) {
+    if (el.classList?.contains('pane')) {
+      const p = paneRegistry.get(el);
+      if (p) panes.push(p);
+    }
+    for (const child of el.children) walk(child);
+  }
+  walk(viewEl);
+
+  panes.forEach(pane => {
     pane.tabs.forEach(tab => {
       if (tab.ptyId) {
         ptyCallbacks.delete(tab.ptyId);
@@ -51,7 +78,19 @@ function deactivateCurrentWorkspace() {
         try { tab.disposeEditor(); } catch (e) {}
       }
     });
+    paneRegistry.delete(pane.el);
   });
+  viewEl.innerHTML = '';
+}
+
+function deactivateAllWorkspaces() {
+  for (let i = 0; i < 4; i++) {
+    deactivateWorkspace(i);
+  }
+}
+
+function deactivateCurrentWorkspace() {
+  deactivateWorkspace(activeWorkspaceIndex);
 }
 
 function updateWorkspaceUI() {
@@ -84,18 +123,43 @@ function switchWorkspace(index, opts = {}) {
   // Save the current layout into memory
   currentWorkspaces[activeWorkspaceIndex].layout = captureWorkspaceState();
 
-  // Clean up current DOM elements
-  deactivateCurrentWorkspace();
+  // Hide the current workspace view container
+  ensureWorkspaceViews();
+  const currentView = document.querySelector(`.workspace-view[data-index="${activeWorkspaceIndex}"]`);
+  if (currentView) {
+    currentView.classList.remove('active');
+    currentView.classList.add('inactive');
+  }
 
   // Switch index
   activeWorkspaceIndex = index;
 
-  // Restore the new layout (or initialize if null)
-  const nextLayout = currentWorkspaces[activeWorkspaceIndex].layout;
-  if (nextLayout) {
-    restoreWorkspaceState(nextLayout);
-  } else {
-    initWorkspace();
+  // Show the new workspace view container, initializing it if empty
+  const nextView = document.querySelector(`.workspace-view[data-index="${activeWorkspaceIndex}"]`);
+  if (nextView) {
+    nextView.classList.remove('inactive');
+    nextView.classList.add('active');
+
+    if (nextView.children.length === 0) {
+      const nextLayout = currentWorkspaces[activeWorkspaceIndex].layout;
+      if (nextLayout) {
+        restoreWorkspaceState(nextLayout, nextView);
+      } else {
+        initWorkspace(activeWorkspaceIndex);
+      }
+    } else {
+      // Find the first pane or the active pane in this container and make it active
+      const nextPanes = [];
+      function walk(el) {
+        if (el.classList?.contains('pane')) { const p = paneRegistry.get(el); if (p) nextPanes.push(p); }
+        for (const child of el.children) walk(child);
+      }
+      walk(nextView);
+      if (nextPanes.length) {
+        const alreadyActive = nextPanes.find(p => p.el.classList.contains('active'));
+        setActivePane(alreadyActive || nextPanes[0]);
+      }
+    }
   }
 
   // Update UI and fit terminals
@@ -115,7 +179,7 @@ function switchWorkspace(index, opts = {}) {
 }
 
 // Serialize current workspace state for transfer
-function captureWorkspaceState() {
+function captureWorkspaceState(index = activeWorkspaceIndex) {
   function serializeEl(el) {
     let node;
     if (el.classList.contains('pane')) {
@@ -151,20 +215,31 @@ function captureWorkspaceState() {
     node.flex = el.style.flex || '';
     return node;
   }
-  const workspace = document.getElementById('workspace');
-  const root = workspace.children[0];
+  ensureWorkspaceViews();
+  const container = document.querySelector(`.workspace-view[data-index="${index}"]`);
+  if (!container) return null;
+  const root = container.children[0];
   return root ? serializeEl(root) : null;
 }
 
 // Rebuild workspace from serialized state
-function restoreWorkspaceState(state) {
+function restoreWorkspaceState(state, container) {
   if (typeof maximizedPane !== 'undefined') {
     maximizedPane = null;
     document.body.classList.remove('has-maximized-pane');
   }
-  const workspace = document.getElementById('workspace');
-  workspace.innerHTML = '';
-  paneRegistry.clear();
+  ensureWorkspaceViews();
+  if (!container) {
+    container = document.querySelector(`.workspace-view[data-index="${activeWorkspaceIndex}"]`);
+  }
+  if (!container) return;
+
+  const idx = parseInt(container.getAttribute('data-index'), 10);
+  if (!isNaN(idx)) {
+    deactivateWorkspace(idx);
+  } else {
+    container.innerHTML = '';
+  }
 
   function buildEl(node) {
     let el;
@@ -178,19 +253,19 @@ function restoreWorkspaceState(state) {
       if (node.activeTabId) activateTab(pane, node.activeTabId);
       el = pane.el;
     } else if (node.type === 'split') {
-      const container = document.createElement('div');
-      container.className = `split-container ${node.dir}`;
+      const containerSplit = document.createElement('div');
+      containerSplit.className = `split-container ${node.dir}`;
       // Flat: any number of children, with a draggable divider between each.
       node.children.forEach((childNode, i) => {
         if (i > 0) {
           const divider = document.createElement('div');
           divider.className = 'split-divider';
-          container.appendChild(divider);
-          makeDraggable(divider, container, node.dir);
+          containerSplit.appendChild(divider);
+          makeDraggable(divider, containerSplit, node.dir);
         }
-        container.appendChild(buildEl(childNode));
+        containerSplit.appendChild(buildEl(childNode));
       });
-      el = container;
+      el = containerSplit;
     } else {
       return null;
     }
@@ -199,9 +274,16 @@ function restoreWorkspaceState(state) {
   }
 
   if (state) {
-    workspace.appendChild(buildEl(state));
-    const panes = getAllPanes();
-    if (panes.length) setActivePane(panes[0]);
+    container.appendChild(buildEl(state));
+    if (container.classList.contains('active')) {
+      const panes = [];
+      function walk(el) {
+        if (el.classList?.contains('pane')) { const p = paneRegistry.get(el); if (p) panes.push(p); }
+        for (const child of el.children) walk(child);
+      }
+      walk(container);
+      if (panes.length) setActivePane(panes[0]);
+    }
   }
 }
 
@@ -214,7 +296,12 @@ let workspaceReady = false;
 let _saveTimer = null;
 function _postSessionState() {
   _saveTimer = null;
-  currentWorkspaces[activeWorkspaceIndex].layout = captureWorkspaceState();
+  for (let i = 0; i < 4; i++) {
+    const container = document.querySelector(`.workspace-view[data-index="${i}"]`);
+    if (container && container.children.length > 0) {
+      currentWorkspaces[i].layout = captureWorkspaceState(i);
+    }
+  }
   const state = {
     activeWorkspaceIndex,
     workspaces: currentWorkspaces.map(ws => ({
@@ -257,6 +344,7 @@ function fitAllTerminals() {
 // claim the active session. Runs once per page load.
 async function bootstrapSession() {
   try {
+    ensureWorkspaceViews();
     const saved = await fetch('/api/session').then(r => r.json());
     if (saved) {
       if (saved.workspaces && Array.isArray(saved.workspaces)) {
@@ -275,6 +363,21 @@ async function bootstrapSession() {
         ];
         activeWorkspaceIndex = 0;
       }
+
+      // Update workspace active/inactive class states
+      for (let i = 0; i < 4; i++) {
+        const container = document.querySelector(`.workspace-view[data-index="${i}"]`);
+        if (container) {
+          if (i === activeWorkspaceIndex) {
+            container.classList.remove('inactive');
+            container.classList.add('active');
+          } else {
+            container.classList.remove('active');
+            container.classList.add('inactive');
+          }
+        }
+      }
+
       const activeLayout = currentWorkspaces[activeWorkspaceIndex].layout;
       if (activeLayout) {
         restoreWorkspaceState(activeLayout);
@@ -333,7 +436,7 @@ async function resyncWorkspace() {
   try {
     const saved = await fetch('/api/session').then(r => r.json());
     if (saved) {
-      deactivateCurrentWorkspace();
+      deactivateAllWorkspaces();
       if (saved.workspaces && Array.isArray(saved.workspaces)) {
         currentWorkspaces = saved.workspaces.map(ws => ({
           name: ws.name,
@@ -349,6 +452,21 @@ async function resyncWorkspace() {
         ];
         activeWorkspaceIndex = 0;
       }
+
+      // Update workspace active/inactive class states
+      for (let i = 0; i < 4; i++) {
+        const container = document.querySelector(`.workspace-view[data-index="${i}"]`);
+        if (container) {
+          if (i === activeWorkspaceIndex) {
+            container.classList.remove('inactive');
+            container.classList.add('active');
+          } else {
+            container.classList.remove('active');
+            container.classList.add('inactive');
+          }
+        }
+      }
+
       const activeLayout = currentWorkspaces[activeWorkspaceIndex].layout;
       if (activeLayout) {
         restoreWorkspaceState(activeLayout);
@@ -552,7 +670,7 @@ function applyTheme(theme) {
   const sel = document.getElementById('s-theme');
   if (sel) sel.value = meta.id;
   const newTheme = getTermTheme();
-  getAllPanes().forEach(p => p.tabs.forEach(t => {
+  getAllPanesAllWorkspaces().forEach(p => p.tabs.forEach(t => {
     if (t.term) t.term.options.theme = newTheme;
     if (typeof t.updateTheme === 'function') t.updateTheme();
   }));
@@ -845,18 +963,30 @@ async function uploadFiles(fileList) {
   }
 }
 
-function initWorkspace() {
-  if (typeof maximizedPane !== 'undefined') {
+function initWorkspace(index = activeWorkspaceIndex) {
+  if (typeof maximizedPane !== 'undefined' && index === activeWorkspaceIndex) {
     maximizedPane = null;
     document.body.classList.remove('has-maximized-pane');
   }
-  const workspace = document.getElementById('workspace');
-  workspace.innerHTML = '';
-  paneRegistry.clear();
+  ensureWorkspaceViews();
+  const container = document.querySelector(`.workspace-view[data-index="${index}"]`);
+  if (!container) return;
+
+  deactivateWorkspace(index);
+
+  if (index === activeWorkspaceIndex) {
+    container.classList.remove('inactive');
+    container.classList.add('active');
+  } else {
+    container.classList.remove('active');
+    container.classList.add('inactive');
+  }
 
   const initialPane = createPane();
-  workspace.appendChild(initialPane.el);
-  setActivePane(initialPane);
+  container.appendChild(initialPane.el);
+  if (index === activeWorkspaceIndex) {
+    setActivePane(initialPane);
+  }
   addTab(initialPane, 'terminal');
 }
 
@@ -1154,7 +1284,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only the active session persists on unload — an inactive tab's state is
     // stale and would overwrite the real layout.
     if (workspaceReady && isActiveSession) {
-      currentWorkspaces[activeWorkspaceIndex].layout = captureWorkspaceState();
+      for (let i = 0; i < 4; i++) {
+        const container = document.querySelector(`.workspace-view[data-index="${i}"]`);
+        if (container && container.children.length > 0) {
+          currentWorkspaces[i].layout = captureWorkspaceState(i);
+        }
+      }
       const state = {
         activeWorkspaceIndex,
         workspaces: currentWorkspaces.map(ws => ({

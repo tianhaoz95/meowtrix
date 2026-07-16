@@ -44,8 +44,8 @@ function schedFmtRemaining(ms) {
 // server's schedule state changes *and* after the workspace is (re)built, since
 // on a refresh the state can arrive before the tabs exist.
 function reconcileSchedules() {
-  if (typeof getAllPanes !== 'function') return;
-  for (const pane of getAllPanes()) {
+  if (typeof getAllPanesAllWorkspaces !== 'function') return;
+  for (const pane of getAllPanesAllWorkspaces()) {
     for (const tab of pane.tabs) {
       if (tab.type !== 'terminal') continue;
       const fireAt = tab.ptyId ? scheduledByPty.get(tab.ptyId) : undefined;

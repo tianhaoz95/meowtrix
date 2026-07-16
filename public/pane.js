@@ -1102,7 +1102,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
 // Find a live terminal tab by its PTY id (used by reconnect restore + schedules).
 function tabByPtyId(ptyId) {
   if (!ptyId) return null;
-  for (const pane of getAllPanes()) {
+  for (const pane of getAllPanesAllWorkspaces()) {
     const t = pane.tabs.find(t => t.type === 'terminal' && t.ptyId === ptyId);
     if (t) return t;
   }
@@ -1141,7 +1141,24 @@ function getAllPanes() {
     if (el.classList?.contains('pane')) { const p = paneRegistry.get(el); if (p) results.push(p); }
     for (const child of el.children) walk(child);
   }
-  walk(document.getElementById('workspace'));
+  const activeWsEl = document.querySelector('.workspace-view.active');
+  if (activeWsEl) {
+    walk(activeWsEl);
+  } else {
+    const wsEl = document.getElementById('workspace');
+    if (wsEl) walk(wsEl);
+  }
+  return results;
+}
+
+function getAllPanesAllWorkspaces() {
+  const results = [];
+  function walk(el) {
+    if (el.classList?.contains('pane')) { const p = paneRegistry.get(el); if (p) results.push(p); }
+    for (const child of el.children) walk(child);
+  }
+  const wsEl = document.getElementById('workspace');
+  if (wsEl) walk(wsEl);
   return results;
 }
 
@@ -1377,7 +1394,7 @@ window.addEventListener('message', (e) => {
 });
 
 function findTabByFrameWindow(sourceWindow) {
-  for (const pane of getAllPanes()) {
+  for (const pane of getAllPanesAllWorkspaces()) {
     for (const tab of pane.tabs) {
       if (tab.type === 'browser') {
         const frame = tab.viewEl.querySelector('iframe');
