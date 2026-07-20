@@ -10,6 +10,10 @@ const fs = require('fs');
 const { URL } = require('url');
 const { execFile, exec, execSync } = require('child_process');
 
+// Detect whether we are running inside a Docker container.
+// /.dockerenv is created by the Docker runtime in every container.
+const IS_DOCKER = fs.existsSync('/.dockerenv');
+
 const compression = require('compression');
 
 const app = express();
@@ -795,6 +799,13 @@ function proxyHandler(req, res) {
   let parsed;
   try { parsed = new URL(target); } catch { return res.status(400).send('Invalid URL'); }
   if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).send('Only http/https');
+
+  // Inside Docker, 127.0.0.1/localhost resolves to the container's own loopback,
+  // not the host machine. Transparently remap to host.docker.internal so that
+  // browser tabs pointing at local dev servers work without any settings change.
+  if (IS_DOCKER && (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost')) {
+    parsed.hostname = 'host.docker.internal';
+  }
 
   const lib = parsed.protocol === 'https:' ? https : http;
   

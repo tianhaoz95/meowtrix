@@ -916,6 +916,16 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 body.has-maximized-pane {
   overflow: hidden !important;
 }
+/* When a pane is maximized, completely hide every other pane (visibility:hidden
+   suppresses all rendering including nested scrollbars from xterm, editor file-
+   tabs, sidebars, etc.) without removing them from layout so the grid stays
+   stable. The maximized pane overrides back to visible. */
+body.has-maximized-pane .pane:not(.maximized) {
+  visibility: hidden !important;
+}
+body.has-maximized-pane .pane.maximized {
+  visibility: visible !important;
+}
 /* Active pane gets a soft accent rail along the top of its tab bar. */
 .pane.active > .pane-tabs::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
