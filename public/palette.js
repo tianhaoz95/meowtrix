@@ -111,6 +111,13 @@ function buildCommands() {
         if (typeof saveSetting === 'function') saveSetting('comboFx', on);
         const cb = document.getElementById('s-combo-fx'); if (cb) cb.checked = on;
       } },
+    { icon: '🎮', title: (typeof getSettings === 'function' && getSettings().gpuMonitor) ? 'Turn off GPU monitor' : 'Turn on GPU monitor',
+      keywords: 'gpu nvidia monitor stats utilization temperature memory', run: () => {
+        const on = !(typeof getSettings === 'function' && getSettings().gpuMonitor);
+        if (typeof saveSetting === 'function') saveSetting('gpuMonitor', on);
+        const cb = document.getElementById('s-gpu-monitor'); if (cb) cb.checked = on;
+        if (typeof renderGpuBadge === 'function') renderGpuBadge();
+      } },
   ];
   // Only offer the apply action when the server has reported an update.
   if (typeof updateAvailable === 'function' && updateAvailable()) {

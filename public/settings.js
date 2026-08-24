@@ -332,6 +332,7 @@ function populateControls(s) {
   if (typeof syncMobileAutocompleteVisibility === 'function') syncMobileAutocompleteVisibility();
   document.getElementById('s-show-time').checked = s.showTimeInMenu !== false;
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
+  document.getElementById('s-gpu-monitor').checked = s.gpuMonitor === true;
   document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
   
   const chkWorkspace = document.getElementById('s-menu-workspace');
@@ -628,6 +629,11 @@ function wireControls() {
     await saveSetting('autoUpdate', e.target.checked);
   });
 
+  document.getElementById('s-gpu-monitor').addEventListener('change', async (e) => {
+    await saveSetting('gpuMonitor', e.target.checked);
+    if (typeof renderGpuBadge === 'function') renderGpuBadge();
+  });
+
   document.getElementById('s-editor-minimap').addEventListener('change', async (e) => {
     await saveSetting('editorMinimap', e.target.checked);
     onSettingChanged('editorMinimap', e.target.checked);
@@ -870,5 +876,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof rebuildMobileKeyBar === 'function') rebuildMobileKeyBar();
     applyMenuButtonMode(s.menuButtonMode);
     applyMenuButtonGroupsVisibility();
+    if (typeof renderGpuBadge === 'function') renderGpuBadge();
   });
 });

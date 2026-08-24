@@ -73,6 +73,7 @@ const DEFAULT_SETTINGS = {
   httpProxy: '', // optional HTTP proxy for updates
   httpsProxy: '', // optional HTTPS proxy for updates
   autoUpdate: true, // background-check the git clone for updates (see self-update below)
+  gpuMonitor: false, // background-poll `nvidia-smi` for GPU stats and show a toolbar widget (NVIDIA hosts only)
   comboFx: false, // keystroke-streak visual effects, opt-in (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
   petFace: 'cat', // pet appearance id (see PET_FACES in public/pet.js)
@@ -1356,6 +1357,8 @@ wss.on('connection', (ws) => {
     if (lastUpdateInfo) ws.send(JSON.stringify(updateStatePayload()));
     ws.send(JSON.stringify({ type: 'ports:state', ports: lastPorts }));
     startPortMonitoring();
+    if (lastGpuStats !== null) ws.send(JSON.stringify({ type: 'gpu:state', stats: lastGpuStats }));
+    startGpuMonitoring();
   }
 
   ws.on('message', (raw) => {
@@ -2153,6 +2156,74 @@ function stopPortMonitoring() {
   if (portMonitorInterval) {
     clearInterval(portMonitorInterval);
     portMonitorInterval = null;
+  }
+}
+
+// ── GPU monitoring ───────────────────────────────────────────────────────────
+// Opt-in (settings.gpuMonitor) since most hosts running Meowtrix won't have an
+// NVIDIA GPU; `nvidia-smi` missing/erroring just resolves `{available: false}`
+// rather than throwing, so there's nothing to special-case for non-GPU hosts.
+let gpuMonitorInterval = null;
+let lastGpuStats = null; // { available: boolean, gpus?: [...] } or null before the first poll
+
+function parseNvidiaSmiOutput(stdout) {
+  return stdout.trim().split('\n').filter(Boolean).map(line => {
+    const [index, name, util, memUsed, memTotal, temp, powerDraw, powerLimit] = line.split(',').map(s => s.trim());
+    const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+    return {
+      index: num(index),
+      name,
+      utilization: num(util),
+      memoryUsedMb: num(memUsed),
+      memoryTotalMb: num(memTotal),
+      temperatureC: num(temp),
+      powerDrawW: num(powerDraw),
+      powerLimitW: num(powerLimit)
+    };
+  });
+}
+
+function pollGpuStats() {
+  return new Promise((resolve) => {
+    execFile('nvidia-smi', [
+      '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,power.limit',
+      '--format=csv,noheader,nounits'
+    ], { timeout: 5000 }, (err, stdout) => {
+      if (err) { resolve({ available: false }); return; }
+      resolve({ available: true, gpus: parseNvidiaSmiOutput(stdout) });
+    });
+  });
+}
+
+function broadcastGpu(stats) {
+  const payload = JSON.stringify({ type: 'gpu:state', stats });
+  for (const c of sessionClients) {
+    if (c.readyState === c.OPEN) c.send(payload);
+  }
+}
+
+function startGpuMonitoring() {
+  if (gpuMonitorInterval) return;
+  const tick = async () => {
+    if (sessionClients.size === 0) { stopGpuMonitoring(); return; }
+    if (readSettings().gpuMonitor !== true) {
+      if (lastGpuStats !== null) { lastGpuStats = null; broadcastGpu(null); }
+      return;
+    }
+    try {
+      const stats = await pollGpuStats();
+      lastGpuStats = stats;
+      broadcastGpu(stats);
+    } catch (e) { console.error('Error polling GPU stats:', e); }
+  };
+  tick();
+  gpuMonitorInterval = setInterval(tick, 2000);
+}
+
+function stopGpuMonitoring() {
+  if (gpuMonitorInterval) {
+    clearInterval(gpuMonitorInterval);
+    gpuMonitorInterval = null;
   }
 }
 

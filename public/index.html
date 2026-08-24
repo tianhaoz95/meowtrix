@@ -80,6 +80,7 @@
           <div class="toolbar-btn-group" id="grp-system">
             <button class="group-header" type="button" aria-expanded="false"><span class="group-header-label">System</span><span class="group-chevron">▸</span></button>
             <button id="btn-ports" title="Active local servers" hidden><span class="btn-icon">🔌</span><span class="btn-text">Servers (<span id="ports-count">0</span>)</span></button>
+            <button id="btn-gpu" title="GPU stats" hidden><span class="btn-icon">🎮</span><span class="btn-text">GPU <span id="gpu-badge-text">–</span></span></button>
             <button id="btn-fullscreen" title="Enter fullscreen"><span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg></span><span class="btn-text">Fullscreen</span></button>
           </div>
           <div class="toolbar-btn-group" id="grp-settings">
@@ -382,6 +383,21 @@
             </div>
           </div>
         </details>
+        <details class="settings-section">
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            GPU Monitor
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-gpu-monitor">Show GPU stats (nvidia-smi)</label>
+              <input type="checkbox" id="s-gpu-monitor">
+            </div>
+            <p class="settings-note">Requires an NVIDIA GPU and <code>nvidia-smi</code> on the host. No effect otherwise.</p>
+          </div>
+        </details>
         <details class="settings-section" open>
           <summary class="settings-section-title">
             <span class="settings-chevron">
@@ -433,6 +449,7 @@
   <script src="palette.js"></script>
   <script src="schedule.js"></script>
   <script src="update.js"></script>
+  <script src="gpu.js"></script>
   <script src="combo.js"></script>
   <script src="pet.js"></script>
 </body>
