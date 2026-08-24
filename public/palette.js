@@ -14,6 +14,42 @@ let paletteMode = 'command'; // 'command' or 'rename'
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
+// Hand-authored source of truth for the "Show keyboard shortcuts" overlay
+// below. Mirrors the real bindings in runAppShortcut (app.js), the
+// workspace/zoom keydown block (app.js), and the palette's own open shortcut
+// (bottom of this file) — keep in sync with those if a binding changes.
+const SHORTCUT_GROUPS = [
+  { title: 'Panes & Tabs', items: [
+    { label: 'Split pane vertically',   mac: '⌘\\',  other: 'Ctrl+\\' },
+    { label: 'Split pane horizontally', mac: '⌘-',   other: 'Ctrl+-' },
+    { label: 'New tab',                 mac: '⌘T',   other: 'Ctrl+T' },
+    { label: 'Close current tab',       mac: '⌘W',   other: 'Ctrl+W' },
+    { label: 'Close current pane',      mac: '⌘⇧W',  other: 'Ctrl+Shift+W' },
+    { label: 'Find in active terminal', mac: '⌘F',   other: 'Ctrl+F' },
+  ] },
+  { title: 'Workspaces', items: [
+    { label: 'Previous workspace',       mac: '⌘←',    other: 'Ctrl+Left' },
+    { label: 'Next workspace',           mac: '⌘→',    other: 'Ctrl+Right' },
+    { label: 'Switch to workspace 1-4',  mac: '⌘⌥1-4', other: 'Ctrl+Alt+1-4' },
+  ] },
+  { title: 'Zoom', items: [
+    { label: 'Zoom in active tab',  mac: '⌘⇧=', other: 'Ctrl+Shift+=' },
+    { label: 'Zoom out active tab', mac: '⌘⇧-', other: 'Ctrl+Shift+-' },
+    { label: 'Reset zoom',          mac: '⌘⇧0', other: 'Ctrl+Shift+0' },
+  ] },
+  { title: 'View & Files', items: [
+    { label: 'Toggle fullscreen',            mac: '⌘⇧F', other: 'Ctrl+Shift+F' },
+    { label: 'Toggle broadcast input',       mac: '⌘B',  other: 'Ctrl+Shift+B' },
+    { label: 'Upload file(s) to host',       mac: '⌘⇧U', other: 'Ctrl+Shift+U' },
+    { label: 'Schedule an Enter key press',  mac: '⌘⇧S', other: 'Ctrl+Shift+S' },
+  ] },
+  { title: 'System', items: [
+    { label: 'Open settings',           mac: '⌘,',  other: 'Ctrl+,' },
+    { label: 'Command palette',         mac: '⌘K',  other: 'Ctrl+Shift+P' },
+    { label: 'Show keyboard shortcuts', mac: '⌘/',  other: 'Ctrl+/' },
+  ] },
+];
+
 // Move the active tab within its pane (dir +1 next / -1 previous), wrapping.
 function cycleTab(dir) {
   const pane = activePane;
@@ -59,6 +95,7 @@ function buildCommands() {
     { icon: '📤', title: 'Upload file to host', keywords: 'send transfer', run: () => document.getElementById('upload-input')?.click() },
     { icon: '⏰', title: 'Schedule Enter key press', keywords: 'delay timer alarm quota wait later defer', run: () => openScheduleDialog() },
     { icon: '⚙', title: 'Open settings', keywords: 'preferences config', run: () => openSettings() },
+    { icon: '⌨️', title: 'Show keyboard shortcuts', hint: isMac ? '⌘/' : 'Ctrl+/', keywords: 'help keys bindings cheatsheet reference list all', run: () => openShortcutsOverlay() },
     { icon: '🔍+', title: 'Zoom in active tab', hint: 'Ctrl+Shift++', keywords: 'zoom in enlarge scale text font active increase', run: () => { if (typeof zoomActiveTab === 'function') zoomActiveTab(0.1); } },
     { icon: '🔍-', title: 'Zoom out active tab', hint: 'Ctrl+Shift+-', keywords: 'zoom out shrink scale text font active decrease', run: () => { if (typeof zoomActiveTab === 'function') zoomActiveTab(-0.1); } },
     { icon: '🔍0', title: 'Reset zoom of active tab', hint: 'Ctrl+Shift+0', keywords: 'zoom reset normal scale text font active standard default', run: () => { if (typeof resetActiveTabZoom === 'function') resetActiveTabZoom(); } },
@@ -311,6 +348,62 @@ function runCommand(i) {
     if (cmd) try { cmd.run(); } catch (err) { console.error('Command failed:', err); }
   }
 }
+
+// ── Keyboard shortcuts overlay ───────────────────────────────────────────────
+// A cheatsheet of every app-level shortcut, grouped from SHORTCUT_GROUPS
+// above. Built lazily on first open, same as the palette itself.
+let shortcutsEl = null;
+
+function buildShortcutsOverlay() {
+  shortcutsEl = document.createElement('div');
+  shortcutsEl.id = 'shortcuts-overlay';
+  shortcutsEl.hidden = true;
+  const key = (it) => isMac ? it.mac : it.other;
+  shortcutsEl.innerHTML = `
+    <div id="shortcuts-modal">
+      <div class="shortcuts-head">
+        <span>Keyboard Shortcuts</span>
+        <button id="shortcuts-close" aria-label="Close">✕</button>
+      </div>
+      <div class="shortcuts-body">
+        ${SHORTCUT_GROUPS.map(g => `
+          <div class="shortcuts-group">
+            <div class="shortcuts-group-title">${g.title}</div>
+            ${g.items.map(it => `
+              <div class="shortcuts-row">
+                <span class="shortcuts-row-label">${it.label}</span>
+                <kbd class="shortcuts-key">${key(it)}</kbd>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(shortcutsEl);
+  shortcutsEl.addEventListener('mousedown', (e) => { if (e.target === shortcutsEl) closeShortcutsOverlay(); });
+  shortcutsEl.querySelector('#shortcuts-close').addEventListener('click', closeShortcutsOverlay);
+}
+
+function openShortcutsOverlay() {
+  // Don't open over the inactive-session overlay, same guard as openPalette.
+  if (typeof isActiveSession !== 'undefined' && !isActiveSession) return;
+  if (!shortcutsEl) buildShortcutsOverlay();
+  shortcutsEl.hidden = false;
+}
+
+function closeShortcutsOverlay() {
+  if (!shortcutsEl || shortcutsEl.hidden) return;
+  shortcutsEl.hidden = true;
+  activePane?.activeTab?.term?.focus();
+}
+
+// Escape closes the overlay when it's open. Capture phase so xterm doesn't
+// also see the keystroke, matching the app's other global shortcut handlers.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && shortcutsEl && !shortcutsEl.hidden) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeShortcutsOverlay();
+  }
+}, true);
 
 // Wire up the toolbar button and its hover tooltip (showing the platform's open
 // shortcut: ⌘K on macOS, Ctrl+Shift+P elsewhere). The tooltip is a styled CSS

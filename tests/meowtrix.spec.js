@@ -221,6 +221,22 @@ test.describe('Meowtrix E2E Tests', () => {
     // Verify layout is split into two panes
     await expect(paletteOverlay).not.toBeVisible();
     await expect(page.locator('.pane')).toHaveCount(2);
+
+    // Open palette and show the keyboard shortcuts overlay
+    const shortcutsOverlay = page.locator('#shortcuts-overlay');
+    await btnPalette.click();
+    await expect(paletteOverlay).toBeVisible();
+    await paletteInput.fill('Show keyboard shortcuts');
+    await expect(page.locator('.palette-item.active')).toContainText('Show keyboard shortcuts');
+    await page.keyboard.press('Enter');
+
+    await expect(paletteOverlay).not.toBeVisible();
+    await expect(shortcutsOverlay).toBeVisible();
+    await expect(shortcutsOverlay).toContainText('Split pane vertically');
+
+    // Escape closes it
+    await page.keyboard.press('Escape');
+    await expect(shortcutsOverlay).not.toBeVisible();
   });
 
   test('should customize top menu bar button groups visibility', async ({ page }) => {

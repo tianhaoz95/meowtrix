@@ -751,6 +751,8 @@ function runAppShortcut(key, e) {
     case 'F':  toggleFullscreen(); return true;
     // Cmd/Ctrl+, → open settings (the conventional "preferences" shortcut).
     case ',':  if (typeof openSettings === 'function') openSettings(); return true;
+    // Cmd/Ctrl+/ → show the keyboard shortcuts cheatsheet (Slack/Linear/Notion convention).
+    case '/':  if (typeof openShortcutsOverlay === 'function') openShortcutsOverlay(); return true;
     case 'b':
     case 'B': {
       // Toggle broadcast input.
