@@ -86,13 +86,13 @@ STANDALONE_APP="$ROOT/src-tauri/target/release/bundle/macos/Meowtrix Standalone.
 # --------------------------------------------------------------------- build
 if [ "$SKIP_BUILD" -eq 0 ]; then
   say "building Meowtrix Lite (Client Edition)"
-  (cd "$ROOT" && npm run tauri build -- -c tauri.lite.conf.json -b app --no-sign)
+  (cd "$ROOT" && npm run tauri build -- -c "$ROOT/src-tauri/tauri.lite.conf.json" -b app --no-sign)
 
   say "preparing standalone payload for Meowtrix Standalone"
   "$ROOT/scripts/prepare-standalone-payload.sh"
 
   say "building Meowtrix Standalone (Embedded Edition)"
-  (cd "$ROOT" && npm run tauri build -- -c tauri.standalone.conf.json -b app --no-sign)
+  (cd "$ROOT" && npm run tauri build -- -c "$ROOT/src-tauri/tauri.standalone.conf.json" -b app --no-sign)
 else
   say "skipping build"
 fi
