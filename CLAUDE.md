@@ -12,6 +12,10 @@ Meowtrix — a browser-based remote workspace ("vibe engineering tool"). The UI 
 npm install        # install deps (node-pty compiles natively)
 npm start          # run the server on PORT (default 9123)
 ./start.sh         # dev mode: nodemon + browser hot-reload (sets HOTRELOAD=1)
+npm run tauri:dev  # run as native desktop app in dev mode (Tauri v2)
+npm run tauri:build # build native desktop installer / app bundle
+./scripts/release-mac.sh --check # preflight check macOS code signing & notarization credentials
+./scripts/cut_release.sh vX.Y.Z  # cut GitHub release and trigger automated CI build/signing/DMG/notarization
 npm run test:e2e   # run playwright e2e tests
 npm run screenshots # generate showcase screenshots using playwright
 ./preview-website.sh # start local server for website (add --capture to recapture screenshots first)

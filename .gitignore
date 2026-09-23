@@ -22,6 +22,7 @@ npm-debug.log*
 build-temp/
 dist/
 _site/
+src-tauri/target/
 
 # Test Artifacts
 playwright-report/
