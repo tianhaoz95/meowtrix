@@ -23,6 +23,7 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 APP="${APP:-$ROOT/src-tauri/target/release/bundle/macos/Meowtrix.app}"
 ENTITLEMENTS="$ROOT/src-tauri/Entitlements.plist"
+NODE_ENTITLEMENTS="$ROOT/src-tauri/NodeEntitlements.plist"
 OUT_DMG="${OUT_DMG:-$ROOT/build/release-mac/dmg/Meowtrix-signed.dmg}"
 VOLUME_NAME="${VOLUME_NAME:-Meowtrix}"
 
@@ -104,7 +105,21 @@ report() {
 if [ "$VERIFY_ONLY" -eq 1 ]; then report; exit 0; fi
 
 # -------------------------------------------------------------------- sign
-echo "==> signing nested frameworks/binaries if present"
+echo "==> signing nested binaries and frameworks"
+if [ -d "$APP/Contents/Resources" ]; then
+  while IFS= read -r f; do
+    file -b "$f" 2>/dev/null | grep -q "Mach-O" || continue
+    if [ "$(basename "$f")" = "node" ]; then
+      echo "    signing Node runtime: ${f#"$APP/"}"
+      codesign --force --sign "$IDENTITY" --timestamp --options runtime \
+        --entitlements "$NODE_ENTITLEMENTS" "$f"
+    else
+      echo "    signing nested binary: ${f#"$APP/"}"
+      codesign --force --sign "$IDENTITY" --timestamp --options runtime "$f"
+    fi
+  done < <(find "$APP/Contents/Resources" -type f)
+fi
+
 if [ -d "$APP/Contents/Frameworks" ]; then
   find "$APP/Contents/Frameworks" -type f -perm +111 -exec codesign --force --sign "$IDENTITY" --timestamp --options runtime {} +
 fi
@@ -117,9 +132,17 @@ codesign --force --sign "$IDENTITY" --timestamp --options runtime \
 report
 
 echo "==> checking for get-task-allow (a notarization blocker)"
-if codesign -d --entitlements - --xml "$APP" 2>/dev/null \
-     | plutil -convert xml1 -o - - 2>/dev/null | grep -q "get-task-allow"; then
-  echo "!! get-task-allow is set on the app bundle -- refusing to continue." >&2
+bad=0
+while IFS= read -r f; do
+  file -b "$f" 2>/dev/null | grep -q "Mach-O" || continue
+  if codesign -d --entitlements - --xml "$f" 2>/dev/null \
+       | plutil -convert xml1 -o - - 2>/dev/null | grep -q "get-task-allow"; then
+    echo "    !! get-task-allow still set on: ${f#"$APP/"}" >&2
+    bad=1
+  fi
+done < <(find "$APP" -type f)
+if [ "$bad" -eq 1 ]; then
+  echo "!! get-task-allow is set on one or more binaries -- refusing to continue." >&2
   exit 1
 fi
 echo "    clean"
