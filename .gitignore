@@ -23,6 +23,7 @@ build-temp/
 dist/
 _site/
 src-tauri/target/
+standalone-payload/
 
 # Test Artifacts
 playwright-report/

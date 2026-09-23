@@ -1,12 +1,12 @@
 mod server;
 
-use server::{ServerManager, ServerState, DEFAULT_PORT};
+use server::{ServerManager, ServerState};
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let server_manager = ServerManager::new(DEFAULT_PORT);
+    let server_manager = ServerManager::new();
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())

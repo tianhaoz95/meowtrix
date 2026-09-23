@@ -21,18 +21,23 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
-APP="$ROOT/src-tauri/target/release/bundle/macos/Meowtrix.app"
+APP="${APP:-$ROOT/src-tauri/target/release/bundle/macos/Meowtrix.app}"
 ENTITLEMENTS="$ROOT/src-tauri/Entitlements.plist"
-OUT_DMG="$ROOT/build/release-mac/dmg/Meowtrix-signed.dmg"
-VOLUME_NAME="Meowtrix"
+OUT_DMG="${OUT_DMG:-$ROOT/build/release-mac/dmg/Meowtrix-signed.dmg}"
+VOLUME_NAME="${VOLUME_NAME:-Meowtrix}"
 
 NOTARIZE=0
 VERIFY_ONLY=0
+SKIP_UPDATER=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --notarize)    NOTARIZE=1; shift ;;
-    --verify-only) VERIFY_ONLY=1; shift ;;
-    -h|--help)     sed -n '2,10p' "$0"; exit 0 ;;
+    --app)          APP="$2"; shift 2 ;;
+    --dmg)          OUT_DMG="$2"; shift 2 ;;
+    --volume)       VOLUME_NAME="$2"; shift 2 ;;
+    --notarize)     NOTARIZE=1; shift ;;
+    --verify-only)  VERIFY_ONLY=1; shift ;;
+    --skip-updater) SKIP_UPDATER=1; shift ;;
+    -h|--help)      sed -n '2,10p' "$0"; exit 0 ;;
     *) echo "!! unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -175,8 +180,10 @@ echo "==> stapling"
 xcrun stapler staple "$OUT_DMG"
 xcrun stapler staple "$APP"
 
-echo "==> Rebuilding updater artifact from notarized app"
-"$ROOT/scripts/sign-updater-artifact.sh" "$APP"
+if [ "$SKIP_UPDATER" -eq 0 ]; then
+  echo "==> Rebuilding updater artifact from notarized app"
+  "$ROOT/scripts/sign-updater-artifact.sh" "$APP"
+fi
 
 echo "==> final assessment"
 spctl -a -vvv -t exec "$APP" 2>&1 | sed 's/^/    /' || true

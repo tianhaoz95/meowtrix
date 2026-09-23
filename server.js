@@ -60,8 +60,8 @@ app.get('/', (req, res) => {
   res.send(html);
 });
 
-// ── Settings persistence ─────────────────────────────────────────────────────
-const SETTINGS_FILE = path.join(os.homedir(), '.meowtrix', 'settings.json');
+const MEOWTRIX_DATA_DIR = process.env.MEOWTRIX_DATA_DIR || path.join(os.homedir(), '.meowtrix');
+const SETTINGS_FILE = process.env.MEOWTRIX_SETTINGS_FILE || path.join(MEOWTRIX_DATA_DIR, 'settings.json');
 const DEFAULT_SETTINGS = {
   theme: 'auto',
   localServerIp: '127.0.0.1',
@@ -156,7 +156,7 @@ app.get('/api/network-interfaces', (req, res) => {
 });
 
 // ── Session state persistence ────────────────────────────────────────────────
-const SESSION_FILE = path.join(os.homedir(), '.meowtrix', 'session.json');
+const SESSION_FILE = process.env.MEOWTRIX_SESSION_FILE || path.join(MEOWTRIX_DATA_DIR, 'session.json');
 app.get('/api/session', (req, res) => {
   try { res.json(JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'))); }
   catch { res.json(null); }

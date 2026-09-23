@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Meowtrix",
+  "productName": "Meowtrix Standalone",
   "version": "1.19.0",
-  "identifier": "sh.meowtrix.desktop",
+  "identifier": "sh.meowtrix.standalone",
   "build": {
     "frontendDist": "../public",
     "devUrl": "http://localhost:9123",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Meowtrix",
+        "title": "Meowtrix Standalone",
         "width": 1440,
         "height": 900,
         "minWidth": 800,
@@ -28,6 +28,9 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "resources": [
+      "../standalone-payload/**"
+    ],
     "macOS": {
       "signingIdentity": "-"
     },

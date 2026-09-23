@@ -11,19 +11,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-APP_NAME="Meowtrix"
 APP_SLUG="meowtrix"
 REPO_OWNER="tianhaoz95"
 REPO_NAME="meowtrix"
 TAURI_DIR="$ROOT/src-tauri"
 
 # Default to release bundle path unless provided via $1
-APP="${1:-$TAURI_DIR/target/release/bundle/macos/$APP_NAME.app}"
+APP="${1:-$TAURI_DIR/target/release/bundle/macos/Meowtrix Standalone.app}"
+if [ ! -d "$APP" ]; then
+  APP="$TAURI_DIR/target/release/bundle/macos/Meowtrix.app"
+fi
 if [ ! -d "$APP" ]; then
   echo "!! Target .app bundle not found at: $APP" >&2
   echo "   Ensure the app has been built, signed, and notarized first." >&2
   exit 1
 fi
+APP_NAME="$(basename "$APP" .app)"
 
 BUNDLE_DIR="$(dirname "$APP")"
 UPDATER_DIR="$BUNDLE_DIR/updater"

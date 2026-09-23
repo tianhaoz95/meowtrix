@@ -1,6 +1,6 @@
 {
   "name": "meowtrix",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "Meowtrix — remote vibe engineering tool with split panes, terminals, and browser",
   "main": "server.js",
   "scripts": {
@@ -8,8 +8,11 @@
     "dev": "node server.js",
     "docker": "./docker-run.sh",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "tauri dev -c tauri.lite.conf.json",
+    "tauri:dev:standalone": "./scripts/prepare-standalone-payload.sh && tauri dev -c tauri.standalone.conf.json",
+    "tauri:build:lite": "tauri build -c tauri.lite.conf.json",
+    "tauri:build:standalone": "./scripts/prepare-standalone-payload.sh && tauri build -c tauri.standalone.conf.json",
+    "tauri:build": "npm run tauri:build:lite && npm run tauri:build:standalone",
     "test:e2e": "rm -rf test-results playwright-report && playwright test",
     "test:e2e:ui": "rm -rf test-results playwright-report && playwright test --ui",
     "test:e2e:docker": "rm -rf test-results playwright-report && docker compose -f docker-compose.test.yml down -v && docker compose -f docker-compose.test.yml up --build --exit-code-from playwright",
