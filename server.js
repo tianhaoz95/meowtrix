@@ -26,9 +26,10 @@ const wss = new WebSocketServer({
 app.use(compression());
 app.use(express.json());
 
-// Serve local monaco-editor and marked assets from node_modules for offline-readiness and reduced load latency
+// Serve local monaco-editor, marked, and xterm-addon-webgl assets from node_modules for offline-readiness and reduced load latency
 app.use('/vendor/monaco-editor', express.static(path.join(__dirname, 'node_modules', 'monaco-editor')));
 app.use('/vendor/marked', express.static(path.join(__dirname, 'node_modules', 'marked', 'lib')));
+app.use('/vendor/xterm-addon-webgl', express.static(path.join(__dirname, 'node_modules', 'xterm-addon-webgl', 'lib')));
 
 // Serve static assets with a max-age of 1 day to enable browser caching and reduce load latency
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
@@ -66,7 +67,8 @@ const DEFAULT_SETTINGS = {
   theme: 'auto',
   localServerIp: '127.0.0.1',
   termFontSize: 13,
-  termFontFamily: 'Cascadia Code, JetBrains Mono, Menlo, Monaco, monospace',
+  termFontFamily: 'Cascadia Code, JetBrains Mono, "SF Mono", Menlo, Monaco, monospace',
+  termRenderer: 'webgl', // 'webgl' (GPU accelerated, sharpest), 'canvas' (2D), or 'dom'
   termScrollback: 10000,
   shell: process.env.SHELL || '/bin/bash',
   browserHomepage: '', // blank → new browser tabs show the local start page

@@ -73,7 +73,7 @@ function makeDraggable(divider, container, dir) {
     const onMove = (e) => {
       if (e.pointerId !== startE.pointerId) return;
       const delta = (isVert ? e.clientX : e.clientY) - startPos;
-      const newPrevPx = Math.max(80, Math.min(combinedPx - 80, prevPx + delta));
+      const newPrevPx = Math.max(80, Math.min(combinedPx - 80, Math.round(prevPx + delta)));
       const newPrevGrow = newPrevPx * growPerPx;
       prev.style.flex = `${newPrevGrow} 1 0`;
       next.style.flex = `${combinedGrow - newPrevGrow} 1 0`;

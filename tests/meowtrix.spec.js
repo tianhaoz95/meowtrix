@@ -427,7 +427,7 @@ test.describe('Meowtrix E2E Tests', () => {
     const terminalEl = page.locator('.terminal-view.active').first();
     await terminalEl.waitFor({ state: 'visible' });
     // Wait for the shell to start up and render its prompt (e.g. $, #, %, >, :, /, ~)
-    const xtermRows = page.locator('.xterm-rows').first();
+    const xtermRows = page.locator('.xterm-rows, [role="listitem"]').first();
     await expect(xtermRows).toContainText(/[#$%>:/~]/);
     await terminalEl.click();
     

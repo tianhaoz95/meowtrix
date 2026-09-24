@@ -292,6 +292,7 @@ Settings are saved to `~/.meowtrix/settings.json` on the host machine; the works
 | Theme | Midnight (dark) |
 | Terminal font size | 13 |
 | Terminal font | Cascadia Code |
+| Terminal renderer | WebGL (GPU accelerated, sharpest) |
 | Scrollback | 10,000 lines |
 | Shell | `$SHELL` (falls back to `/bin/bash`) |
 | Browser homepage | blank (shows a start page) |

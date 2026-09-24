@@ -473,7 +473,13 @@ function closeTab(pane, id) {
   const tab = pane.tabs[idx];
   if (typeof teardownSchedule === 'function') teardownSchedule(tab); // stop any pending Enter timer
   if (tab.ptyId) destroyPty(tab.ptyId);
-  if (tab.term) tab.term.dispose();
+  if (tab.webglAddon) {
+    try { tab.webglAddon.dispose(); } catch (e) {}
+    tab.webglAddon = null;
+  }
+  if (tab.term) {
+    try { tab.term.dispose(); } catch (e) {}
+  }
   if (tab.disposeTerminal) tab.disposeTerminal();
   if (tab.disposeEditor) tab.disposeEditor();
   tab.viewEl.remove();
@@ -495,10 +501,11 @@ function initTerminalTab(tab, existingPtyId) {
   const term = new Terminal({
     theme: getTermTheme(),
     fontSize: Math.round((s.termFontSize || 13) * (tab.zoomLevel || 1.0)),
-    fontFamily: s.termFontFamily || '"Cascadia Code", "JetBrains Mono", Menlo, Monaco, monospace',
+    fontFamily: s.termFontFamily || '"Cascadia Code", "JetBrains Mono", "SF Mono", Menlo, Monaco, monospace',
     cursorBlink: true,
     scrollback: s.termScrollback || 10000,
     allowProposedApi: true,
+    screenReaderMode: true,
   });
   const fitAddon = new FitAddon.FitAddon();
   term.loadAddon(fitAddon);
@@ -653,6 +660,23 @@ function initTerminalTab(tab, existingPtyId) {
   }
 
   term.open(tab.viewEl);
+
+  // Load WebGL addon for GPU-accelerated glyph rendering and crisp high-DPI text
+  if (window.WebglAddon && s.termRenderer !== 'canvas' && s.termRenderer !== 'dom') {
+    try {
+      const webglAddon = new window.WebglAddon.WebglAddon();
+      webglAddon.onContextLoss(() => {
+        console.warn('WebGL context lost, disposing WebGL addon to fallback to 2D renderer');
+        try { webglAddon.dispose(); } catch (_) {}
+        tab.webglAddon = null;
+      });
+      term.loadAddon(webglAddon);
+      tab.webglAddon = webglAddon;
+    } catch (e) {
+      console.warn('WebGL addon failed to initialize, falling back to default renderer:', e);
+      tab.webglAddon = null;
+    }
+  }
 
   // Prevent browser autofill and password manager popups on the terminal input textarea
   const helperTextarea = tab.viewEl.querySelector('.xterm-helper-textarea');
@@ -824,17 +848,47 @@ function initTerminalTab(tab, existingPtyId) {
     tab.zoomLevel = zoomLevel;
     const baseFontSize = (getSettings().termFontSize || 13);
     term.options.fontSize = Math.round(baseFontSize * zoomLevel);
+    if (tab.webglAddon && typeof tab.webglAddon.clearTextureAtlas === 'function') {
+      try { tab.webglAddon.clearTextureAtlas(); } catch {}
+    }
     if (tab.fitAddon && tab.viewEl && tab.viewEl.classList.contains('active')) {
       try { tab.fitAddon.fit(); } catch {}
     }
   };
   tab.disposeTerminal = () => {
     ro.disconnect();
+    if (tab.webglAddon) {
+      try { tab.webglAddon.dispose(); } catch (_) {}
+      tab.webglAddon = null;
+    }
     if (tab.mobileScrollDis) { tab.mobileScrollDis.dispose(); tab.mobileScrollDis = null; }
     if (tab.mobileLfDis) { tab.mobileLfDis.dispose(); tab.mobileLfDis = null; }
     if (tab.mobileResizeDis) { tab.mobileResizeDis.dispose(); tab.mobileResizeDis = null; }
     if (tab.acActive) closeAutocomplete(tab);
   };
+}
+
+function applyTermRenderer(tab, renderer) {
+  if (!tab || tab.type !== 'terminal' || !tab.term) return;
+  const targetRenderer = renderer || (typeof getSettings === 'function' ? getSettings().termRenderer : 'webgl') || 'webgl';
+  if (targetRenderer === 'webgl' && window.WebglAddon && !tab.webglAddon) {
+    try {
+      const addon = new window.WebglAddon.WebglAddon();
+      addon.onContextLoss(() => {
+        try { addon.dispose(); } catch (_) {}
+        tab.webglAddon = null;
+      });
+      tab.term.loadAddon(addon);
+      tab.webglAddon = addon;
+    } catch (e) {
+      console.warn('Failed to load WebGL addon:', e);
+    }
+  } else if ((targetRenderer === 'canvas' || targetRenderer === 'dom') && tab.webglAddon) {
+    try {
+      tab.webglAddon.dispose();
+    } catch (e) {}
+    tab.webglAddon = null;
+  }
 }
 
 function initBrowserTab(tab, viewEl, label, initialUrl) {

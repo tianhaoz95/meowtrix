@@ -10,3 +10,9 @@ docker-run.sh
 README.md
 GEMINI.md
 CLAUDE.md
+src-tauri/target
+test-results
+playwright-report
+screenshots
+website
+

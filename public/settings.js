@@ -105,6 +105,12 @@ function applyTermSettings() {
     t.term.options.fontSize = Math.round((currentSettings.termFontSize || 13) * (t.zoomLevel || 1.0));
     t.term.options.fontFamily = currentSettings.termFontFamily;
     t.term.options.scrollback = currentSettings.termScrollback;
+    if (typeof applyTermRenderer === 'function') {
+      applyTermRenderer(t, currentSettings.termRenderer || 'webgl');
+    }
+    if (t.webglAddon && typeof t.webglAddon.clearTextureAtlas === 'function') {
+      try { t.webglAddon.clearTextureAtlas(); } catch {}
+    }
     if (t.fitAddon && t.viewEl && t.viewEl.classList.contains('active')) {
       const wsView = t.viewEl.closest('.workspace-view');
       if (!wsView || wsView.classList.contains('active')) {
@@ -307,6 +313,8 @@ function populateControls(s) {
   const fontSel = document.getElementById('s-font-family');
   const match = [...fontSel.options].find(o => s.termFontFamily.startsWith(o.value.split(',')[0]));
   if (match) fontSel.value = match.value;
+  const rendererSel = document.getElementById('s-term-renderer');
+  if (rendererSel) rendererSel.value = s.termRenderer || 'webgl';
   document.getElementById('s-scrollback').value = String(s.termScrollback);
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
@@ -591,6 +599,12 @@ function wireControls() {
   s('s-font-family', 'termFontFamily');
   document.getElementById('s-font-family').addEventListener('change', () => applyTermSettings());
 
+  const rendererSel = document.getElementById('s-term-renderer');
+  if (rendererSel) {
+    s('s-term-renderer', 'termRenderer');
+    rendererSel.addEventListener('change', () => applyTermSettings());
+  }
+
   s('s-scrollback', 'termScrollback', Number);
   document.getElementById('s-scrollback').addEventListener('change', () => applyTermSettings());
 
@@ -772,7 +786,7 @@ function wireControls() {
 }
 
 function onSettingChanged(key) {
-  if (['termFontSize', 'termFontFamily', 'termScrollback'].includes(key)) applyTermSettings();
+  if (['termFontSize', 'termFontFamily', 'termScrollback', 'termRenderer'].includes(key)) applyTermSettings();
   if (key === 'uiMode') {
     if (typeof updateUiMode === 'function') updateUiMode();
   }
