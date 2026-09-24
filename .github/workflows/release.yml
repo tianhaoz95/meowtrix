@@ -85,7 +85,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ needs.create-release.outputs.tag_name }}
         run: |
-          gh release upload "$TAG_NAME" dist/*.tar.gz --clobber
+          for i in {1..5}; do
+            gh release upload "$TAG_NAME" dist/*.tar.gz --clobber && break || {
+              if [ "$i" -eq 5 ]; then
+                echo "Failed to upload release asset after 5 attempts."
+                exit 1
+              fi
+              echo "Upload failed (attempt $i/5), retrying in 5s..."
+              sleep 5
+            }
+          done
 
   publish-release:
     name: Publish Release

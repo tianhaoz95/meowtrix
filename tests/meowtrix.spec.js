@@ -3,19 +3,35 @@ const { test, expect } = require('@playwright/test');
 test.describe('Meowtrix E2E Tests', () => {
   test.beforeEach(async ({ page, request }) => {
     // Reset settings to default before each test run
-    await request.post('/api/settings/reset');
-    // Reset layout state to a clean slate before each test run
-    await request.post('/api/session', {
-      data: {
-        workspaces: [
-          { name: 'Workspace 1', layout: null },
-          { name: 'Workspace 2', layout: null },
-          { name: 'Workspace 3', layout: null },
-          { name: 'Workspace 4', layout: null }
-        ],
-        activeWorkspaceIndex: 0
+    for (let i = 0; i < 3; i++) {
+      try {
+        await request.post('/api/settings/reset');
+        break;
+      } catch (err) {
+        if (i === 2) throw err;
+        await new Promise(r => setTimeout(r, 200));
       }
-    });
+    }
+    // Reset layout state to a clean slate before each test run
+    for (let i = 0; i < 3; i++) {
+      try {
+        await request.post('/api/session', {
+          data: {
+            workspaces: [
+              { name: 'Workspace 1', layout: null },
+              { name: 'Workspace 2', layout: null },
+              { name: 'Workspace 3', layout: null },
+              { name: 'Workspace 4', layout: null }
+            ],
+            activeWorkspaceIndex: 0
+          }
+        });
+        break;
+      } catch (err) {
+        if (i === 2) throw err;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
 
 
     // Inject mock for LanguageModel/Prompt API to enable chat pet in settings
@@ -186,6 +202,25 @@ test.describe('Meowtrix E2E Tests', () => {
     await themeSelect.selectOption('auto');
     const resolvedTheme = await htmlElement.getAttribute('data-theme');
     expect(['dark', 'light']).toContain(resolvedTheme);
+
+    // Verify WebGL renderer indicator in settings
+    const webglIndicator = page.locator('#s-webgl-indicator');
+    await expect(webglIndicator).toBeVisible();
+
+    const rendererSelect = page.locator('#s-term-renderer');
+    await expect(rendererSelect).toBeVisible();
+
+    // Switch to Canvas 2D and verify indicator reflects it
+    await rendererSelect.selectOption('canvas');
+    await expect(webglIndicator).toContainText('Canvas 2D active');
+
+    // Switch to DOM and verify indicator reflects it
+    await rendererSelect.selectOption('dom');
+    await expect(webglIndicator).toContainText('DOM active');
+
+    // Switch back to WebGL
+    await rendererSelect.selectOption('webgl');
+    await expect(webglIndicator).toContainText(/WebGL/);
 
     // Close settings
     await page.locator('#settings-close').dispatchEvent('click');

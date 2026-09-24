@@ -118,12 +118,87 @@ function applyTermSettings() {
       }
     }
   }));
+  if (typeof updateWebGLIndicator === 'function') updateWebGLIndicator();
 }
 
 function applyEditorSettings() {
   getAllPanesAllWorkspaces().forEach(p => p.tabs.forEach(t => {
     if (typeof t.updateMinimap === 'function') t.updateMinimap();
   }));
+}
+
+function updateWebGLIndicator() {
+  const el = document.getElementById('s-webgl-indicator');
+  if (!el) return;
+
+  const s = typeof getSettings === 'function' ? getSettings() : (typeof currentSettings !== 'undefined' ? currentSettings : {});
+  const chosenRenderer = (s && s.termRenderer) || 'webgl';
+
+  let hasWebGLSupport = false;
+  let gpuInfo = '';
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (gl) {
+      hasWebGLSupport = true;
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        gpuInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+      }
+    }
+  } catch (_) {}
+
+  const hasAddon = typeof window !== 'undefined' && !!window.WebglAddon;
+
+  // Check active terminal tabs to see if any are using WebGL
+  let termTabs = [];
+  if (typeof getAllPanesAllWorkspaces === 'function') {
+    getAllPanesAllWorkspaces().forEach(p => (p.tabs || []).forEach(t => {
+      if (t.type === 'terminal' && t.term) termTabs.push(t);
+    }));
+  }
+
+  const activeWithWebGL = termTabs.filter(t => !!t.webglAddon);
+
+  el.className = 'settings-renderer-status';
+
+  if (chosenRenderer === 'canvas') {
+    el.classList.add('inactive');
+    el.innerHTML = '<span class="status-dot"></span><span class="status-text">Canvas 2D active</span>';
+    el.title = 'WebGL is turned off. Using standard 2D canvas rendering.';
+    return;
+  }
+
+  if (chosenRenderer === 'dom') {
+    el.classList.add('inactive');
+    el.innerHTML = '<span class="status-dot"></span><span class="status-text">DOM active</span>';
+    el.title = 'WebGL is turned off. Using standard DOM rendering.';
+    return;
+  }
+
+  // Chosen renderer is 'webgl'
+  if (!hasWebGLSupport || !hasAddon) {
+    el.classList.add('warning');
+    el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL unavailable (2D fallback)</span>';
+    el.title = !hasWebGLSupport ? 'WebGL is not supported by your browser or graphics environment.' : 'WebGL addon is unavailable.';
+    return;
+  }
+
+  if (termTabs.length > 0) {
+    if (activeWithWebGL.length > 0) {
+      el.classList.add('active');
+      el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL active (GPU accelerated)</span>';
+      el.title = gpuInfo ? `GPU: ${gpuInfo}` : 'GPU-accelerated WebGL glyph rendering is currently active.';
+    } else {
+      el.classList.add('warning');
+      el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL context lost (2D fallback)</span>';
+      el.title = 'WebGL lost its context; falling back to 2D renderer.';
+    }
+  } else {
+    el.classList.add('active');
+    el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL ready (GPU accelerated)</span>';
+    el.title = gpuInfo ? `GPU: ${gpuInfo}` : 'GPU-accelerated WebGL glyph rendering will be used for terminals.';
+  }
 }
 
 // ── Panel open/close ─────────────────────────────────────────────────────────
@@ -282,6 +357,7 @@ function openSettings() {
   if (typeof syncSettingsUpdateStatus === 'function') syncSettingsUpdateStatus();
   syncAboutVersion();
   if (typeof refreshRestartAvailability === 'function') refreshRestartAvailability();
+  updateWebGLIndicator();
   const searchInput = document.getElementById('settings-search');
   if (searchInput) {
     setTimeout(() => searchInput.focus(), 150);
@@ -315,6 +391,7 @@ function populateControls(s) {
   if (match) fontSel.value = match.value;
   const rendererSel = document.getElementById('s-term-renderer');
   if (rendererSel) rendererSel.value = s.termRenderer || 'webgl';
+  updateWebGLIndicator();
   document.getElementById('s-scrollback').value = String(s.termScrollback);
   document.getElementById('s-shell').value = s.shell;
   document.getElementById('s-homepage').value = s.browserHomepage;
@@ -602,7 +679,10 @@ function wireControls() {
   const rendererSel = document.getElementById('s-term-renderer');
   if (rendererSel) {
     s('s-term-renderer', 'termRenderer');
-    rendererSel.addEventListener('change', () => applyTermSettings());
+    rendererSel.addEventListener('change', () => {
+      applyTermSettings();
+      updateWebGLIndicator();
+    });
   }
 
   s('s-scrollback', 'termScrollback', Number);

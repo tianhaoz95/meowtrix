@@ -669,6 +669,7 @@ function initTerminalTab(tab, existingPtyId) {
         console.warn('WebGL context lost, disposing WebGL addon to fallback to 2D renderer');
         try { webglAddon.dispose(); } catch (_) {}
         tab.webglAddon = null;
+        if (typeof updateWebGLIndicator === 'function') updateWebGLIndicator();
       });
       term.loadAddon(webglAddon);
       tab.webglAddon = webglAddon;
@@ -677,6 +678,7 @@ function initTerminalTab(tab, existingPtyId) {
       tab.webglAddon = null;
     }
   }
+  if (typeof updateWebGLIndicator === 'function') updateWebGLIndicator();
 
   // Prevent browser autofill and password manager popups on the terminal input textarea
   const helperTextarea = tab.viewEl.querySelector('.xterm-helper-textarea');
@@ -865,6 +867,7 @@ function initTerminalTab(tab, existingPtyId) {
     if (tab.mobileLfDis) { tab.mobileLfDis.dispose(); tab.mobileLfDis = null; }
     if (tab.mobileResizeDis) { tab.mobileResizeDis.dispose(); tab.mobileResizeDis = null; }
     if (tab.acActive) closeAutocomplete(tab);
+    if (typeof updateWebGLIndicator === 'function') updateWebGLIndicator();
   };
 }
 
@@ -877,6 +880,7 @@ function applyTermRenderer(tab, renderer) {
       addon.onContextLoss(() => {
         try { addon.dispose(); } catch (_) {}
         tab.webglAddon = null;
+        if (typeof updateWebGLIndicator === 'function') updateWebGLIndicator();
       });
       tab.term.loadAddon(addon);
       tab.webglAddon = addon;
@@ -889,6 +893,7 @@ function applyTermRenderer(tab, renderer) {
     } catch (e) {}
     tab.webglAddon = null;
   }
+  if (typeof updateWebGLIndicator === 'function') updateWebGLIndicator();
 }
 
 function initBrowserTab(tab, viewEl, label, initialUrl) {

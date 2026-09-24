@@ -178,7 +178,13 @@
               </select>
             </div>
             <div class="settings-row">
-              <label for="s-term-renderer">Terminal renderer</label>
+              <div>
+                <label for="s-term-renderer">Terminal renderer</label>
+                <div id="s-webgl-indicator" class="settings-renderer-status">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Detecting...</span>
+                </div>
+              </div>
               <select id="s-term-renderer">
                 <option value="webgl">WebGL (GPU accelerated, sharpest)</option>
                 <option value="canvas">Canvas (Standard 2D)</option>
