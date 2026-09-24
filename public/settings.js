@@ -131,73 +131,82 @@ function updateWebGLIndicator() {
   const el = document.getElementById('s-webgl-indicator');
   if (!el) return;
 
-  const s = typeof getSettings === 'function' ? getSettings() : (typeof currentSettings !== 'undefined' ? currentSettings : {});
-  const chosenRenderer = (s && s.termRenderer) || 'webgl';
-
-  let hasWebGLSupport = false;
-  let gpuInfo = '';
   try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (gl) {
-      hasWebGLSupport = true;
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      if (debugInfo) {
-        gpuInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+    const s = typeof getSettings === 'function' ? getSettings() : (typeof currentSettings !== 'undefined' ? currentSettings : {});
+    const chosenRenderer = (s && s.termRenderer) || 'webgl';
+
+    let hasWebGLSupport = false;
+    let gpuInfo = '';
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        hasWebGLSupport = true;
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          gpuInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+        }
       }
+    } catch (_) {}
+
+    const hasAddon = typeof window !== 'undefined' && !!window.WebglAddon;
+
+    // Check active terminal tabs to see if any are using WebGL
+    let termTabs = [];
+    if (typeof getAllPanesAllWorkspaces === 'function') {
+      try {
+        getAllPanesAllWorkspaces().forEach(p => (p && p.tabs || []).forEach(t => {
+          if (t && t.type === 'terminal' && t.term) termTabs.push(t);
+        }));
+      } catch (_) {}
     }
-  } catch (_) {}
 
-  const hasAddon = typeof window !== 'undefined' && !!window.WebglAddon;
+    const activeWithWebGL = termTabs.filter(t => !!t.webglAddon);
 
-  // Check active terminal tabs to see if any are using WebGL
-  let termTabs = [];
-  if (typeof getAllPanesAllWorkspaces === 'function') {
-    getAllPanesAllWorkspaces().forEach(p => (p.tabs || []).forEach(t => {
-      if (t.type === 'terminal' && t.term) termTabs.push(t);
-    }));
-  }
+    el.className = 'settings-renderer-status';
 
-  const activeWithWebGL = termTabs.filter(t => !!t.webglAddon);
+    if (chosenRenderer === 'canvas') {
+      el.classList.add('inactive');
+      el.innerHTML = '<span class="status-dot"></span><span class="status-text">Canvas 2D active</span>';
+      el.title = 'WebGL is turned off. Using standard 2D canvas rendering.';
+      return;
+    }
 
-  el.className = 'settings-renderer-status';
+    if (chosenRenderer === 'dom') {
+      el.classList.add('inactive');
+      el.innerHTML = '<span class="status-dot"></span><span class="status-text">DOM active</span>';
+      el.title = 'WebGL is turned off. Using standard DOM rendering.';
+      return;
+    }
 
-  if (chosenRenderer === 'canvas') {
-    el.classList.add('inactive');
-    el.innerHTML = '<span class="status-dot"></span><span class="status-text">Canvas 2D active</span>';
-    el.title = 'WebGL is turned off. Using standard 2D canvas rendering.';
-    return;
-  }
-
-  if (chosenRenderer === 'dom') {
-    el.classList.add('inactive');
-    el.innerHTML = '<span class="status-dot"></span><span class="status-text">DOM active</span>';
-    el.title = 'WebGL is turned off. Using standard DOM rendering.';
-    return;
-  }
-
-  // Chosen renderer is 'webgl'
-  if (!hasWebGLSupport || !hasAddon) {
-    el.classList.add('warning');
-    el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL unavailable (2D fallback)</span>';
-    el.title = !hasWebGLSupport ? 'WebGL is not supported by your browser or graphics environment.' : 'WebGL addon is unavailable.';
-    return;
-  }
-
-  if (termTabs.length > 0) {
-    if (activeWithWebGL.length > 0) {
-      el.classList.add('active');
-      el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL active (GPU accelerated)</span>';
-      el.title = gpuInfo ? `GPU: ${gpuInfo}` : 'GPU-accelerated WebGL glyph rendering is currently active.';
-    } else {
+    // Chosen renderer is 'webgl'
+    if (!hasWebGLSupport || !hasAddon) {
       el.classList.add('warning');
-      el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL context lost (2D fallback)</span>';
-      el.title = 'WebGL lost its context; falling back to 2D renderer.';
+      el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL unavailable (2D fallback)</span>';
+      el.title = !hasWebGLSupport ? 'WebGL is not supported by your browser or graphics environment.' : 'WebGL addon is unavailable.';
+      return;
     }
-  } else {
-    el.classList.add('active');
-    el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL ready (GPU accelerated)</span>';
-    el.title = gpuInfo ? `GPU: ${gpuInfo}` : 'GPU-accelerated WebGL glyph rendering will be used for terminals.';
+
+    if (termTabs.length > 0) {
+      if (activeWithWebGL.length > 0) {
+        el.classList.add('active');
+        el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL active (GPU accelerated)</span>';
+        el.title = gpuInfo ? `GPU: ${gpuInfo}` : 'GPU-accelerated WebGL glyph rendering is currently active.';
+      } else {
+        el.classList.add('warning');
+        el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL context lost (2D fallback)</span>';
+        el.title = 'WebGL lost its context; falling back to 2D renderer.';
+      }
+    } else {
+      el.classList.add('active');
+      el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL ready (GPU accelerated)</span>';
+      el.title = gpuInfo ? `GPU: ${gpuInfo}` : 'GPU-accelerated WebGL glyph rendering will be used for terminals.';
+    }
+  } catch (err) {
+    console.error('Error updating WebGL indicator:', err);
+    el.className = 'settings-renderer-status warning';
+    el.innerHTML = '<span class="status-dot"></span><span class="status-text">WebGL check error</span>';
+    el.title = String(err && err.message || err);
   }
 }
 
@@ -385,10 +394,9 @@ function populateControls(s) {
   fontSize.value = s.termFontSize;
   document.getElementById('s-font-size-val').textContent = s.termFontSize;
   updateRangeFill(fontSize);
-  // Select closest matching font option
   const fontSel = document.getElementById('s-font-family');
-  const match = [...fontSel.options].find(o => s.termFontFamily.startsWith(o.value.split(',')[0]));
-  if (match) fontSel.value = match.value;
+  const match = fontSel && s.termFontFamily ? [...fontSel.options].find(o => s.termFontFamily.startsWith(o.value.split(',')[0])) : null;
+  if (match && fontSel) fontSel.value = match.value;
   const rendererSel = document.getElementById('s-term-renderer');
   if (rendererSel) rendererSel.value = s.termRenderer || 'webgl';
   updateWebGLIndicator();
@@ -906,9 +914,15 @@ async function initNetworkInterfaces() {
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
+async function bootstrapSettings() {
   await initNetworkInterfaces();
-  const s = await loadSettings();
+  let s;
+  try {
+    s = await loadSettings();
+  } catch (e) {
+    console.error('Failed to load settings from server, using defaults:', e);
+    s = (typeof currentSettings !== 'undefined' && currentSettings) ? currentSettings : {};
+  }
   populateControls(s);
   wireControls();
   toggleSettingsInputs(false);
@@ -972,4 +986,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyMenuButtonGroupsVisibility();
     if (typeof renderGpuBadge === 'function') renderGpuBadge();
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapSettings);
+} else {
+  bootstrapSettings();
+}
+
+// Run immediate initial detection so the UI never stays stuck on "Detecting..."
+updateWebGLIndicator();

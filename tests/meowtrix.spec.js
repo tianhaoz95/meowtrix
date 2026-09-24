@@ -206,6 +206,8 @@ test.describe('Meowtrix E2E Tests', () => {
     // Verify WebGL renderer indicator in settings
     const webglIndicator = page.locator('#s-webgl-indicator');
     await expect(webglIndicator).toBeVisible();
+    await expect(webglIndicator).not.toContainText('Detecting...');
+    await expect(webglIndicator).toContainText(/WebGL/);
 
     const rendererSelect = page.locator('#s-term-renderer');
     await expect(rendererSelect).toBeVisible();

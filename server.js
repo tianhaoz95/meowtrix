@@ -31,8 +31,18 @@ app.use('/vendor/monaco-editor', express.static(path.join(__dirname, 'node_modul
 app.use('/vendor/marked', express.static(path.join(__dirname, 'node_modules', 'marked', 'lib')));
 app.use('/vendor/xterm-addon-webgl', express.static(path.join(__dirname, 'node_modules', 'xterm-addon-webgl', 'lib')));
 
-// Serve static assets with a max-age of 1 day to enable browser caching and reduce load latency
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
+// Serve static assets. HTML, JS, and CSS revalidate with ETag so updates apply immediately on refresh;
+// other assets (fonts, images, media) use max-age of 1 day for optimal load latency.
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // ── Hot reload (dev only) ────────────────────────────────────────────────────
 if (process.env.HOTRELOAD) {
