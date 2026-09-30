@@ -23,13 +23,13 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.12.0",
     "compression": "^1.8.1",
-    "express": "4.18.2",
+    "express": "4.22.0",
     "feedbackkit-web": "^1.0.49",
     "marked": "^18.0.5",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.57.0",
     "node-pty": "1.0.0",
-    "uuid": "9.0.0",
-    "ws": "8.16.0",
+    "uuid": "14.0.0",
+    "ws": "8.21.0",
     "xterm-addon-webgl": "^0.16.0"
   },
   "devDependencies": {
