@@ -30,6 +30,13 @@ app.use(express.json());
 app.use('/vendor/monaco-editor', express.static(path.join(__dirname, 'node_modules', 'monaco-editor')));
 app.use('/vendor/marked', express.static(path.join(__dirname, 'node_modules', 'marked', 'lib')));
 app.use('/vendor/xterm-addon-webgl', express.static(path.join(__dirname, 'node_modules', 'xterm-addon-webgl', 'lib')));
+app.use('/vendor/feedbackkit-web', express.static(path.join(__dirname, 'node_modules', 'feedbackkit-web', 'dist')));
+
+// Exposes the app version synchronously to the page so feedback.js can tag reports before any other script runs
+app.get('/meowtrix-version.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.type('application/javascript').send(`window.MEOWTRIX_VERSION = ${JSON.stringify(appVersion())};`);
+});
 
 // Serve static assets. HTML, JS, and CSS revalidate with ETag so updates apply immediately on refresh;
 // other assets (fonts, images, media) use max-age of 1 day for optimal load latency.

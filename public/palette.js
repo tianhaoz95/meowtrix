@@ -38,7 +38,7 @@ const SHORTCUT_GROUPS = [
     { label: 'Reset zoom',          mac: '⌘⇧0', other: 'Ctrl+Shift+0' },
   ] },
   { title: 'View & Files', items: [
-    { label: 'Toggle fullscreen',            mac: '⌘⇧F', other: 'Ctrl+Shift+F' },
+    { label: 'Send feedback',                mac: '⌘⇧F', other: 'Ctrl+Shift+F' },
     { label: 'Toggle broadcast input',       mac: '⌘B',  other: 'Ctrl+Shift+B' },
     { label: 'Upload file(s) to host',       mac: '⌘⇧U', other: 'Ctrl+Shift+U' },
     { label: 'Schedule an Enter key press',  mac: '⌘⇧S', other: 'Ctrl+Shift+S' },
@@ -102,7 +102,6 @@ function buildCommands() {
     { icon: '🔍', title: 'Find in active terminal', hint: isMac ? '⌘F' : 'Ctrl+F', keywords: 'search find text query match filter', run: () => { const tab = activePane?.activeTab; if (tab && tab.type === 'terminal' && typeof showTerminalSearch === 'function') showTerminalSearch(tab); } },
     { icon: '⤢', title: (typeof maximizedPane !== 'undefined' && maximizedPane) ? 'Restore layout' : 'Maximize active tab', keywords: 'maximize pane tab window scale focus zoom center hide splits', run: () => { if (activePane) toggleMaximizePane(activePane); } },
     { icon: '⛶', title: (document.fullscreenElement || document.webkitFullscreenElement) ? 'Exit fullscreen' : 'Enter fullscreen', keywords: 'fullscreen maximize zoom window screen', run: () => toggleFullscreen() },
-    { icon: '💬', title: 'Submit feedback', keywords: 'feedback support bug issue feature request report github', run: () => window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank') },
     { icon: '⬇', title: 'Check for updates', keywords: 'upgrade version git pull', run: () => { if (typeof checkForUpdateNow === 'function') checkForUpdateNow(); } },
     { icon: '🔥', title: (typeof isComboFxEnabled === 'function' && isComboFxEnabled()) ? 'Turn off keystroke combo FX' : 'Turn on keystroke combo FX',
       keywords: 'streak effect particles fire visual', run: () => {

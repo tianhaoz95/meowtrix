@@ -960,9 +960,6 @@ async function bootstrapSettings() {
   document.getElementById('btn-settings').addEventListener('click', openSettings);
   document.getElementById('settings-close').addEventListener('click', closeSettings);
   document.getElementById('settings-overlay').addEventListener('click', closeSettings);
-  document.getElementById('btn-feedback').addEventListener('click', () => {
-    window.open('https://github.com/tianhaoz95/meowtrix/issues/new', '_blank');
-  });
   document.getElementById('settings-reset').addEventListener('click', async () => {
     if (!await showConfirm('Reset Settings', 'Reset all settings to defaults?')) return;
     const res = await fetch('/api/settings/reset', { method: 'POST' });

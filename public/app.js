@@ -747,8 +747,8 @@ function runAppShortcut(key, e) {
     case 'U':  document.getElementById('upload-input')?.click(); return true;
     // Cmd/Ctrl+Shift+S → schedule an Enter key press.
     case 'S':  if (typeof openScheduleDialog === 'function') openScheduleDialog(); return true;
-    // Cmd/Ctrl+Shift+F → toggle fullscreen.
-    case 'F':  toggleFullscreen(); return true;
+    // Cmd/Ctrl+Shift+F → FeedbackKit feedback capture (its only trigger).
+    case 'F':  if (typeof openFeedback === 'function') openFeedback(); return true;
     // Cmd/Ctrl+, → open settings (the conventional "preferences" shortcut).
     case ',':  if (typeof openSettings === 'function') openSettings(); return true;
     // Cmd/Ctrl+/ → show the keyboard shortcuts cheatsheet (Slack/Linear/Notion convention).
@@ -1079,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setBtnTip('btn-zoom-reset', `Reset zoom (${modKey}+Shift+0)`);
   setBtnTip('btn-zoom-in', `Zoom in active tab (${modKey}+Shift+=)`);
   setBtnTip('btn-settings', `Settings (${modKey}+,)`);
-  setBtnTip('btn-fullscreen', `Enter fullscreen (${modKey}+Shift+F)`);
+  setBtnTip('btn-fullscreen', 'Enter fullscreen');
   setBtnTip('btn-ports', 'Active local servers');
 
   document.getElementById('btn-split-v').addEventListener('click', () => {
@@ -1129,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (icon) icon.innerHTML = isFS ? EXIT_FS_SVG : ENTER_FS_SVG;
       if (text) text.textContent = isFS ? 'Exit Full' : 'Fullscreen';
-      btnFullscreen.dataset.kbd = (isFS ? 'Exit fullscreen' : 'Enter fullscreen') + ` (${modKey}+Shift+F)`;
+      btnFullscreen.dataset.kbd = isFS ? 'Exit fullscreen' : 'Enter fullscreen';
       btnFullscreen.removeAttribute('title');
       
       if (isFS) {

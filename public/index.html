@@ -413,20 +413,6 @@
             <p class="settings-note">Requires an NVIDIA GPU and <code>nvidia-smi</code> on the host. No effect otherwise.</p>
           </div>
         </details>
-        <details class="settings-section" open>
-          <summary class="settings-section-title">
-            <span class="settings-chevron">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </span>
-            Support
-          </summary>
-          <div class="settings-section-content">
-            <div class="settings-row">
-              <label>Help & Feedback</label>
-              <button id="btn-feedback">Submit Feedback</button>
-            </div>
-          </div>
-        </details>
         <details class="settings-section">
           <summary class="settings-section-title">
             <span class="settings-chevron">
@@ -447,6 +433,9 @@
       </div>
     </div>
   </div>
+  <script src="meowtrix-version.js"></script>
+  <script src="/vendor/feedbackkit-web/feedbackkit.iife.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/feedbackkit-web/dist/feedbackkit.iife.js'"></script>
+  <script src="feedback.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-search@0.15.0/lib/addon-search.js"></script>
