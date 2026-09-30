@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "feedbackkit",
+      "args": [
+        "mcp",
+        "--project",
+        "38d89ae0-be4c-41d6-84af-73ca5677ad1d"
+      ],
+      "env": {}
+    }
+  }
+}
