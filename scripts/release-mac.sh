@@ -157,7 +157,22 @@ if [ -d "$UPDATER_DIR" ]; then
   done
 fi
 
-gh release upload "$TAG" --repo "$REPO" --clobber "${UPLOAD_FILES[@]}"
+say "uploading release assets"
+for asset in "${UPLOAD_FILES[@]}"; do
+  file_to_upload="${asset%%#*}"
+  display_name="$(basename "$file_to_upload")"
+  echo "==> uploading $display_name..."
+  uploaded=false
+  for attempt in 1 2 3 4 5; do
+    if gh release upload "$TAG" --repo "$REPO" --clobber "$asset"; then
+      uploaded=true
+      break
+    fi
+    echo "    upload failed (attempt $attempt/5), retrying in 5s..."
+    sleep 5
+  done
+  [ "$uploaded" = "true" ] || die "Failed to upload $display_name after 5 attempts"
+done
 
 say "verifying uploaded asset URLs"
 for asset in "$LITE_DMG_NAME" "$STANDALONE_DMG_NAME"; do
