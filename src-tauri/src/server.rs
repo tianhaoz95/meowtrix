@@ -111,6 +111,13 @@ impl ServerManager {
 
             // Poll for server readiness
             for _ in 0..100 {
+                if let Some(ref mut child) = self.child {
+                    if let Ok(Some(status)) = child.try_wait() {
+                        return Err(format!(
+                            "Embedded server process exited unexpectedly with {status}"
+                        ));
+                    }
+                }
                 std::thread::sleep(Duration::from_millis(100));
                 if self.is_ready() {
                     log::info!(
@@ -159,6 +166,13 @@ impl ServerManager {
             self.port = DEFAULT_PORT;
 
             for _ in 0..100 {
+                if let Some(ref mut child) = self.child {
+                    if let Ok(Some(status)) = child.try_wait() {
+                        return Err(format!(
+                            "Host server process exited unexpectedly with {status}"
+                        ));
+                    }
+                }
                 std::thread::sleep(Duration::from_millis(100));
                 if self.is_ready() {
                     log::info!("[Lite] Host server ready on http://127.0.0.1:{}", self.port);
