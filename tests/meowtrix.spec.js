@@ -526,4 +526,19 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(renameInput).not.toBeVisible();
     await expect(tabEl).toContainText('My Custom Shell');
   });
+
+  test('terminal image paste endpoint saves screenshot and returns path', async ({ request }) => {
+    // 1x1 PNG image buffer
+    const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const res = await request.post('/api/terminal/paste-image?ext=png', {
+      headers: { 'Content-Type': 'application/octet-stream' },
+      data: pngBuffer
+    });
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.path).toContain('.meowtrix');
+    expect(json.path).toContain('.png');
+  });
 });
+

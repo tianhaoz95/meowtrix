@@ -1354,6 +1354,154 @@ function getPtyCwd(pid) {
   return null;
 }
 
+// Inspect the process tree under a PTY to detect if an interactive AI agent
+// (such as `agy` or `claude`) is currently running in the foreground.
+function getProcessTreeInfo(pid) {
+  if (!pid) return { isAgent: false, agentName: null };
+  try {
+    if (os.platform() === 'darwin' || os.platform() === 'linux') {
+      const stdout = execSync(`ps -eo pid,ppid,comm,args`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 800
+      });
+      const lines = stdout.split('\n');
+      const childrenMap = new Map();
+      const selfMap = new Map();
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const parts = line.split(/\s+/);
+        const p = parseInt(parts[0], 10);
+        const pp = parseInt(parts[1], 10);
+        const comm = parts[2] || '';
+        const args = parts.slice(3).join(' ');
+        selfMap.set(p, { pid: p, comm, args });
+        if (!childrenMap.has(pp)) childrenMap.set(pp, []);
+        childrenMap.get(pp).push({ pid: p, comm, args });
+      }
+
+      const targetPid = parseInt(pid, 10);
+      const queue = [targetPid];
+      const checked = [];
+      if (selfMap.has(targetPid)) checked.push(selfMap.get(targetPid));
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        const ch = childrenMap.get(curr) || [];
+        for (const c of ch) {
+          checked.push(c);
+          queue.push(c.pid);
+        }
+      }
+
+      for (const d of checked) {
+        const text = (d.comm + ' ' + d.args).toLowerCase();
+        if (/\b(?:agy|antigravity)\b/.test(text)) return { isAgent: true, agentName: 'agy' };
+        if (/\b(?:claude|claude-code)\b/.test(text)) return { isAgent: true, agentName: 'claude' };
+        if (/\b(?:aider|open-code|copilot)\b/.test(text)) return { isAgent: true, agentName: 'agent' };
+      }
+    }
+  } catch (e) {}
+  return { isAgent: false, agentName: null };
+}
+
+const SCREENSHOT_DIR = path.join(os.homedir(), '.meowtrix', 'screenshots');
+
+function cleanupOldScreenshots() {
+  try {
+    if (!fs.existsSync(SCREENSHOT_DIR)) return;
+    const now = Date.now();
+    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const files = fs.readdirSync(SCREENSHOT_DIR);
+    for (const f of files) {
+      const p = path.join(SCREENSHOT_DIR, f);
+      try {
+        const stat = fs.statSync(p);
+        if (now - stat.mtimeMs > maxAge) {
+          fs.unlinkSync(p);
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+// Terminal clipboard/screenshot paste: saves the image to ~/.meowtrix/screenshots,
+// syncs to the host OS clipboard (for agy & claude CLI on macOS/Linux), and triggers
+// Ctrl+V (\x16) into the PTY if an agent CLI is running, or returns the path to paste.
+app.post('/api/terminal/paste-image', (req, res) => {
+  const ptyId = req.query.ptyId;
+  const rawExt = (req.query.ext || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const ext = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(rawExt) ? rawExt : 'png';
+
+  fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
+  cleanupOldScreenshots();
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const rand = Math.random().toString(36).substring(2, 8);
+  const filename = `screenshot-${timestamp}-${rand}.${ext}`;
+  const destPath = path.join(SCREENSHOT_DIR, filename);
+
+  const out = fs.createWriteStream(destPath);
+  out.on('error', err => {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
+
+  out.on('finish', () => {
+    // 1. Sync to host OS clipboard
+    if (os.platform() === 'darwin') {
+      try {
+        execSync(`osascript -e 'set the clipboard to (read (POSIX file "${destPath}") as «class PNGf»)'`, {
+          timeout: 1000,
+          stdio: 'ignore'
+        });
+      } catch (e) {
+        // Ignore AppleScript error
+      }
+    } else if (os.platform() === 'linux') {
+      try {
+        execSync(`xclip -selection clipboard -t image/png -i "${destPath}"`, { timeout: 1000, stdio: 'ignore' });
+      } catch (_) {
+        try {
+          execSync(`wl-copy --type image/png < "${destPath}"`, { timeout: 1000, stdio: 'ignore' });
+        } catch (_) {}
+      }
+    }
+
+    // 2. Check if a known AI CLI agent (like agy or claude) is running in the PTY
+    const entry = ptyId ? ptys.get(ptyId) : null;
+    const procInfo = entry ? getProcessTreeInfo(entry.proc?.pid) : { isAgent: false };
+
+    if (entry && procInfo.isAgent) {
+      // Small timeout to allow the OS pasteboard change event to settle
+      setTimeout(() => {
+        try {
+          if (entry.proc) {
+            entry.proc.write('\x16');
+          }
+        } catch (_) {}
+      }, 50);
+
+      return res.json({
+        ok: true,
+        action: 'agent-attach',
+        agent: procInfo.agentName,
+        path: destPath
+      });
+    }
+
+    res.json({
+      ok: true,
+      action: 'paste-path',
+      path: destPath
+    });
+  });
+
+  req.on('error', () => out.destroy());
+  req.pipe(out);
+});
+
+
 function attachPtyToWs(id, ptyEntry, ws) {
   const listener = (data) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pty:data', id, data }));

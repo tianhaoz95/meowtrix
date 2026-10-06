@@ -4161,5 +4161,36 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }
 
-
-
+/* ── Terminal file drop overlay ── */
+.terminal-drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--glass-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.terminal-drop-overlay.active {
+  opacity: 1;
+}
+.terminal-drop-overlay-icon {
+  font-size: 34px;
+  filter: drop-shadow(0 0 10px var(--accent2));
+}
+.terminal-drop-overlay-text {
+  letter-spacing: 0.3px;
+  color: var(--text);
+}

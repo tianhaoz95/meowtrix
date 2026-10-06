@@ -495,6 +495,87 @@ function closeTab(pane, id) {
   saveSessionState();
 }
 
+// Upload an image blob to the server and paste/attach it in the terminal
+async function pasteTerminalImage(tab, blob, originalName) {
+  if (!tab || !tab.ptyId || tab.schedule) return false;
+
+  if (typeof showToast === 'function') {
+    showToast('Pasting screenshot…');
+  }
+
+  // Ensure PNG format for standard handling across OS clipboard & agent CLIs
+  let uploadBlob = blob;
+  let ext = 'png';
+  if (blob.type !== 'image/png') {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      uploadBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    } catch (_) {
+      ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/g, '');
+    }
+  }
+
+  try {
+    const res = await fetch(`/api/terminal/paste-image?ptyId=${encodeURIComponent(tab.ptyId)}&ext=${ext}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: uploadBlob,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.ok) {
+      if (data.action === 'agent-attach') {
+        if (typeof showToast === 'function') {
+          showToast(`Attached screenshot to ${data.agent || 'agent'}`);
+        }
+      } else if (data.action === 'paste-path' && data.path) {
+        if (tab.term) {
+          const escapedPath = data.path.includes(' ') ? `"${data.path}"` : data.path;
+          tab.term.paste(escapedPath);
+        }
+        if (typeof showToast === 'function') {
+          showToast('Pasted screenshot path');
+        }
+      }
+      return true;
+    }
+  } catch (err) {
+    console.error('Failed to paste screenshot:', err);
+    if (typeof showToast === 'function') {
+      showToast('Failed to paste screenshot');
+    }
+  }
+  return false;
+}
+
+// Upload a non-image file and paste its path into the terminal
+async function uploadAndPasteFilePath(tab, file) {
+  if (!tab || !tab.ptyId || tab.schedule) return;
+  if (typeof showToast === 'function') showToast(`Uploading ${file.name}…`);
+  try {
+    const res = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.path && tab.term) {
+      const escapedPath = data.path.includes(' ') ? `"${data.path}"` : data.path;
+      tab.term.paste(escapedPath);
+      if (typeof showToast === 'function') showToast(`Pasted ${file.name}`);
+    }
+  } catch (err) {
+    console.error('Failed to upload file:', err);
+    if (typeof showToast === 'function') showToast(`Failed to upload ${file.name}`);
+  }
+}
+
 function initTerminalTab(tab, existingPtyId) {
   tab.viewEl.classList.add('terminal-view');
   const s = getSettings();
@@ -803,7 +884,120 @@ function initTerminalTab(tab, existingPtyId) {
         return false;
       }
     }
+
+    // On macOS, Ctrl+V does not emit a browser paste event.
+    // If the user presses Ctrl+V with an image in the system clipboard, intercept and attach it.
+    const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || '') || /Mac/.test(navigator.userAgent || '');
+    if (isMac && e.type === 'keydown' && e.ctrlKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        navigator.clipboard.read().then(async (clipItems) => {
+          for (const item of clipItems) {
+            for (const type of item.types) {
+              if (type.startsWith('image/')) {
+                const blob = await item.getType(type);
+                if (blob) {
+                  await pasteTerminalImage(tab, blob);
+                  return;
+                }
+              }
+            }
+          }
+        }).catch(() => {});
+      }
+    }
+
     return true;
+  });
+
+  // Handle clipboard paste (e.g. Cmd+V or context menu Paste):
+  // When an image/screenshot is in the clipboard, intercept and upload it to the host
+  // so agy, claude, or other tools receive the screenshot robustly.
+  tab.viewEl.addEventListener('paste', async (e) => {
+    if (tab.schedule) return;
+    const cd = e.clipboardData;
+    if (!cd) return;
+
+    let imageItem = null;
+    const items = cd.items ? Array.from(cd.items) : [];
+    for (const item of items) {
+      if (item.type && item.type.startsWith('image/')) {
+        imageItem = item;
+        break;
+      }
+    }
+    const files = cd.files ? Array.from(cd.files) : [];
+    const imageFile = imageItem ? imageItem.getAsFile() : files.find(f => f.type && f.type.startsWith('image/'));
+
+    if (!imageFile) return;
+
+    const text = cd.getData('text/plain');
+    if (text && text.trim().length > 0 && text.trim() !== imageFile.name) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    await pasteTerminalImage(tab, imageFile);
+  }, true);
+
+  // Terminal drag-and-drop: drag screenshots or files directly into the terminal
+  const dropOverlay = document.createElement('div');
+  dropOverlay.className = 'terminal-drop-overlay';
+  dropOverlay.innerHTML = `
+    <div class="terminal-drop-overlay-icon">📷</div>
+    <div class="terminal-drop-overlay-text">Drop image to attach to terminal</div>
+  `;
+  tab.viewEl.appendChild(dropOverlay);
+
+  let dragCounter = 0;
+
+  tab.viewEl.addEventListener('dragenter', (e) => {
+    if (tab.schedule) return;
+    if (typeof dragState !== 'undefined' && dragState) return;
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+      dragCounter++;
+      dropOverlay.classList.add('active');
+    }
+  });
+
+  tab.viewEl.addEventListener('dragover', (e) => {
+    if (tab.schedule) return;
+    if (typeof dragState !== 'undefined' && dragState) return;
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  });
+
+  tab.viewEl.addEventListener('dragleave', (e) => {
+    if (typeof dragState !== 'undefined' && dragState) return;
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dropOverlay.classList.remove('active');
+    }
+  });
+
+  tab.viewEl.addEventListener('drop', async (e) => {
+    if (typeof dragState !== 'undefined' && dragState) return;
+    dragCounter = 0;
+    dropOverlay.classList.remove('active');
+    if (tab.schedule) return;
+
+    const files = e.dataTransfer?.files;
+    if (!files || !files.length) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type && file.type.startsWith('image/')) {
+        await pasteTerminalImage(tab, file, file.name);
+      } else {
+        await uploadAndPasteFilePath(tab, file);
+      }
+    }
   });
 
   term.textarea?.addEventListener('blur', () => {
