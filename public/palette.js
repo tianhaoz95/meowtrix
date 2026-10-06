@@ -75,6 +75,7 @@ function buildCommands() {
     { icon: '◧', title: 'Split pane vertically',   hint: '⌘\\', run: () => activePane && splitPane(activePane, 'vertical') },
     { icon: '⬓', title: 'Split pane horizontally', hint: '⌘-', run: () => activePane && splitPane(activePane, 'horizontal') },
     { icon: '⬛', title: 'New terminal tab', keywords: 'shell add', run: () => { if (activePane) { addTab(activePane, 'terminal'); saveSessionState(); } } },
+    { icon: '🤖', title: 'New AI agent tab', keywords: 'agent llm ai mistral assistant autonomous add', run: () => { if (activePane) { addTab(activePane, 'agent'); saveSessionState(); } } },
     { icon: '🌐', title: 'New browser tab', keywords: 'web add', run: () => { if (activePane) { addTab(activePane, 'browser'); saveSessionState(); } } },
     { icon: '📝', title: 'New code editor tab', keywords: 'edit code vscode monaco add', run: async () => { if (!activePane) return; const dir = await promptForFolder(); if (dir) { addTab(activePane, 'editor', undefined, undefined, undefined, dir); saveSessionState(); } } },
     { icon: '✕', title: 'Close current tab', hint: '⌘W', run: () => { if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); } },

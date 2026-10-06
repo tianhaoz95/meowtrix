@@ -194,7 +194,7 @@ function captureWorkspaceState(index = activeWorkspaceIndex) {
           ptyId: t.ptyId || null,
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
           browserConsoleOpen: t.type === 'browser' ? !!t.consoleOpen : null,
-          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'terminal' ? t.terminalDir : null),
+          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'agent' ? t.agentDir : (t.type === 'terminal' ? t.terminalDir : null)),
           sshHost: t.type === 'terminal' ? (t.sshHost || null) : null,
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
@@ -553,7 +553,7 @@ function showTabTypePicker(e, pane) {
   const closeSubmenu = () => { if (submenu) { submenu.remove(); submenu = null; } };
   const closeAll = () => { closeSubmenu(); picker.remove(); activePicker = null; };
 
-  [['⬛  Terminal', 'terminal'], ['🔗  SSH', 'ssh'], ['🌐  Browser', 'browser'], ['📝  Code editor', 'editor']].forEach(([text, type]) => {
+  [['⬛  Terminal', 'terminal'], ['🔗  SSH', 'ssh'], ['🤖  AI Agent', 'agent'], ['🌐  Browser', 'browser'], ['📝  Code editor', 'editor']].forEach(([text, type]) => {
     const btn = document.createElement('button');
     btn.textContent = type === 'ssh' ? text + '  ›' : text;
     if (type === 'ssh') {

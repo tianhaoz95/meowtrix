@@ -347,9 +347,9 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   tabEl.className = 'tab';
   const icon = document.createElement('span');
   icon.className = 'tab-icon';
-  icon.textContent = sshHost ? '🔗' : type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : '🌐';
+  icon.textContent = sshHost ? '🔗' : type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : type === 'agent' ? '🤖' : '🌐';
   const label = document.createElement('span');
-  label.textContent = sshHost ? sshHost : type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : 'Browser';
+  label.textContent = sshHost ? sshHost : type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : type === 'agent' ? 'AI Agent' : 'Browser';
 
   const isMaximized = pane.el.classList.contains('maximized');
   const maxBtn = document.createElement('span');
@@ -398,6 +398,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     currentUrl: null,
     editorDir: type === 'editor' ? existingDir : null,
     terminalDir: type === 'terminal' ? existingDir : null,
+    agentDir: type === 'agent' ? existingDir : null,
     sshHost,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
@@ -427,6 +428,9 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
 
   if (type === 'terminal') initTerminalTab(tab, existingPtyId);
   else if (type === 'editor') initEditorTab(tab, viewEl, existingDir);
+  else if (type === 'agent') {
+    if (typeof initAgentTab === 'function') initAgentTab(tab, viewEl, existingDir);
+  }
   else initBrowserTab(tab, viewEl, label, existingUrl);
 
   createZoomControls(tab);
@@ -2284,6 +2288,8 @@ function renameTabInline(tab) {
         } else if (tab.type === 'editor') {
           const baseName = tab.editorDir ? tab.editorDir.split('/').pop() || tab.editorDir : 'Editor';
           tab.label.textContent = baseName;
+        } else if (tab.type === 'agent') {
+          tab.label.textContent = 'AI Agent';
         } else if (tab.type === 'browser') {
           if (tab.currentUrl) {
             try { tab.label.textContent = new URL(tab.currentUrl).hostname.replace('www.', ''); }
@@ -2347,6 +2353,17 @@ function showTabContextMenu(e, tab) {
             activateTab(p, tab.id);
           }
           toggleMaximizePane(p);
+        }
+      }
+    },
+    {
+      label: 'Ask AI Agent about this Tab',
+      icon: '🤖',
+      onClick: () => {
+        const p = paneOfTab(tab.tabEl);
+        if (p) {
+          addTab(p, 'agent', undefined, undefined, undefined, tab.editorDir || tab.terminalDir || undefined);
+          if (typeof saveSessionState === 'function') saveSessionState();
         }
       }
     },

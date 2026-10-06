@@ -427,6 +427,18 @@ function populateControls(s) {
   document.getElementById('s-auto-update').checked = s.autoUpdate !== false;
   document.getElementById('s-gpu-monitor').checked = s.gpuMonitor === true;
   document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
+
+  const chkNetworkServing = document.getElementById('s-network-serving');
+  if (chkNetworkServing) {
+    chkNetworkServing.checked = s.networkServing === true;
+    fetch('/api/network/status').then(r => r.json()).then(st => {
+      chkNetworkServing.checked = !!st.networkServing;
+      const display = document.getElementById('s-lan-url-display');
+      if (display && st.lanUrls && st.lanUrls.length) {
+        display.textContent = st.lanUrls.join(', ');
+      }
+    }).catch(() => {});
+  }
   
   const chkWorkspace = document.getElementById('s-menu-workspace');
   if (chkWorkspace) chkWorkspace.checked = s.showWorkspaceButtons !== false;
@@ -740,6 +752,31 @@ function wireControls() {
     await saveSetting('editorMinimap', e.target.checked);
     onSettingChanged('editorMinimap', e.target.checked);
   });
+
+  const chkNetworkServingEl = document.getElementById('s-network-serving');
+  if (chkNetworkServingEl) {
+    chkNetworkServingEl.addEventListener('change', async (e) => {
+      await saveSetting('networkServing', e.target.checked);
+      fetch('/api/network/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ networkServing: e.target.checked })
+      });
+    });
+  }
+
+  const btnCopyLanUrl = document.getElementById('btn-copy-lan-url');
+  if (btnCopyLanUrl) {
+    btnCopyLanUrl.addEventListener('click', () => {
+      const display = document.getElementById('s-lan-url-display');
+      if (display) {
+        const urlToCopy = display.textContent.split(',')[0].trim();
+        navigator.clipboard?.writeText(urlToCopy);
+        btnCopyLanUrl.textContent = 'Copied!';
+        setTimeout(() => { btnCopyLanUrl.textContent = 'Copy'; }, 1500);
+      }
+    });
+  }
 
   const btnCheckUpdate = document.getElementById('btn-check-update');
   if (btnCheckUpdate) {

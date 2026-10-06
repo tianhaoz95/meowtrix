@@ -82,6 +82,7 @@ const MEOWTRIX_DATA_DIR = process.env.MEOWTRIX_DATA_DIR || path.join(os.homedir(
 const SETTINGS_FILE = process.env.MEOWTRIX_SETTINGS_FILE || path.join(MEOWTRIX_DATA_DIR, 'settings.json');
 const DEFAULT_SETTINGS = {
   theme: 'auto',
+  networkServing: false, // toggle LAN/network exposure (0.0.0.0 vs loopback)
   localServerIp: '127.0.0.1',
   termFontSize: 13,
   termFontFamily: 'Cascadia Code, JetBrains Mono, "SF Mono", Menlo, Monaco, monospace',
@@ -173,6 +174,40 @@ app.get('/api/network-interfaces', (req, res) => {
   }
   res.json(Array.from(new Set(ips)));
 });
+
+app.get('/api/network/status', (req, res) => {
+  const interfaces = os.networkInterfaces();
+  const lanIps = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name]) {
+      if ((net.family === 'IPv4' || net.family === 4) && !net.internal) {
+        lanIps.push(net.address);
+      }
+    }
+  }
+  const settings = readSettings();
+  res.json({
+    host: HOST,
+    port: PORT,
+    isLoopback,
+    networkServing: settings.networkServing ?? !isLoopback,
+    lanIps,
+    lanUrls: lanIps.map(ip => `http://${ip}:${PORT}`)
+  });
+});
+
+app.post('/api/network/toggle', (req, res) => {
+  const settings = readSettings();
+  const newState = req.body?.networkServing !== undefined ? !!req.body.networkServing : !settings.networkServing;
+  settings.networkServing = newState;
+  writeSettings(settings);
+  res.json({ ok: true, networkServing: newState });
+});
+
+// ── AI Engine & Agent Harness ────────────────────────────────────────────────
+const { mountAiRoutes } = require('./ai-service');
+mountAiRoutes(app);
+
 
 // ── Session state persistence ────────────────────────────────────────────────
 const SESSION_FILE = process.env.MEOWTRIX_SESSION_FILE || path.join(MEOWTRIX_DATA_DIR, 'session.json');

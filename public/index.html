@@ -403,6 +403,28 @@
             <span class="settings-chevron">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </span>
+            Remote Web Access
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-network-serving">Enable LAN / Web Serving</label>
+              <input type="checkbox" id="s-network-serving">
+            </div>
+            <p class="settings-note">Allows accessing this workspace from other devices (phone, iPad, laptop) on your local network.</p>
+            <div class="settings-row" id="s-lan-urls-row">
+              <label>LAN Access URLs</label>
+              <div class="settings-row-right">
+                <span id="s-lan-url-display" style="font-size: 11px; color: var(--text3); font-family: monospace;">127.0.0.1:9123</span>
+                <button id="btn-copy-lan-url" style="font-size: 11px;">Copy</button>
+              </div>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section">
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
             GPU Monitor
           </summary>
           <div class="settings-section-content">
@@ -443,8 +465,10 @@
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-webgl@0.16.0/lib/xterm-addon-webgl.js" onerror="this.onerror=null;this.src='/vendor/xterm-addon-webgl/xterm-addon-webgl.js'"></script>
   <!-- Monaco's AMD loader; editor.js require()s the editor lazily on first use. -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script src="/vendor/marked/marked.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js'"></script>
   <script src="demo.js"></script>
   <script src="ws.js"></script>
+  <script src="agent.js"></script>
   <script src="pane.js"></script>
   <script src="editor.js"></script>
   <script src="layout.js"></script>
