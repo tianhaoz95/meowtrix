@@ -8,18 +8,81 @@
   // Expose global init function
   window.initAgentTab = initAgentTab;
 
-  function renderMarkdown(text) {
-    if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+  function getMarked() {
+    if (typeof window.marked !== 'undefined' && window.marked) return window.marked;
+    if (typeof window.require === 'function') {
       try {
-        return marked.parse(text || '');
+        let m = null;
+        window.require(['marked'], (mod) => { m = mod; window.marked = mod; });
+        if (m) return m;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function fallbackMarkdown(src) {
+    if (!src) return '';
+    const escapeHtml = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const blocks = [];
+    let text = src.replace(/```[^\n]*\n?([\s\S]*?)```/g, (_m, code) => {
+      blocks.push('<pre><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>');
+      return ' __BLOCK_' + (blocks.length - 1) + '__ ';
+    });
+    const inlines = [];
+    text = text.replace(/`([^`\n]+)`/g, (_m, code) => {
+      inlines.push('<code>' + escapeHtml(code) + '</code>');
+      return ' __INLINE_' + (inlines.length - 1) + '__ ';
+    });
+    text = escapeHtml(text);
+    const fmt = (s) => s
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, t, url) => {
+        const safe = /^https?:\/\//i.test(url) ? url : '#';
+        return '<a href="' + safe + '" target="_blank" rel="noopener noreferrer">' + t + '</a>';
+      })
+      .replace(/ __INLINE_(\d+)__ /g, (_m, i) => inlines[Number(i)]);
+
+    let html = '', list = null, para = [];
+    const flushP = () => { if (para.length) { html += '<p>' + fmt(para.join(' ')) + '</p>'; para = []; } };
+    const closeL = () => { if (list) { html += '</' + list + '>'; list = null; } };
+
+    for (const line of text.split('\n')) {
+      if (/^\s*$/.test(line)) { flushP(); closeL(); }
+      else if (/^ __BLOCK_\d+__ $/.test(line.trim())) { flushP(); closeL(); html += line.trim(); }
+      else if (/^(#{1,6})\s+(.*)$/.test(line)) {
+        const m = /^(#{1,6})\s+(.*)$/.exec(line);
+        flushP(); closeL();
+        html += '<h' + m[1].length + '>' + fmt(m[2]) + '</h' + m[1].length + '>';
+      } else if (/^\s*[-*+]\s+(.*)$/.test(line)) {
+        const m = /^\s*[-*+]\s+(.*)$/.exec(line);
+        flushP(); if (list !== 'ul') { closeL(); html += '<ul>'; list = 'ul'; }
+        html += '<li>' + fmt(m[1]) + '</li>';
+      } else if (/^\s*\d+\.\s+(.*)$/.test(line)) {
+        const m = /^\s*\d+\.\s+(.*)$/.exec(line);
+        flushP(); if (list !== 'ol') { closeL(); html += '<ol>'; list = 'ol'; }
+        html += '<li>' + fmt(m[1]) + '</li>';
+      } else { para.push(line); }
+    }
+    flushP(); closeL();
+    return html.replace(/ __BLOCK_(\d+)__ /g, (_m, i) => blocks[Number(i)]);
+  }
+
+  function renderMarkdown(text) {
+    const raw = text || '';
+    const m = getMarked();
+    if (m) {
+      try {
+        const parseFn = typeof m.parse === 'function' ? m.parse.bind(m) : (typeof m === 'function' ? m : null);
+        if (parseFn) {
+          return parseFn(raw);
+        }
       } catch (e) {
         console.warn('Markdown parsing error:', e);
       }
     }
-    // Fallback: Escape HTML and preserve newlines
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML.replace(/\n/g, '<br>');
+    return fallbackMarkdown(raw);
   }
 
   function initAgentTab(tab, viewEl, existingDir) {
@@ -452,7 +515,7 @@
       header.textContent = role === 'user' ? '👤 User' : '🤖 Meowtrix Agent';
 
       const content = document.createElement('div');
-      content.className = 'agent-card-content';
+      content.className = 'agent-card-content agent-markdown-body';
       content.innerHTML = renderMarkdown(text);
 
       card.append(header, content);
@@ -487,13 +550,15 @@
             <div class="agent-thinking-text"></div>
           </details>
         </div>
-        <div class="agent-card-content"></div>
+        <div class="agent-tools-container"></div>
+        <div class="agent-card-content agent-markdown-body"></div>
       `;
       streamEl.appendChild(assistantCard);
       streamEl.scrollTop = streamEl.scrollHeight;
 
       const thinkingBox = assistantCard.querySelector('.agent-thinking-box');
       const thinkingText = assistantCard.querySelector('.agent-thinking-text');
+      const toolsContainer = assistantCard.querySelector('.agent-tools-container');
       const contentEl = assistantCard.querySelector('.agent-card-content');
 
       const parts = modelSelect.value.split(':');
@@ -550,7 +615,7 @@
         }
         readEvents();
       }).catch(err => {
-        contentEl.textContent = 'Execution failed: ' + err.message;
+        contentEl.innerHTML = renderMarkdown('Execution failed: ' + err.message);
         finishTask();
       });
 
@@ -602,18 +667,22 @@
             callEl.appendChild(approveBox);
           }
 
-          contentEl.appendChild(callEl);
+          toolsContainer.appendChild(callEl);
           streamEl.scrollTop = streamEl.scrollHeight;
         } else if (event === 'tool_result') {
           const resEl = document.createElement('div');
           resEl.className = 'agent-tool-result' + (data.isError ? ' agent-tool-error' : '');
           resEl.innerHTML = `<pre><code>${data.output}</code></pre>`;
-          contentEl.appendChild(resEl);
+          toolsContainer.appendChild(resEl);
           streamEl.scrollTop = streamEl.scrollHeight;
         } else if (event === 'diff') {
           addDiffCard(data.path, data.diff);
         } else if (event === 'message' || event === 'done') {
-          contentEl.innerHTML = renderMarkdown(data.text || data.summary || '');
+          const rawText = data.text || data.summary || '';
+          if (rawText) {
+            contentEl.innerHTML = renderMarkdown(rawText);
+            streamEl.scrollTop = streamEl.scrollHeight;
+          }
           streamEl.scrollTop = streamEl.scrollHeight;
         }
       }

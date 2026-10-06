@@ -46,6 +46,7 @@ function ensureMonaco() {
 
 let _markedPromise = null;
 function ensureMarked() {
+  if (typeof window.marked !== 'undefined' && window.marked) return Promise.resolve(window.marked);
   if (_markedPromise) return _markedPromise;
   _markedPromise = new Promise((resolve, reject) => {
     const oldDefine = window.define;
