@@ -188,7 +188,8 @@ async function countTokens(modelOrSession, text) {
 
 // Light vs dark to match the app theme (non-'light' themes are all dark variants).
 function monacoTheme() {
-  return document.documentElement.dataset.theme === 'light' ? 'vs' : 'vs-dark';
+  const t = document.documentElement.dataset.theme;
+  return (t === 'light' || t === 'contrast-light') ? 'vs' : 'vs-dark';
 }
 
 function basename(p) {

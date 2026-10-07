@@ -327,7 +327,7 @@ test.describe('Generate Feature Showcase GIFs', () => {
         await page.waitForTimeout(900);
         // Cycle through several themes, ending back on this variant's theme so
         // the final (held) frame matches the GIF the page shows for that theme.
-        for (const t of ['ocean', 'matrix', 'ember', 'sakura', 'synthwave', theme]) {
+        for (const t of ['light', 'oled', 'contrast-light', theme]) {
           await page.evaluate((x) => setTheme(x), t);
           await page.waitForTimeout(950);
         }

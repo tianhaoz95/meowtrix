@@ -658,22 +658,16 @@ function showTabTypePicker(e, pane) {
 // matches a `html[data-theme="…"]` block in style.css (except 'dark', which
 // is the :root default). `icon` shows on the toolbar button for the theme.
 const THEMES = [
-  { id: 'auto',   label: 'Auto (System)', icon: '🌓' },
-  { id: 'dark',   label: 'Midnight', icon: '🌙' },
-  { id: 'light',  label: 'Daylight', icon: '☀️' },
-  { id: 'ocean',  label: 'Ocean',    icon: '🌊' },
-  { id: 'matrix', label: 'Matrix',   icon: '🟢' },
-  { id: 'ember',  label: 'Ember',    icon: '🔥' },
-  { id: 'sakura', label: 'Sakura',   icon: '🌸' },
-  { id: 'bubblegum',  label: 'Bubblegum',  icon: '🍬' },
-  { id: 'catppuccin', label: 'Catppuccin', icon: '🐱' },
-  { id: 'cappuccino', label: 'Cappuccino', icon: '☕' },
-  { id: 'synthwave',  label: 'Synthwave',  icon: '🌆' },
+  { id: 'auto',           label: 'Auto (System)',              icon: '🌓' },
+  { id: 'dark',           label: 'Linear Slate (Dark)',        icon: '🌙' },
+  { id: 'light',          label: 'Linear Slate (Light)',       icon: '☀️' },
+  { id: 'oled',           label: 'Retina OLED (Jet Black)',    icon: '🖤' },
+  { id: 'contrast-light', label: 'High Contrast Light',        icon: '⚪' },
 ];
 
 // Exposed globally so settings.js can call it
 function applyTheme(theme) {
-  const meta = THEMES.find(t => t.id === theme) || THEMES[0];
+  const meta = THEMES.find(t => t.id === theme) || THEMES.find(t => t.id === 'dark') || THEMES[0];
   
   let resolvedId = meta.id;
   if (resolvedId === 'auto') {

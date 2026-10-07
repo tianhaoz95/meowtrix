@@ -16,364 +16,186 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
 /* ── Themes ────────────────────────────────────────────────────────────────
-   "Refined glass dark": a cool, slightly blue-tinted near-black, hairline
-   translucent borders, frosted-glass surfaces, and soft layered shadows. */
+   Modern flat aesthetic:
+   - Normal theme: Linear Slate (dark :root, light html[data-theme="light"])
+   - High Contrast theme: Retina OLED Jet Black (html[data-theme="oled"], html[data-theme="contrast-light"])
+   Flat 1px hairline borders, muted neutrals, electric indigo/violet accent, zero 3D skeuomorphism. */
 :root {
   color-scheme: dark;
-  --bg:        #0a0a0e;
-  --bg2:       #0d0d12;
-  --bg3:       #15151c;
-  --bg4:       #1c1c25;
-  --bg5:       #272730;
-  --border:    rgba(255,255,255,0.07);
-  --border2:   rgba(255,255,255,0.05);
-  --border3:   rgba(255,255,255,0.12);
-  --text:      #ededf2;
-  --text2:     #9b9ba8;
-  --text3:     #62626f;
-  --text4:     #3a3a44;
-  --accent:    #8b5cf6;
-  --accent-hi: #a78bfa;
-  --accent2:   rgba(139,92,246,0.32);
-  --accent-soft: rgba(139,92,246,0.14);
-  --tab-bg:    #1c1c25;
-  --term-bg:   #0a0a0e;
-  --term-fg:   #ededf2;
+  --bg:        #090d16;
+  --bg2:       #0b0f1a;
+  --bg3:       #0f1422;
+  --bg4:       #171e31;
+  --bg5:       #232d46;
+  --border:    rgba(255, 255, 255, 0.08);
+  --border2:   rgba(255, 255, 255, 0.04);
+  --border3:   rgba(255, 255, 255, 0.14);
+  --text:      #f8fafc;
+  --text2:     #94a3b8;
+  --text3:     #64748b;
+  --text4:     #334155;
+  --accent:    #6366f1;
+  --accent-hi: #818cf8;
+  --accent2:   rgba(99, 102, 241, 0.25);
+  --accent-soft: rgba(99, 102, 241, 0.12);
+  --tab-bg:    #171e31;
+  --term-bg:   #090d16;
+  --term-fg:   #f8fafc;
 
-  /* Custom Logo Gradient: Indigo-Purple-Cyan */
-  --logo-grad-start: #ff007a;
-  --logo-grad-mid: #7928ca;
-  --logo-grad-end: #00dfd8;
+  /* Flat Logo Accent */
+  --logo-grad-start: #6366f1;
+  --logo-grad-mid:   #818cf8;
+  --logo-grad-end:   #a5b4fc;
 
-  /* Frosted-glass surfaces (toolbar, panels, popovers) */
-  --glass:        rgba(16,16,22,0.66);
-  --glass-strong: rgba(13,13,18,0.82);
-  --glass-blur:   saturate(180%) blur(20px);
+  /* Modern flat frosted-glass surfaces */
+  --glass:        rgba(11, 15, 26, 0.85);
+  --glass-strong: rgba(9, 13, 22, 0.95);
+  --glass-blur:   saturate(160%) blur(16px);
 
-  --shadow:    0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md: 0 10px 30px -8px rgba(0,0,0,0.55);
-  --shadow-lg: 0 28px 70px -16px rgba(0,0,0,0.72);
+  --shadow:    0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Glow system ──────────────────────────────────────────────────────────
-     Dark themes need extra "lift" so interactive elements don't disappear into
-     the near-black surfaces. These accent-tinted glows are applied to button
-     hover/active/focus states below. Light-scheme themes neutralize them to a
-     plain drop shadow (see the grouped override after the theme blocks) since a
-     coloured halo reads as muddy on a bright background. Dark themes that don't
-     redefine these inherit the values here. */
-  --glow-hover:  0 0 0 1px var(--accent2), 0 6px 22px -8px var(--accent2);
-  --glow-active: 0 0 18px -3px var(--accent-hi), 0 3px 16px -2px var(--accent2);
-  --glow-focus:  0 0 0 3px var(--accent-soft), 0 0 20px -4px var(--accent2);
-  --glow-soft:   0 0 16px -6px var(--accent2);
+  /* Modern Flat Glow System (Clean 1px outline / subtle shadow, no loud 3D halos) */
+  --glow-hover:  0 1px 3px rgba(0, 0, 0, 0.3);
+  --glow-active: 0 0 0 1px var(--accent);
+  --glow-focus:  0 0 0 2px var(--accent-soft);
+  --glow-soft:   none;
 }
 
+html[data-theme="dark"] {
+  /* Explicit dark alias for Linear Slate */
+  color-scheme: dark;
+}
+
+/* ── Linear Slate Light ─────────────────────────────────────────────────── */
 html[data-theme="light"] {
   color-scheme: light;
-  --bg:        #f4f4f7;
+  --bg:        #f8fafc;
   --bg2:       #ffffff;
-  --bg3:       #f0f0f4;
-  --bg4:       #ffffff;
-  --bg5:       #e5e5ec;
-  --border:    rgba(17,17,26,0.09);
-  --border2:   rgba(17,17,26,0.06);
-  --border3:   rgba(17,17,26,0.14);
-  --text:      #16161d;
-  --text2:     #56565f;
-  --text3:     #8a8a96;
-  --text4:     #c2c2cc;
-  --accent:    #7c3aed;
-  --accent-hi: #9061f9;
-  --accent2:   rgba(124,58,237,0.22);
-  --accent-soft: rgba(124,58,237,0.1);
+  --bg3:       #f1f5f9;
+  --bg4:       #e2e8f0;
+  --bg5:       #cbd5e1;
+  --border:    rgba(15, 23, 42, 0.08);
+  --border2:   rgba(15, 23, 42, 0.04);
+  --border3:   rgba(15, 23, 42, 0.14);
+  --text:      #0f172a;
+  --text2:     #475569;
+  --text3:     #64748b;
+  --text4:     #94a3b8;
+  --accent:    #4f46e5;
+  --accent-hi: #6366f1;
+  --accent2:   rgba(79, 70, 229, 0.18);
+  --accent-soft: rgba(79, 70, 229, 0.08);
   --tab-bg:    #ffffff;
   --term-bg:   #ffffff;
-  --term-fg:   #16161d;
+  --term-fg:   #0f172a;
 
-  /* Custom Logo Gradient: Soft Sunset Coral-Gold-Rose */
-  --logo-grad-start: #ff4e50;
-  --logo-grad-mid: #f9d423;
-  --logo-grad-end: #e0467e;
+  --logo-grad-start: #4f46e5;
+  --logo-grad-mid:   #6366f1;
+  --logo-grad-end:   #818cf8;
 
-  --glass:        rgba(255,255,255,0.7);
-  --glass-strong: rgba(255,255,255,0.86);
-  --glass-blur:   saturate(180%) blur(20px);
+  --glass:        rgba(255, 255, 255, 0.88);
+  --glass-strong: rgba(248, 250, 252, 0.96);
+  --glass-blur:   saturate(160%) blur(16px);
 
-  --shadow:    0 1px 2px rgba(17,17,26,0.06);
-  --shadow-md: 0 10px 30px -8px rgba(17,17,26,0.14);
-  --shadow-lg: 0 28px 70px -16px rgba(17,17,26,0.2);
+  --shadow:    0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 40px -8px rgba(15, 23, 42, 0.12);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --glow-hover:  var(--shadow);
+  --glow-active: 0 0 0 1px var(--accent);
+  --glow-focus:  0 0 0 2px var(--accent-soft);
+  --glow-soft:   none;
 }
 
-/* ── Ocean — deep navy with a cyan glow (calm, focused) ── */
-html[data-theme="ocean"] {
+/* ── Retina OLED Jet Black (High Contrast Dark) ─────────────────────────── */
+html[data-theme="oled"] {
   color-scheme: dark;
-  --bg:        #0a1119;
-  --bg2:       #0d1623;
-  --bg3:       #13202f;
-  --bg4:       #1a2a3c;
-  --bg5:       #25384e;
-  --border:    rgba(120,180,255,0.09);
-  --border2:   rgba(120,180,255,0.06);
-  --border3:   rgba(120,180,255,0.16);
-  --text:      #e3f0fb;
-  --text2:     #93b3cf;
-  --text3:     #5e7d99;
-  --text4:     #34495e;
-  --accent:    #22d3ee;
-  --accent-hi: #67e8f9;
-  --accent2:   rgba(34,211,238,0.30);
-  --accent-soft: rgba(34,211,238,0.13);
-  --tab-bg:    #1a2a3c;
-  --term-bg:   #0a1119;
-  --term-fg:   #e3f0fb;
-  --glass:        rgba(13,22,35,0.66);
-  --glass-strong: rgba(10,17,25,0.82);
+  --bg:        #000000;
+  --bg2:       #050505;
+  --bg3:       #121212;
+  --bg4:       #1e1e1e;
+  --bg5:       #2a2a2a;
+  --border:    #2d2d2d;
+  --border2:   #1a1a1a;
+  --border3:   #3e3e3e;
+  --text:      #ffffff;
+  --text2:     #a1a1aa;
+  --text3:     #71717a;
+  --text4:     #52525b;
+  --accent:    #ffffff;
+  --accent-hi: #e4e4e7;
+  --accent2:   rgba(255, 255, 255, 0.22);
+  --accent-soft: rgba(255, 255, 255, 0.10);
+  --tab-bg:    #121212;
+  --term-bg:   #000000;
+  --term-fg:   #ffffff;
 
-  /* Custom Logo Gradient: Marine Aurora Mint-Cyan-Blue */
-  --logo-grad-start: #00ff87;
-  --logo-grad-mid: #60efff;
-  --logo-grad-end: #0061ff;
+  --logo-grad-start: #ffffff;
+  --logo-grad-mid:   #e4e4e7;
+  --logo-grad-end:   #a1a1aa;
+
+  --glass:        rgba(0, 0, 0, 0.94);
+  --glass-strong: rgba(5, 5, 5, 0.98);
+  --glass-blur:   none;
+
+  --shadow:    none;
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.85);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.95);
+  --focus-ring: 0 0 0 2px #000000, 0 0 0 4px #ffffff;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --glow-hover:  none;
+  --glow-active: 0 0 0 1px #ffffff;
+  --glow-focus:  0 0 0 2px rgba(255, 255, 255, 0.3);
+  --glow-soft:   none;
 }
 
-/* ── Matrix — near-black with neon green (hacker terminal) ── */
-html[data-theme="matrix"] {
-  color-scheme: dark;
-  --bg:        #050805;
-  --bg2:       #070b07;
-  --bg3:       #0c120c;
-  --bg4:       #111a11;
-  --bg5:       #1b291b;
-  --border:    rgba(80,255,120,0.10);
-  --border2:   rgba(80,255,120,0.06);
-  --border3:   rgba(80,255,120,0.18);
-  --text:      #c9ffd2;
-  --text2:     #6fce85;
-  --text3:     #3f8a53;
-  --text4:     #244d30;
-  --accent:    #2bd96b;
-  --accent-hi: #5ef58f;
-  --accent2:   rgba(43,217,107,0.30);
-  --accent-soft: rgba(43,217,107,0.13);
-  --tab-bg:    #111a11;
-  --term-bg:   #050805;
-  --term-fg:   #c9ffd2;
-  --glass:        rgba(7,11,7,0.66);
-  --glass-strong: rgba(5,8,5,0.84);
-
-  /* Custom Logo Gradient: Matrix Hacker Green-Emerald-Cyan */
-  --logo-grad-start: #39ff14;
-  --logo-grad-mid: #00ff87;
-  --logo-grad-end: #00e5ff;
-}
-
-/* ── Ember — warm charcoal with amber (cozy, low-light) ── */
-html[data-theme="ember"] {
-  color-scheme: dark;
-  --bg:        #120f0d;
-  --bg2:       #181310;
-  --bg3:       #211a15;
-  --bg4:       #2b211a;
-  --bg5:       #3a2c22;
-  --border:    rgba(255,180,120,0.09);
-  --border2:   rgba(255,180,120,0.06);
-  --border3:   rgba(255,180,120,0.16);
-  --text:      #f8ece0;
-  --text2:     #c9a98f;
-  --text3:     #927560;
-  --text4:     #5a4636;
-  --accent:    #f97316;
-  --accent-hi: #fb923c;
-  --accent2:   rgba(249,115,22,0.30);
-  --accent-soft: rgba(249,115,22,0.13);
-  --tab-bg:    #2b211a;
-  --term-bg:   #120f0d;
-  --term-fg:   #f8ece0;
-  --glass:        rgba(24,19,16,0.66);
-  --glass-strong: rgba(18,15,13,0.83);
-
-  /* Custom Logo Gradient: Volcanic Ember Red-Orange-Gold */
-  --logo-grad-start: #ff3300;
-  --logo-grad-mid: #ffaa00;
-  --logo-grad-end: #ffd000;
-}
-
-/* ── Sakura — soft light with rose (bright, gentle) ── */
-html[data-theme="sakura"] {
+/* ── High Contrast Light ─────────────────────────────────────────────────── */
+html[data-theme="contrast-light"] {
   color-scheme: light;
-  --bg:        #fdf2f5;
+  --bg:        #ffffff;
   --bg2:       #ffffff;
-  --bg3:       #fbe9ee;
-  --bg4:       #ffffff;
-  --bg5:       #f4d4dd;
-  --border:    rgba(190,80,120,0.12);
-  --border2:   rgba(190,80,120,0.08);
-  --border3:   rgba(190,80,120,0.18);
-  --text:      #3d2630;
-  --text2:     #7a5560;
-  --text3:     #a98591;
-  --text4:     #d4afba;
-  --accent:    #e0467e;
-  --accent-hi: #f06ba0;
-  --accent2:   rgba(224,70,126,0.22);
-  --accent-soft: rgba(224,70,126,0.10);
+  --bg3:       #f4f4f5;
+  --bg4:       #e4e4e7;
+  --bg5:       #d4d4d8;
+  --border:    #a1a1aa;
+  --border2:   #d4d4d8;
+  --border3:   #71717a;
+  --text:      #000000;
+  --text2:     #27272a;
+  --text3:     #52525b;
+  --text4:     #71717a;
+  --accent:    #09090b;
+  --accent-hi: #27272a;
+  --accent2:   rgba(9, 9, 11, 0.20);
+  --accent-soft: rgba(9, 9, 11, 0.08);
   --tab-bg:    #ffffff;
-  --term-bg:   #fff7fa;
-  --term-fg:   #3d2630;
-  --glass:        rgba(255,248,251,0.72);
-  --glass-strong: rgba(255,250,252,0.88);
-  --shadow:    0 1px 2px rgba(61,38,48,0.07);
-  --shadow-md: 0 10px 30px -8px rgba(61,38,48,0.16);
-  --shadow-lg: 0 28px 70px -16px rgba(61,38,48,0.22);
+  --term-bg:   #ffffff;
+  --term-fg:   #000000;
 
-  /* Custom Logo Gradient: Blossom Pink-Magenta-Peach */
-  --logo-grad-start: #ff758c;
-  --logo-grad-mid: #ff7eb3;
-  --logo-grad-end: #fda085;
-}
+  --logo-grad-start: #09090b;
+  --logo-grad-mid:   #27272a;
+  --logo-grad-end:   #52525b;
 
-/* ── Bubblegum — candy pastels, soft and cute ── */
-html[data-theme="bubblegum"] {
-  color-scheme: light;
-  --bg:        #fef0f7;
-  --bg2:       #ffffff;
-  --bg3:       #fde4f1;
-  --bg4:       #ffffff;
-  --bg5:       #f8cfe6;
-  --border:    rgba(214,99,170,0.12);
-  --border2:   rgba(214,99,170,0.08);
-  --border3:   rgba(214,99,170,0.20);
-  --text:      #5b2a4a;
-  --text2:     #97597e;
-  --text3:     #c08aaa;
-  --text4:     #e3bcd3;
-  --accent:    #ff6fb5;
-  --accent-hi: #8ad2ff;
-  --accent2:   rgba(255,111,181,0.24);
-  --accent-soft: rgba(255,111,181,0.12);
-  --tab-bg:    #ffffff;
-  --term-bg:   #fff5fb;
-  --term-fg:   #5b2a4a;
-  --glass:        rgba(255,245,251,0.74);
-  --glass-strong: rgba(255,248,252,0.90);
-  --shadow:    0 1px 2px rgba(91,42,74,0.07);
-  --shadow-md: 0 10px 30px -8px rgba(91,42,74,0.16);
-  --shadow-lg: 0 28px 70px -16px rgba(91,42,74,0.22);
+  --glass:        rgba(255, 255, 255, 0.96);
+  --glass-strong: rgba(255, 255, 255, 0.98);
+  --glass-blur:   none;
 
-  /* Custom Logo Gradient: Cotton Candy Pink-Violet-Cyan */
-  --logo-grad-start: #ff007f;
-  --logo-grad-mid: #7f00ff;
-  --logo-grad-end: #00f2fe;
-}
+  --shadow:    none;
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.15);
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #09090b;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-/* ── Catppuccin — the beloved soft-mocha pastel palette (Mocha flavor) ── */
-html[data-theme="catppuccin"] {
-  color-scheme: dark;
-  --bg:        #11111b;
-  --bg2:       #181825;
-  --bg3:       #1e1e2e;
-  --bg4:       #28283c;
-  --bg5:       #313244;
-  --border:    rgba(203,166,247,0.10);
-  --border2:   rgba(203,166,247,0.06);
-  --border3:   rgba(203,166,247,0.18);
-  --text:      #cdd6f4;
-  --text2:     #a6adc8;
-  --text3:     #6c7086;
-  --text4:     #45475a;
-  --accent:    #cba6f7;
-  --accent-hi: #f5c2e7;
-  --accent2:   rgba(203,166,247,0.30);
-  --accent-soft: rgba(203,166,247,0.14);
-  --tab-bg:    #1e1e2e;
-  --term-bg:   #1e1e2e;
-  --term-fg:   #cdd6f4;
-  --glass:        rgba(24,24,37,0.66);
-  --glass-strong: rgba(17,17,27,0.84);
-
-  /* Custom Logo Gradient: Catppuccin Pink-Mauve-Blue */
-  --logo-grad-start: #f5c2e7;
-  --logo-grad-mid: #cba6f7;
-  --logo-grad-end: #89b4fa;
-}
-
-/* ── Cappuccino — warm creamy coffee tones, cozy ── */
-html[data-theme="cappuccino"] {
-  color-scheme: light;
-  --bg:        #efe6db;
-  --bg2:       #f7f1ea;
-  --bg3:       #e8dccd;
-  --bg4:       #fbf7f1;
-  --bg5:       #ddccb8;
-  --border:    rgba(120,85,55,0.14);
-  --border2:   rgba(120,85,55,0.09);
-  --border3:   rgba(120,85,55,0.22);
-  --text:      #4a3728;
-  --text2:     #7a6450;
-  --text3:     #a8927c;
-  --text4:     #cdbba6;
-  --accent:    #a9744a;
-  --accent-hi: #c89368;
-  --accent2:   rgba(169,116,74,0.26);
-  --accent-soft: rgba(169,116,74,0.12);
-  --tab-bg:    #fbf7f1;
-  --term-bg:   #f7f1ea;
-  --term-fg:   #4a3728;
-  --glass:        rgba(247,241,234,0.74);
-  --glass-strong: rgba(250,245,239,0.90);
-  --shadow:    0 1px 2px rgba(74,55,40,0.08);
-  --shadow-md: 0 10px 30px -8px rgba(74,55,40,0.18);
-  --shadow-lg: 0 28px 70px -16px rgba(74,55,40,0.24);
-
-  /* Custom Logo Gradient: Cappuccino Chocolate-Peach-Cream */
-  --logo-grad-start: #b5838d;
-  --logo-grad-mid: #e5989b;
-  --logo-grad-end: #ffb5a7;
-}
-
-/* ── Synthwave — retro neon, magenta→cyan on deep purple ── */
-html[data-theme="synthwave"] {
-  color-scheme: dark;
-  --bg:        #0f0420;
-  --bg2:       #170730;
-  --bg3:       #1f0b40;
-  --bg4:       #2a1152;
-  --bg5:       #3a1b6b;
-  --border:    rgba(255,90,200,0.12);
-  --border2:   rgba(255,90,200,0.07);
-  --border3:   rgba(255,90,200,0.20);
-  --text:      #f5e6ff;
-  --text2:     #c79de8;
-  --text3:     #8a63b5;
-  --text4:     #4f3a73;
-  --accent:    #ff4dd2;
-  --accent-hi: #34e7e4;
-  --accent2:   rgba(255,77,210,0.32);
-  --accent-soft: rgba(255,77,210,0.14);
-  --tab-bg:    #2a1152;
-  --term-bg:   #0f0420;
-  --term-fg:   #f5e6ff;
-  --glass:        rgba(23,7,48,0.66);
-  --glass-strong: rgba(15,4,32,0.84);
-
-  /* Custom Logo Gradient: Retro Synthwave HotPink-Purple-LaserCyan */
-  --logo-grad-start: #ff007f;
-  --logo-grad-mid: #9b51e0;
-  --logo-grad-end: #34e7e4;
-}
-
-/* Light-scheme themes opt out of the coloured glow (it muddies on bright bg) and
-   fall back to a plain shadow + crisp accent ring. Placed after the theme blocks
-   so it overrides the inherited dark-theme glow for these themes only. */
-html[data-theme="light"],
-html[data-theme="sakura"],
-html[data-theme="bubblegum"],
-html[data-theme="cappuccino"] {
-  --glow-hover:  var(--shadow-md);
-  --glow-active: var(--shadow), 0 2px 14px var(--accent2);
-  --glow-focus:  0 0 0 3px var(--accent-soft);
+  --glow-hover:  none;
+  --glow-active: 0 0 0 1px #09090b;
+  --glow-focus:  0 0 0 2px rgba(9, 9, 11, 0.2);
   --glow-soft:   none;
 }
 
@@ -386,12 +208,9 @@ body, html {
   overscroll-behavior: none;
 }
 
-/* Subtle ambient glow behind the workspace for depth (very restrained). */
+/* Clean flat background without distracting ambient radial glow. */
 body::before {
-  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(1100px 520px at 78% -8%, var(--accent-soft), transparent 60%),
-    radial-gradient(900px 460px at 8% 108%, var(--accent-soft), transparent 60%);
+  display: none;
 }
 
 /* dvh tracks the mobile browser's collapsing URL bar so the app never gets
@@ -443,19 +262,13 @@ button:focus-visible { border-radius: 8px; }
 .toolbar-clock:hover {
   border-color: var(--accent);
   color: var(--text);
-  box-shadow: 0 2px 12px rgba(139,92,246,0.15);
 }
 .clock-dot {
   width: 6px;
   height: 6px;
   background-color: var(--accent);
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--accent);
-  animation: clock-pulse 1.5s infinite alternate;
-}
-@keyframes clock-pulse {
-  from { opacity: 0.4; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1.15); }
+  opacity: 0.85;
 }
 
 html.mobile-ui .toolbar-clock {
@@ -465,59 +278,42 @@ html.mobile-ui .toolbar-clock {
 #logo {
   display: flex; align-items: center; gap: 8px;
   user-select: none; text-decoration: none;
-  transition: all 0.25s var(--ease);
+  transition: opacity 0.15s var(--ease);
+}
+#logo:hover {
+  opacity: 0.9;
 }
 #logo-icon {
   display: flex; align-items: center; justify-content: center;
-  filter: drop-shadow(0 2px 8px var(--accent2));
-  transition: all 0.3s var(--ease);
+  color: var(--accent);
+  transition: color 0.15s var(--ease);
 }
 #logo:hover #logo-icon {
-  filter: drop-shadow(0 2px 14px var(--accent));
-  transform: scale(1.08);
+  color: var(--accent-hi);
 }
 #logo-icon svg {
   display: block;
   flex-shrink: 0;
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-@keyframes logo-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  20% { transform: rotate(-12deg); }
-  40% { transform: rotate(10deg); }
-  60% { transform: rotate(-6deg); }
-  80% { transform: rotate(4deg); }
-}
-#logo:hover .logo-svg {
-  animation: logo-wiggle 0.6s ease-in-out;
 }
 #logo-text {
-  font-size: 17px; font-weight: 850; letter-spacing: -0.5px;
+  font-size: 15px; font-weight: 700; letter-spacing: -0.3px;
   color: var(--text); font-family: inherit;
   display: flex; align-items: center;
 }
 .logo-letter {
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0.85;
-  color: var(--text);
+  transition: color 0.15s var(--ease);
+  color: var(--text2);
   display: inline-block;
   position: relative;
   padding: 0 1px;
 }
 .logo-letter:hover {
-  opacity: 1;
-  color: var(--accent-hi);
-  transform: translateY(-1px) scale(1.08);
+  color: var(--text);
 }
 .logo-letter.active {
-  opacity: 1;
-  background: linear-gradient(135deg, var(--logo-grad-start), var(--logo-grad-mid));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 900;
-  filter: drop-shadow(0 2px 4px var(--accent2));
+  color: var(--text);
+  font-weight: 750;
 }
 .logo-letter::after {
   content: '';
@@ -527,21 +323,19 @@ html.mobile-ui .toolbar-clock {
   transform: translateX(-50%) scaleX(0);
   width: 6px;
   height: 2px;
-  border-radius: 2px;
+  border-radius: 1px;
   background: var(--accent);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s var(--ease);
+  transition: transform 0.2s var(--ease);
 }
 .logo-letter.active::after {
   transform: translateX(-50%) scaleX(1);
-  background: linear-gradient(90deg, var(--logo-grad-start), var(--logo-grad-end));
-  box-shadow: 0 0 6px var(--logo-grad-mid);
 }
 #logo-separator {
   color: var(--border3);
   font-size: 13px;
   font-weight: 300;
   margin: 0 4px;
-  opacity: 0.8;
+  opacity: 0.7;
   user-select: none;
 }
 #workspace-badge {
@@ -554,35 +348,20 @@ html.mobile-ui .toolbar-clock {
   border-radius: 6px;
   margin-left: 2px;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease);
   white-space: nowrap;
   user-select: none;
-  backdrop-filter: blur(4px);
 }
 #workspace-badge:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
   color: var(--text);
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
-  transform: translateY(-0.5px);
 }
 #logo-trix {
-  background: linear-gradient(90deg, 
-    var(--logo-grad-start) 0%, 
-    var(--logo-grad-mid) 50%, 
-    var(--logo-grad-end) 100%
-  );
-  background-size: 200% auto;
-  animation: logo-shine 5s linear infinite;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 850;
+  color: var(--accent);
+  font-weight: 750;
   margin-left: 0.5px;
   display: inline-block;
-}
-@keyframes logo-shine {
-  to { background-position: 200% center; }
 }
 #logo svg { flex-shrink: 0; }
 
@@ -592,7 +371,7 @@ html.mobile-ui .toolbar-clock {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 32px; padding: 0 13px;
   background: var(--bg4); color: var(--text);
-  border: 1px solid var(--border3); border-radius: 9px;
+  border: 1px solid var(--border3); border-radius: 8px;
   cursor: pointer; font-size: 12px; font-weight: 500; white-space: nowrap;
   font-family: inherit;
   transition: background 0.15s var(--ease), color 0.15s var(--ease),
@@ -603,14 +382,14 @@ html.mobile-ui .toolbar-clock {
 #toolbar button .btn-icon { font-size: 13px; line-height: 1; }
 #toolbar button:hover {
   background: var(--bg5); color: var(--text); border-color: var(--accent);
-  transform: translateY(-1px); box-shadow: var(--glow-hover);
+  box-shadow: var(--glow-hover);
 }
 #toolbar button:active { transform: translateY(0); }
 #toolbar button.active,
 #toolbar button.active:hover {
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  color: #fff; border-color: transparent;
-  box-shadow: var(--glow-active);
+  background: var(--accent);
+  color: #fff; border-color: var(--accent);
+  box-shadow: none;
 }
 
 /* Transient status toast (file upload progress, etc.) */
@@ -790,9 +569,7 @@ body.broadcasting #workspace {
 }
 #toolbar button.btn-danger:hover { background: #3b1a1a; color: #f87171; border-color: #7f1d1d; }
 html[data-theme="light"] #toolbar button.btn-danger:hover,
-html[data-theme="sakura"] #toolbar button.btn-danger:hover,
-html[data-theme="bubblegum"] #toolbar button.btn-danger:hover,
-html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+html[data-theme="contrast-light"] #toolbar button.btn-danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
 #btn-settings { width: 32px; padding: 0; font-size: 14px; }
 #btn-settings .btn-text { display: none; }
 #btn-settings svg { transition: transform 0.25s var(--ease); }
@@ -848,9 +625,10 @@ html[data-theme="cappuccino"] #toolbar button.btn-danger:hover { background: #fe
 #toolbar .toolbar-btn-group button.active,
 #toolbar .toolbar-btn-group button.active:hover,
 #toolbar .toolbar-btn-group button[aria-pressed="true"] {
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  background: var(--accent);
   color: #fff;
-  box-shadow: var(--glow-active);
+  border-color: var(--accent);
+  box-shadow: none;
 }
 
 #toolbar .toolbar-btn-group button.btn-danger:hover {
@@ -978,8 +756,7 @@ body.has-maximized-pane .pane.maximized {
 /* Active pane gets a soft accent rail along the top of its tab bar. */
 .pane.active > .pane-tabs::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hi));
-  box-shadow: 0 0 12px var(--accent2);
+  background: var(--accent);
   z-index: 2;
 }
 
@@ -1012,7 +789,7 @@ body.has-maximized-pane .pane.maximized {
 .tab.active {
   color: var(--text); background: var(--tab-bg);
   border-color: var(--border3);
-  box-shadow: var(--shadow), var(--glow-soft);
+  box-shadow: var(--shadow);
 }
 
 .tab-close, .tab-maximize {
@@ -2304,21 +2081,21 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 
 #btn-takeover {
   margin-top: 10px;
-  padding: 11px 26px;
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  padding: 10px 24px;
+  background: var(--accent);
   color: #fff;
-  border: none;
-  border-radius: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: 0 4px 18px var(--accent2);
-  transition: filter 0.15s var(--ease), transform 0.08s var(--ease), box-shadow 0.15s var(--ease);
+  box-shadow: var(--shadow);
+  transition: opacity 0.15s var(--ease);
 }
 
-#btn-takeover:hover { filter: brightness(1.08); box-shadow: 0 8px 26px var(--accent2), var(--glow-soft); transform: translateY(-1px); }
-#btn-takeover:active { transform: translateY(0); }
+#btn-takeover:hover { opacity: 0.9; }
+#btn-takeover:active { opacity: 1; }
 
 /* ── Scheduled Enter: dialog ────────────────────────────────────────────────*/
 #schedule-modal-overlay {
@@ -2394,13 +2171,13 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 }
 .sched-actions button:hover { background: var(--bg5); color: var(--text); }
 .sched-actions button.primary {
-  border: none; color: #fff;
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  box-shadow: 0 3px 14px var(--accent2);
+  border: 1px solid var(--accent); color: #fff;
+  background: var(--accent);
+  box-shadow: var(--shadow);
 }
-.sched-actions button.primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 3px 14px var(--accent2), var(--glow-soft); }
+.sched-actions button.primary:hover { opacity: 0.9; }
 .sched-actions button.primary:disabled {
-  filter: none; transform: none; cursor: not-allowed; opacity: 0.5; box-shadow: none;
+  opacity: 0.5; cursor: not-allowed; box-shadow: none;
 }
 
 /* ── Scheduled Enter: per-tab lock overlay ──────────────────────────────────*/
@@ -2428,13 +2205,13 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   font-variant-numeric: tabular-nums;
 }
 .schedule-cancel {
-  margin-top: 8px; padding: 9px 22px; border-radius: 10px; cursor: pointer;
-  border: none; color: #fff; font: inherit; font-size: 13px; font-weight: 600;
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  box-shadow: 0 4px 16px var(--accent2);
-  transition: filter 0.15s var(--ease), transform 0.08s var(--ease);
+  margin-top: 8px; padding: 9px 22px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 600;
+  background: var(--accent);
+  box-shadow: var(--shadow);
+  transition: opacity 0.15s var(--ease);
 }
-.schedule-cancel:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.schedule-cancel:hover { opacity: 0.9; }
 
 /* Pulsing dot on a tab with a pending scheduled Enter (visible when in back). */
 .tab.scheduled .tab-icon { position: relative; }
@@ -2480,10 +2257,10 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   display: none !important;
 }
 #mobile-autocomplete-toggle.active {
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent)) !important;
+  background: var(--accent) !important;
   color: #fff !important;
-  border-color: transparent !important;
-  box-shadow: var(--glow-active) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
 }
 
 .keybar-keys {
@@ -2509,9 +2286,9 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 }
 .keybar-btn:active { background: var(--bg5); }
 .keybar-mod.armed {
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  color: #fff; border-color: transparent;
-  box-shadow: var(--glow-active);
+  background: var(--accent);
+  color: #fff; border-color: var(--accent);
+  box-shadow: none;
 }
 .keybar-hide {
   margin-left: auto;

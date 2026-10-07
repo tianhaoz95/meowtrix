@@ -44,7 +44,7 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **Localhost-first** — the manual launcher binds to `127.0.0.1` by default so it's not exposed to your network; opt into LAN/remote access explicitly (a `--service` install binds `0.0.0.0`) — see [Network access](#network-access--security)
 - **Broadcast input** — mirror keystrokes to every visible terminal at once (like tmux `synchronize-panes`)
 - **Mobile-ready** — on-screen key bar with sticky Ctrl/Alt/Cmd modifiers and double-tap autocomplete
-- **10 themes** — Midnight, Daylight, Ocean, Matrix, Ember, Sakura, Bubblegum, Catppuccin, Cappuccino, Synthwave; terminals are themed to match
+- **Linear Slate & OLED themes** — Precision engineered developer tool aesthetic in light and dark modes, plus Retina OLED high-contrast black; terminals are themed to match
   
   ![Themes](website/assets/features/themes-dark.gif)
 
@@ -289,7 +289,7 @@ Settings are saved to `~/.meowtrix/settings.json` on the host machine; the works
 
 | Setting | Default |
 |---|---|
-| Theme | Midnight (dark) |
+| Theme | Linear Slate (dark) |
 | Terminal font size | 13 |
 | Terminal font | Cascadia Code |
 | Terminal renderer | WebGL (GPU accelerated, sharpest) |

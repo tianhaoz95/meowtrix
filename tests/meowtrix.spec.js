@@ -186,13 +186,13 @@ test.describe('Meowtrix E2E Tests', () => {
     await themeSelect.selectOption('light');
     await expect(htmlElement).toHaveAttribute('data-theme', 'light');
 
-    // Switch to Ocean
-    await themeSelect.selectOption('ocean');
-    await expect(htmlElement).toHaveAttribute('data-theme', 'ocean');
+    // Switch to OLED (Retina OLED Jet Black)
+    await themeSelect.selectOption('oled');
+    await expect(htmlElement).toHaveAttribute('data-theme', 'oled');
 
-    // Switch to Matrix
-    await themeSelect.selectOption('matrix');
-    await expect(htmlElement).toHaveAttribute('data-theme', 'matrix');
+    // Switch to High Contrast Light
+    await themeSelect.selectOption('contrast-light');
+    await expect(htmlElement).toHaveAttribute('data-theme', 'contrast-light');
 
     // Switch back to Midnight (dark)
     await themeSelect.selectOption('dark');

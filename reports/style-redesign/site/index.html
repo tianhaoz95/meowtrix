@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meowtrix Style Redesign — 20 Modern Candidate Designs</title>
+  <link rel="stylesheet" href="site.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body data-theme-mode="dark">
+  <!-- Visualizer Header -->
+  <header id="site-header">
+    <div class="header-left">
+      <div class="brand">
+        <span class="brand-paw">🐾</span>
+        <div>
+          <h1>Meowtrix Style Redesign</h1>
+          <p class="subtitle">50 Modern Minimalist Candidates · Light & Dark Only · Zero 3D Skeuomorphism</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Switcher -->
+    <nav class="view-tabs">
+      <button class="nav-btn active" data-view="mockup">Interactive Mockup</button>
+      <button class="nav-btn" data-view="gallery">All 50 Candidates</button>
+      <button class="nav-btn" data-view="split">Side-by-Side Split</button>
+      <button class="nav-btn" data-view="logos">Flat Logos & Icons</button>
+      <button class="nav-btn" data-view="export">Pick & Export CSS</button>
+    </nav>
+
+    <div class="header-right">
+      <!-- Global Mode Toggle (Light / Dark only!) -->
+      <div class="mode-toggle-group">
+        <button id="btn-mode-light" class="mode-btn" title="Switch candidate to Light mode">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          Light
+        </button>
+        <button id="btn-mode-dark" class="mode-btn active" title="Switch candidate to Dark mode">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          Dark
+        </button>
+      </div>
+
+      <!-- Quick Candidate Selector -->
+      <div class="candidate-picker">
+        <label for="candidate-select">Design:</label>
+        <select id="candidate-select"></select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Areas -->
+  <main id="main-content">
+
+    <!-- 1. INTERACTIVE MOCKUP VIEW -->
+    <section id="view-mockup" class="view-panel active">
+      <!-- Top info bar for active candidate -->
+      <div class="candidate-headline-bar">
+        <div class="headline-info">
+          <span class="candidate-badge" id="mockup-category">Engineering Minimal</span>
+          <h2 id="mockup-title">Linear Slate</h2>
+          <span class="headline-tagline" id="mockup-tagline">Precision engineered developer tool aesthetic</span>
+        </div>
+        <div class="headline-actions">
+          <div class="logo-swap">
+            <label for="select-mockup-logo">Logo Style:</label>
+            <select id="select-mockup-logo">
+              <option value="origami-cat">Geometric Cat</option>
+              <option value="monoline-paw">Monoline Paw</option>
+              <option value="terminal-prompt">Terminal Prompt</option>
+              <option value="m-monogram">M Monogram</option>
+              <option value="matrix-dot">Matrix Dots</option>
+            </select>
+          </div>
+          <button id="btn-quick-star" class="btn-tool" title="Star this candidate">★ Favorite</button>
+          <button id="btn-quick-copy" class="btn-tool" title="Copy CSS Variables">📋 Copy CSS</button>
+        </div>
+      </div>
+
+      <!-- Live Mockup Container (Scoped with CSS variables of selected design) -->
+      <div class="mockup-window-wrap">
+        <div id="mockup-app" class="mockup-window">
+          <!-- Meowtrix Modern Toolbar -->
+          <div class="mtx-toolbar">
+            <div class="mtx-toolbar-left">
+              <!-- Flat Modern Logo -->
+              <div class="mtx-logo" id="mtx-logo-element">
+                <span class="mtx-logo-icon" id="mtx-logo-svg"></span>
+                <span class="mtx-logo-text">meowtrix</span>
+              </div>
+              <span class="mtx-slash">/</span>
+              <!-- Workspaces -->
+              <div class="mtx-workspaces">
+                <button class="mtx-ws-pill active" title="Workspace 1">1</button>
+                <button class="mtx-ws-pill" title="Workspace 2">2</button>
+                <button class="mtx-ws-pill" title="Workspace 3">3</button>
+                <button class="mtx-ws-pill" title="Workspace 4">4</button>
+              </div>
+            </div>
+
+            <!-- Toolbar Actions -->
+            <div class="mtx-toolbar-actions">
+              <div class="mtx-btn-group">
+                <button class="mtx-btn" id="mockup-split-v" title="Split vertical">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                  <span>Split V</span>
+                </button>
+                <button class="mtx-btn" id="mockup-split-h" title="Split horizontal">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                  <span>Split H</span>
+                </button>
+              </div>
+
+              <div class="mtx-btn-group">
+                <button class="mtx-btn" id="mockup-add-tab" title="Add Tab">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>New Tab</span>
+                </button>
+                <button class="mtx-btn" id="mockup-toggle-sidebar" title="Toggle Editor Sidebar">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                  <span>Files</span>
+                </button>
+              </div>
+
+              <!-- In-App Theme Toggle (Light / Dark only!) -->
+              <div class="mtx-theme-toggle" id="mtx-theme-toggle-btn" title="Toggle Light / Dark mode (Only 2 modern modes)">
+                <span id="mtx-theme-label">🌙 Dark</span>
+              </div>
+
+              <button class="mtx-btn mtx-btn-icon" id="mockup-btn-settings" title="Open Settings Panel">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Settings</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panes Container -->
+          <div class="mtx-workspace-grid">
+
+            <!-- PANE 1: TERMINAL -->
+            <div class="mtx-pane mtx-pane-terminal">
+              <!-- Pane Header -->
+              <div class="mtx-pane-header">
+                <div class="mtx-pane-tabs">
+                  <div class="mtx-tab active">
+                    <span class="mtx-tab-icon">⌘</span>
+                    <span class="mtx-tab-title">zsh · main</span>
+                    <span class="mtx-tab-close">×</span>
+                  </div>
+                  <div class="mtx-tab">
+                    <span class="mtx-tab-icon">⌘</span>
+                    <span class="mtx-tab-title">node server</span>
+                    <span class="mtx-tab-close">×</span>
+                  </div>
+                  <button class="mtx-tab-add" title="Add terminal tab">+</button>
+                </div>
+                <div class="mtx-pane-tools">
+                  <span class="mtx-pane-badge">PTY #1</span>
+                </div>
+              </div>
+
+              <!-- Terminal Content -->
+              <div class="mtx-terminal-body" id="interactive-terminal">
+                <div class="term-line term-dim">Meowtrix Terminal v1.6.0 (darwin-arm64)</div>
+                <div class="term-line term-dim">Type 'help' or test typing directly below.</div>
+                <div class="term-line">&nbsp;</div>
+                <div class="term-line">
+                  <span class="term-prompt">➜</span> <span class="term-dir">~/meowtrix</span> <span class="term-git">git:(main)</span> <span class="term-cmd">mtx status</span>
+                </div>
+                <div class="term-line term-success">✔ Server active on port 9123 (HOST=127.0.0.1)</div>
+                <div class="term-line term-info">ℹ Active session: Chrome 128 / macOS Sequoia</div>
+                <div class="term-line term-dim">ℹ Connected PTYs: 2 sessions running</div>
+                <div class="term-line">&nbsp;</div>
+                <div class="term-line">
+                  <span class="term-prompt">➜</span> <span class="term-dir">~/meowtrix</span> <span class="term-git">git:(main)</span> <span class="term-cmd" id="term-input-text">git log -1 --oneline</span>
+                </div>
+                <div class="term-line term-yellow">d41a89c refactor: redesign styling for pure light/dark minimalism</div>
+                <div class="term-line">&nbsp;</div>
+                <div class="term-line active-line">
+                  <span class="term-prompt">➜</span> <span class="term-dir">~/meowtrix</span> <span class="term-git">git:(main)</span> <span class="term-editable" contenteditable="true" spellcheck="false">npm test</span><span class="term-cursor"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANE 2: CODE EDITOR (With modern flat sidebar) -->
+            <div class="mtx-pane mtx-pane-editor" id="mtx-editor-pane">
+              <div class="mtx-pane-header">
+                <div class="mtx-pane-tabs">
+                  <div class="mtx-tab active">
+                    <span class="mtx-tab-file-icon">⚡</span>
+                    <span class="mtx-tab-title">app.js</span>
+                    <span class="mtx-tab-close">×</span>
+                  </div>
+                  <div class="mtx-tab">
+                    <span class="mtx-tab-file-icon">🎨</span>
+                    <span class="mtx-tab-title">style.css</span>
+                    <span class="mtx-tab-close">×</span>
+                  </div>
+                  <div class="mtx-tab">
+                    <span class="mtx-tab-file-icon">⚙️</span>
+                    <span class="mtx-tab-title">server.js</span>
+                    <span class="mtx-tab-close">×</span>
+                  </div>
+                </div>
+                <div class="mtx-pane-tools">
+                  <span class="mtx-status-pill">LF</span>
+                  <span class="mtx-status-pill">UTF-8</span>
+                </div>
+              </div>
+
+              <div class="mtx-editor-container">
+                <!-- Flat Editor Sidebar (Modern, no heavy 3D bevels) -->
+                <aside class="mtx-editor-sidebar" id="mtx-sidebar">
+                  <div class="mtx-sidebar-header">
+                    <span class="mtx-sidebar-title">EXPLORER</span>
+                    <button class="mtx-sidebar-action" title="Refresh files">↻</button>
+                  </div>
+                  <div class="mtx-tree">
+                    <div class="mtx-tree-item is-folder open">
+                      <span class="tree-arrow">▾</span>
+                      <span class="tree-folder-icon">📁</span>
+                      <span class="tree-name">public</span>
+                    </div>
+                    <div class="mtx-tree-item is-file child active">
+                      <span class="tree-file-icon">⚡</span>
+                      <span class="tree-name">app.js</span>
+                      <span class="tree-git-m">M</span>
+                    </div>
+                    <div class="mtx-tree-item is-file child">
+                      <span class="tree-file-icon">🎨</span>
+                      <span class="tree-name">style.css</span>
+                      <span class="tree-git-m">M</span>
+                    </div>
+                    <div class="mtx-tree-item is-file child">
+                      <span class="tree-file-icon">📄</span>
+                      <span class="tree-name">index.html</span>
+                    </div>
+                    <div class="mtx-tree-item is-file child">
+                      <span class="tree-file-icon">⚙️</span>
+                      <span class="tree-name">ws.js</span>
+                    </div>
+                    <div class="mtx-tree-item is-folder">
+                      <span class="tree-arrow">▸</span>
+                      <span class="tree-folder-icon">📁</span>
+                      <span class="tree-name">bin</span>
+                    </div>
+                    <div class="mtx-tree-item is-file">
+                      <span class="tree-file-icon">📦</span>
+                      <span class="tree-name">package.json</span>
+                    </div>
+                    <div class="mtx-tree-item is-file">
+                      <span class="tree-file-icon">📝</span>
+                      <span class="tree-name">README.md</span>
+                    </div>
+                  </div>
+                </aside>
+
+                <!-- Code View -->
+                <div class="mtx-code-view">
+                  <div class="mtx-line-numbers">
+                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                    <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                    <span>11</span><span>12</span><span>13</span><span>14</span>
+                  </div>
+                  <pre class="mtx-code-content"><code><span class="c-comment">// Modern Flat Light/Dark Theme Switcher</span>
+<span class="c-keyword">const</span> <span class="c-var">THEMES</span> = [
+  { <span class="c-prop">id</span>: <span class="c-str">'light'</span>, <span class="c-prop">label</span>: <span class="c-str">'Daylight'</span>, <span class="c-prop">icon</span>: <span class="c-str">'☀️'</span> },
+  { <span class="c-prop">id</span>: <span class="c-str">'dark'</span>,  <span class="c-prop">label</span>: <span class="c-str">'Midnight'</span>, <span class="c-prop">icon</span>: <span class="c-str">'🌙'</span> }
+];
+
+<span class="c-function">function</span> <span class="c-func-name">setTheme</span>(<span class="c-var">mode</span>) {
+  <span class="c-keyword">const</span> <span class="c-var">root</span> = <span class="c-var">document</span>.<span class="c-prop">documentElement</span>;
+  <span class="c-var">root</span>.<span class="c-func-name">setAttribute</span>(<span class="c-str">'data-theme'</span>, <span class="c-var">mode</span>);
+  <span class="c-func-name">saveSetting</span>(<span class="c-str">'theme'</span>, <span class="c-var">mode</span>);
+  <span class="c-var">console</span>.<span class="c-func-name">log</span>(<span class="c-str">`Theme switched to modern flat: ${mode}`</span>);
+}</code></pre>
+                </div>
+              </div>
+
+              <!-- Editor Status Bar -->
+              <div class="mtx-editor-statusbar">
+                <span class="status-item">Ln 8, Col 34</span>
+                <span class="status-item">Spaces: 2</span>
+                <span class="status-item">JavaScript</span>
+                <span class="status-item">Git: main*</span>
+              </div>
+            </div>
+
+            <!-- PANE 3: BROWSER / PREVIEW -->
+            <div class="mtx-pane mtx-pane-browser">
+              <div class="mtx-pane-header">
+                <div class="mtx-pane-tabs">
+                  <div class="mtx-tab active">
+                    <span class="mtx-tab-icon">🌐</span>
+                    <span class="mtx-tab-title">Web Preview</span>
+                    <span class="mtx-tab-close">×</span>
+                  </div>
+                </div>
+                <div class="mtx-pane-tools">
+                  <span class="mtx-status-pill">Proxy: Active</span>
+                </div>
+              </div>
+
+              <!-- Flat Browser URL Bar -->
+              <div class="mtx-browser-bar">
+                <button class="mtx-browser-btn" title="Back">‹</button>
+                <button class="mtx-browser-btn" title="Forward">›</button>
+                <button class="mtx-browser-btn" title="Reload">↻</button>
+                <div class="mtx-browser-input">
+                  <span class="browser-lock">🔒</span>
+                  <span class="browser-url">http://localhost:3000/dashboard</span>
+                </div>
+              </div>
+
+              <!-- Browser Frame Simulation -->
+              <div class="mtx-browser-viewport">
+                <div class="preview-card">
+                  <div class="preview-card-header">
+                    <h4>Analytics & Metrics</h4>
+                    <span class="preview-chip">Live</span>
+                  </div>
+                  <div class="preview-metrics">
+                    <div class="metric-box">
+                      <span class="metric-label">Latency</span>
+                      <span class="metric-val">12ms</span>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">Memory</span>
+                      <span class="metric-val">142MB</span>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">CPU Load</span>
+                      <span class="metric-val">2.4%</span>
+                    </div>
+                  </div>
+                  <div class="preview-cta-row">
+                    <button class="preview-btn primary">Deploy Changes</button>
+                    <button class="preview-btn secondary">View Logs</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Slide-out Settings Panel (Flat, modern, light & dark only) -->
+          <div id="mtx-settings-panel" class="mtx-settings-drawer">
+            <div class="mtx-settings-header">
+              <h3>Settings</h3>
+              <button id="close-settings-btn" class="mtx-close-btn" title="Close Settings">×</button>
+            </div>
+            <div class="mtx-settings-content">
+              <div class="settings-group">
+                <label class="settings-group-title">APPEARANCE (LIGHT & DARK ONLY)</label>
+                <div class="settings-desc">Multiple theme palette has been replaced with modern, focused Light and Dark modes.</div>
+                <div class="settings-field">
+                  <span class="field-label">Color Scheme</span>
+                  <div class="settings-mode-select">
+                    <button class="pill-btn active" id="setting-dark-btn">🌙 Dark Mode</button>
+                    <button class="pill-btn" id="setting-light-btn">☀️ Light Mode</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-group">
+                <label class="settings-group-title">TERMINAL CONFIGURATION</label>
+                <div class="settings-field">
+                  <span class="field-label">Font Family</span>
+                  <select class="settings-select">
+                    <option>JetBrains Mono, Menlo, monospace</option>
+                    <option>Geist Mono, SF Mono</option>
+                    <option>Fira Code</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <span class="field-label">Font Size</span>
+                  <div class="range-wrap">
+                    <input type="range" min="11" max="18" value="13" class="settings-range">
+                    <span class="range-val">13px</span>
+                  </div>
+                </div>
+                <div class="settings-field">
+                  <span class="field-label">Cursor Style</span>
+                  <select class="settings-select">
+                    <option>Block</option>
+                    <option>Bar (Line)</option>
+                    <option>Underline</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-group">
+                <label class="settings-group-title">SURFACE & SIMPLICITY</label>
+                <div class="settings-field">
+                  <span class="field-label">3D Effects & Shadows</span>
+                  <span class="pill-badge-flat">Zero 3D (Flat Minimalism)</span>
+                </div>
+                <div class="settings-field">
+                  <span class="field-label">Sidebar Divider</span>
+                  <span class="pill-badge-flat">1px Hairline Border</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Inspector & Notes Drawer at Bottom -->
+      <div class="bottom-inspector">
+        <div class="inspector-palette">
+          <span class="palette-title">Color Tokens:</span>
+          <div class="token-chips" id="token-chips"></div>
+        </div>
+        <div class="inspector-notes">
+          <input type="text" id="candidate-note-input" placeholder="Type review notes for this candidate (auto-saved)..." />
+          <button id="save-note-btn" class="btn-tool">Save Note</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ALL 20 CANDIDATES GALLERY VIEW -->
+    <section id="view-gallery" class="view-panel">
+      <div class="gallery-toolbar">
+        <div class="gallery-intro">
+          <h2>All 50 Candidate Designs</h2>
+          <p>Explore all 50 modern, flat, light/dark designs side by side. Click any card to load it in the live mockup.</p>
+        </div>
+        <div class="gallery-filters">
+          <button class="filter-pill active" data-filter="all">All (50)</button>
+          <button class="filter-pill" data-filter="Engineering Minimal">Engineering Minimal</button>
+          <button class="filter-pill" data-filter="High Contrast">High Contrast</button>
+          <button class="filter-pill" data-filter="Developer-First">Developer-First</button>
+          <button class="filter-pill" data-filter="Editor-First">Editor-First</button>
+          <button class="filter-pill" data-filter="Craft Editorial">Craft Editorial</button>
+          <button class="filter-pill" data-filter="Neo-Modern">Neo-Modern</button>
+          <button class="filter-pill" data-filter="Productivity Tool">Productivity</button>
+          <button class="filter-pill" data-filter="Quiet Minimal">Quiet Minimal</button>
+        </div>
+      </div>
+
+      <div class="candidates-grid" id="candidates-grid"></div>
+    </section>
+
+    <!-- 3. SPLIT COMPARISON VIEW -->
+    <section id="view-split" class="view-panel">
+      <div class="split-controls">
+        <div class="split-picker-group">
+          <label>Left Pane:</label>
+          <select id="split-select-a"></select>
+          <button id="split-mode-a" class="btn-tool">🌙 Dark</button>
+        </div>
+        <div class="split-vs">VS</div>
+        <div class="split-picker-group">
+          <label>Right Pane:</label>
+          <select id="split-select-b"></select>
+          <button id="split-mode-b" class="btn-tool">☀️ Light</button>
+        </div>
+      </div>
+
+      <div class="split-container">
+        <div class="split-half" id="split-pane-a">
+          <div class="split-label" id="split-label-a">Linear Slate (Dark)</div>
+          <div class="split-preview-frame" id="split-frame-a"></div>
+        </div>
+        <div class="split-half" id="split-pane-b">
+          <div class="split-label" id="split-label-b">Linear Slate (Light)</div>
+          <div class="split-preview-frame" id="split-frame-b"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. LOGO & ICON REDESIGN SHOWCASE -->
+    <section id="view-logos" class="view-panel">
+      <div class="logo-redesign-hero">
+        <h2>Logo & Icon Modern Flat Transformation</h2>
+        <p>Transitioning from the legacy 3D rainbow gradient & drop-shadow paw to crisp, minimalist, modern flat iconography.</p>
+      </div>
+
+      <div class="logo-comparison-grid">
+        <!-- Legacy 3D Logo Card -->
+        <div class="logo-card legacy">
+          <div class="logo-card-badge">LEGACY (CURRENT)</div>
+          <div class="logo-preview-box">
+            <!-- Legacy 3D SVG representation -->
+            <svg class="legacy-svg" viewBox="0 0 24 24" width="64" height="64">
+              <defs>
+                <linearGradient id="leg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff007a" />
+                  <stop offset="50%" stop-color="#7928ca" />
+                  <stop offset="100%" stop-color="#00dfd8" />
+                </linearGradient>
+                <filter id="leg-glow">
+                  <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#7928ca" flood-opacity="0.6"/>
+                </filter>
+              </defs>
+              <g filter="url(#leg-glow)">
+                <path d="M12 14c-2.3 0-4.2 1.6-4.5 3.8-.2 1.5.8 2.8 2.3 3.1.7.1 1.4.1 2.2.1s1.5 0 2.2-.1c1.5-.3 2.5-1.6 2.3-3.1-.3-2.2-2.2-3.8-4.5-3.8z" fill="url(#leg-grad)"/>
+                <ellipse cx="6" cy="13.5" rx="1.6" ry="2.2" transform="rotate(-20 6 13.5)" fill="url(#leg-grad)"/>
+                <ellipse cx="9.5" cy="9.5" rx="1.8" ry="2.5" transform="rotate(-8 9.5 9.5)" fill="url(#leg-grad)"/>
+                <ellipse cx="14.5" cy="9.5" rx="1.8" ry="2.5" transform="rotate(8 14.5 9.5)" fill="url(#leg-grad)"/>
+                <ellipse cx="18" cy="13.5" rx="1.6" ry="2.2" transform="rotate(20 18 13.5)" fill="url(#leg-grad)"/>
+              </g>
+            </svg>
+            <div class="legacy-brand-text">meow<span class="legacy-grad-text">trix</span></div>
+          </div>
+          <div class="logo-card-info">
+            <h4>Legacy 3D Rainbow Gradient</h4>
+            <p>Multiple multi-stop gradients, heavy 3D drop-shadows, animated shine and wiggle effects. Dated and high-noise.</p>
+          </div>
+        </div>
+
+        <!-- 5 New Flat Candidates -->
+        <div class="new-logos-container" id="new-logos-container"></div>
+      </div>
+
+      <!-- Icon Redesign Section -->
+      <div class="icon-transformation-section">
+        <h3>Flat Modern Icon System</h3>
+        <p>Clean 1.5px/2px SVG vector strokes replace emojis and glossy buttons across Toolbar, Panes, and Status bars.</p>
+        <div class="icons-grid" id="icons-grid"></div>
+      </div>
+    </section>
+
+    <!-- 5. PICK & EXPORT CSS VIEW -->
+    <section id="view-export" class="view-panel">
+      <div class="export-header">
+        <h2>Review Summary & CSS Code Generator</h2>
+        <p>Review your notes, pick your winning candidate, and copy the ready-to-use CSS variables for <code>style.css</code>.</p>
+      </div>
+
+      <div class="export-layout">
+        <div class="export-sidebar">
+          <h3>Your Review & Favorites</h3>
+          <div id="favorites-list" class="favorites-box"></div>
+          <div class="export-actions">
+            <button id="download-report-btn" class="btn-primary">Download Redesign Summary</button>
+          </div>
+        </div>
+
+        <div class="export-code-panel">
+          <div class="code-panel-header">
+            <span id="export-design-name">Linear Slate — style.css Code</span>
+            <button id="btn-copy-full-css" class="btn-tool">Copy All CSS</button>
+          </div>
+          <pre id="export-code-block" class="css-code-block"></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="designs.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>
