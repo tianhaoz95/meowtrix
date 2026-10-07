@@ -154,6 +154,18 @@ impl AiEngine {
                     .await
                     .context("Failed to build GGUF model from models_dir")?;
                 (name.to_string(), m)
+            } else if let Some(matched) = available.iter().find(|m| {
+                m.eq_ignore_ascii_case(name)
+                    || m.to_ascii_lowercase().starts_with(&name.to_ascii_lowercase())
+                    || m.to_ascii_lowercase().contains(&name.to_ascii_lowercase())
+            }) {
+                let m = GgufModelBuilder::new(models_dir.to_string_lossy(), vec![matched.as_str()])
+                    .with_device_mapping(DeviceMapSetting::dummy())
+                    .with_logging()
+                    .build()
+                    .await
+                    .context("Failed to build matched GGUF model")?;
+                (matched.clone(), m)
             } else if name.ends_with(".gguf") {
                 // Check HF cache for this filename
                 if let Some(cached_path) = find_cached_gguf(name) {

@@ -231,5 +231,39 @@ test.describe('Desktop AI Daemon & Startup Regression Tests', () => {
       await new Promise(r => server.close(r));
     }
   });
+
+  test('model status reports local and recommended models with direct GGUF mapping', async () => {
+    const express = require('express');
+    const { mountAiRoutes } = require('../ai-service');
+    const app = express();
+    app.use(express.json());
+    mountAiRoutes(app);
+
+    const server = await new Promise(r => {
+      const s = app.listen(0, '127.0.0.1', () => r(s));
+    });
+    const port = server.address().port;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/ai/status`).then(r => r.json());
+      expect(res.recommendedModels).toBeDefined();
+      expect(Array.isArray(res.recommendedModels)).toBe(true);
+      expect(res.recommendedModels.length).toBeGreaterThan(0);
+
+      // Verify each recommended model has required fields for one-click download
+      for (const rec of res.recommendedModels) {
+        expect(rec.id).toBeDefined();
+        expect(rec.name).toBeDefined();
+        expect(rec.filename).toBeDefined();
+        expect(rec.url).toBeDefined();
+      }
+
+      // Verify local models array exists
+      expect(res.localModels).toBeDefined();
+      expect(Array.isArray(res.localModels)).toBe(true);
+    } finally {
+      await new Promise(r => server.close(r));
+    }
+  });
 });
 

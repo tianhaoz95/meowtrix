@@ -969,8 +969,15 @@ function downloadModel(modelId, onProgress) {
   const targetPath = path.join(MODELS_DIR, modelInfo.filename);
 
   if (fs.existsSync(targetPath)) {
-    return Promise.resolve({ completed: true, path: targetPath, exists: true });
+    return Promise.resolve({ completed: true, path: targetPath, exists: true, filename: modelInfo.filename });
   }
+
+  try {
+    const existing = fs.readdirSync(MODELS_DIR).find(f => f.toLowerCase() === modelInfo.filename.toLowerCase());
+    if (existing) {
+      return Promise.resolve({ completed: true, path: path.join(MODELS_DIR, existing), exists: true, filename: existing });
+    }
+  } catch {}
 
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(targetPath + '.tmp');

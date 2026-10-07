@@ -106,11 +106,7 @@
             </span>
             <div class="agent-engine-selector-wrap">
               <select class="agent-select" id="agent-model-select-${tab.id}" title="Select inference engine & model">
-                <option value="mistralrs:qwen2.5-coder-1.5b">⚡ Mistral.rs (Native Rust) · Qwen 2.5 Coder 1.5B</option>
-                <option value="mistralrs:qwen2.5-coder-3b">🧠 Mistral.rs (Native Rust) · Qwen 2.5 Coder 3B</option>
-                <option value="ollama:auto">🦙 Ollama (Local Auto-Detect)</option>
-                <option value="cloud:gpt-4o">☁️ Cloud / OpenAI-Compatible</option>
-                <option value="download">📥 Download New Model...</option>
+                <option value="loading">⚡ Loading models...</option>
               </select>
             </div>
             <button class="agent-btn agent-btn-toggle" id="agent-mode-toggle-${tab.id}" title="Switch between Autonomous and Supervised (Confirm tool actions)">
@@ -314,55 +310,81 @@
       updateDirLabel(tab.workingDir);
     }
 
+    // Cache recommended models for display helpers
+    let lastRecommendedModels = [];
+
+    function getFriendlyModelName(filename, recommendedModels = []) {
+      if (!filename || filename === 'none' || filename === 'auto') return 'Auto';
+      const clean = filename.toLowerCase().replace(/[-_]/g, ' ');
+      const rec = (recommendedModels || []).find(r =>
+        (r.filename && r.filename.toLowerCase() === filename.toLowerCase()) ||
+        clean.includes((r.id || '').toLowerCase().replace(/[-_]/g, ' '))
+      );
+      if (rec) {
+        return rec.name.replace(/\s*\(.*\)/, '').trim();
+      }
+      if (clean.includes('qwen3 0.6b') || clean.includes('qwen 3 0.6b')) return 'Qwen 3 0.6B';
+      if (clean.includes('qwen2.5 coder 1.5b') || clean.includes('qwen 2.5 coder 1.5b')) return 'Qwen 2.5 Coder 1.5B';
+      if (clean.includes('qwen2.5 coder 3b') || clean.includes('qwen 2.5 coder 3b')) return 'Qwen 2.5 Coder 3B';
+      if (clean.includes('llama 3.2 3b')) return 'Llama 3.2 3B';
+      return filename.replace(/\.(gguf|bin|safetensors)$/i, '');
+    }
+
+    function isModelInstalled(rec, localModels = []) {
+      const recFn = (rec.filename || '').toLowerCase();
+      const recId = (rec.id || '').toLowerCase();
+      return (localModels || []).some(m => {
+        const fn = (m.filename || '').toLowerCase();
+        return fn === recFn || fn.includes(recId) || (recId && recId.includes(fn.replace(/\.gguf$/i, '')));
+      });
+    }
+
     // Refresh available models
-    function refreshModels() {
+    function refreshModels(targetSelection) {
       fetch('/api/ai/status')
         .then(r => r.json())
         .then(data => {
           if (!data) return;
-          const currentVal = modelSelect.value;
+          lastRecommendedModels = data.recommendedModels || [];
+          const currentVal = targetSelection || modelSelect.value;
           modelSelect.innerHTML = '';
 
-          // Built-in Native Mistral.rs
+          // 1. Built-in Native Mistral.rs (Metal/CUDA) with Installed Local GGUF models
           const grpMistral = document.createElement('optgroup');
-          grpMistral.label = '⚡ Mistral.rs (Native Rust)';
+          grpMistral.label = '⚡ Mistral.rs (Native Rust · Local Metal GPU)';
 
-          const optMistralAuto = document.createElement('option');
-          optMistralAuto.value = 'mistralrs:auto';
-          optMistralAuto.textContent = '⚡ Mistral.rs · Auto (Active Engine)';
-          grpMistral.appendChild(optMistralAuto);
-
-          const optMistralQwen3 = document.createElement('option');
-          optMistralQwen3.value = 'mistralrs:qwen3-0.6b';
-          optMistralQwen3.textContent = '⚡ Mistral.rs · Qwen 3 0.6B (Fast)';
-          grpMistral.appendChild(optMistralQwen3);
-
-          const optMistral1 = document.createElement('option');
-          optMistral1.value = 'mistralrs:qwen2.5-coder-1.5b';
-          optMistral1.textContent = '⚡ Mistral.rs · Qwen 2.5 Coder 1.5B';
-          grpMistral.appendChild(optMistral1);
-
-          const optMistral2 = document.createElement('option');
-          optMistral2.value = 'mistralrs:qwen2.5-coder-3b';
-          optMistral2.textContent = '🧠 Mistral.rs · Qwen 2.5 Coder 3B';
-          grpMistral.appendChild(optMistral2);
-
-          modelSelect.appendChild(grpMistral);
-
-          // Local GGUF models on disk
           if (data.localModels && data.localModels.length) {
-            const group = document.createElement('optgroup');
-            group.label = '📦 Local GGUF Models (~/.meowtrix/models)';
             data.localModels.forEach(m => {
               const opt = document.createElement('option');
-              opt.value = `local:${m.filename}`;
-              opt.textContent = `📦 ${m.filename} (${m.sizeMb} MB)`;
-              group.appendChild(opt);
+              opt.value = `mistralrs:${m.filename}`;
+              const friendly = getFriendlyModelName(m.filename, data.recommendedModels);
+              opt.textContent = `⚡ ${friendly} (${m.sizeMb} MB) · Ready`;
+              grpMistral.appendChild(opt);
             });
-            modelSelect.appendChild(group);
+          } else {
+            const optEmpty = document.createElement('option');
+            optEmpty.value = 'mistralrs:none';
+            optEmpty.disabled = true;
+            optEmpty.textContent = '⚡ (No local GGUF models installed)';
+            grpMistral.appendChild(optEmpty);
+          }
+          modelSelect.appendChild(grpMistral);
+
+          // 2. Uninstalled Recommended Models (Click to download directly)
+          const uninstalled = (data.recommendedModels || []).filter(rec => !isModelInstalled(rec, data.localModels));
+          if (uninstalled.length > 0) {
+            const grpDl = document.createElement('optgroup');
+            grpDl.label = '📥 Download Models (~/.meowtrix/models)';
+            uninstalled.forEach(rec => {
+              const opt = document.createElement('option');
+              opt.value = `download:${rec.id}`;
+              opt.textContent = `📥 Download ${rec.name}`;
+              grpDl.appendChild(opt);
+            });
+            modelSelect.appendChild(grpDl);
           }
 
-          // Ollama detected models
+          // 3. Ollama detected models
           const ollamaEngine = (data.engines || []).find(e => e.id === 'ollama');
           const groupOllama = document.createElement('optgroup');
           groupOllama.label = '🦙 Ollama Provider';
@@ -383,7 +405,7 @@
           }
           modelSelect.appendChild(groupOllama);
 
-          // Cloud & Download option
+          // 4. Cloud API option
           const groupCloud = document.createElement('optgroup');
           groupCloud.label = '☁️ Cloud LLM / OpenAI Compatible';
           const optCloud = document.createElement('option');
@@ -395,20 +417,18 @@
           groupCloud.appendChild(optCloud);
           modelSelect.appendChild(groupCloud);
 
-          const optDl = document.createElement('option');
-          optDl.value = 'download';
-          optDl.textContent = '📥 Download Recommended Model...';
-          modelSelect.appendChild(optDl);
-
-          // Restore selection or pick matching configured engine
-          if (currentVal && [...modelSelect.options].some(o => o.value === currentVal)) {
+          // Restore selection or pick first available installed model
+          if (currentVal && !currentVal.startsWith('download:') && [...modelSelect.options].some(o => o.value === currentVal && !o.disabled)) {
             modelSelect.value = currentVal;
+          } else if (data.localModels && data.localModels.length > 0) {
+            modelSelect.value = `mistralrs:${data.localModels[0].filename}`;
           } else if (data.selectedEngine === 'cloud') {
             modelSelect.value = 'cloud:default';
           } else if (data.selectedEngine === 'ollama') {
             modelSelect.value = groupOllama.children[0]?.value || 'ollama:default';
           } else {
-            modelSelect.value = 'mistralrs:auto';
+            const firstValid = [...modelSelect.options].find(o => !o.disabled && !o.value.startsWith('download:'));
+            if (firstValid) modelSelect.value = firstValid.value;
           }
 
           updateSpecEngineDisplay();
@@ -419,18 +439,27 @@
     function updateSpecEngineDisplay() {
       if (!specEngineEl) return;
       const parts = modelSelect.value.split(':');
-      if (parts[0] === 'mistralrs') specEngineEl.textContent = `Mistral.rs (${parts[1] || 'auto'})`;
-      else if (parts[0] === 'ollama') specEngineEl.textContent = `Ollama (${parts[1] || 'bridge'})`;
-      else if (parts[0] === 'cloud') specEngineEl.textContent = `Cloud API (${parts[1] || 'custom'})`;
-      else if (parts[0] === 'local') specEngineEl.textContent = `GGUF (${parts[1] || 'file'})`;
-      else specEngineEl.textContent = parts[0];
+      if (parts[0] === 'mistralrs') {
+        const friendly = getFriendlyModelName(parts[1], lastRecommendedModels);
+        specEngineEl.textContent = `Mistral.rs (${friendly})`;
+      } else if (parts[0] === 'ollama') {
+        specEngineEl.textContent = `Ollama (${parts[1] || 'bridge'})`;
+      } else if (parts[0] === 'cloud') {
+        specEngineEl.textContent = `Cloud API (${parts[1] || 'custom'})`;
+      } else if (parts[0] === 'local') {
+        specEngineEl.textContent = `GGUF (${parts[1] || 'file'})`;
+      } else if (parts[0] === 'download') {
+        specEngineEl.textContent = 'Downloading...';
+      } else {
+        specEngineEl.textContent = parts[0];
+      }
     }
 
     modelSelect.addEventListener('change', () => {
-      if (modelSelect.value === 'download') {
-        downloadBar.style.display = 'block';
-      } else {
-        downloadBar.style.display = 'none';
+      const val = modelSelect.value;
+      if (val.startsWith('download:')) {
+        const modelId = val.slice(9);
+        startModelDownload(modelId);
       }
       updateSpecEngineDisplay();
     });
@@ -440,16 +469,6 @@
     // Mode Toggle
     modeToggleBtn.addEventListener('click', () => {
       setMode(tab.mode === 'autonomous' ? 'supervised' : 'autonomous', true);
-    });
-
-    // Model Selector Change
-    modelSelect.addEventListener('change', () => {
-      const val = modelSelect.value;
-      if (val === 'download') {
-        startModelDownload('qwen2.5-coder-1.5b');
-        return;
-      }
-      specEngineEl.textContent = val.split(':')[0].toUpperCase();
     });
 
     // Directory Selector Button
@@ -510,6 +529,10 @@
       downloadBar.style.display = 'block';
       downloadFill.style.width = '0%';
       downloadPercent.textContent = '0%';
+      const titleEl = downloadBar.querySelector('.agent-download-title');
+      const rec = (lastRecommendedModels || []).find(r => r.id === modelId);
+      const displayName = rec ? rec.name.replace(/\s*\(.*\)/, '').trim() : modelId;
+      if (titleEl) titleEl.textContent = `Downloading ${displayName}...`;
 
       fetch('/api/ai/download', {
         method: 'POST',
@@ -538,6 +561,12 @@
                   }
                   if (data.completed) {
                     downloadPercent.textContent = 'Complete!';
+                    setTimeout(() => {
+                      downloadBar.style.display = 'none';
+                      const downloadedFile = data.filename || (rec && rec.filename) || modelId;
+                      refreshModels(`mistralrs:${downloadedFile}`);
+                    }, 1200);
+                    return;
                   }
                 } catch {}
               }
@@ -657,8 +686,16 @@
       const contentEl = assistantCard.querySelector('.agent-card-content');
 
       const parts = modelSelect.value.split(':');
-      const engine = parts[0];
-      const model = parts[1] || 'default';
+      let engine = parts[0];
+      let model = parts[1] || 'default';
+      if (engine === 'local') {
+        engine = 'mistralrs';
+      }
+      if (engine === 'download') {
+        contentEl.innerHTML = renderMarkdown('⚠️ The selected model is currently downloading. Please wait for the download to finish or select a ready model.');
+        finishTask();
+        return;
+      }
 
       fetch('/api/ai/agent/run', {
         method: 'POST',
