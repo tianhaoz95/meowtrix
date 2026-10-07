@@ -580,15 +580,22 @@ pub fn start_ai_server(
         });
     }
 
-    let tokio_listener = tokio::net::TcpListener::from_std(std_listener)?;
     let app_handle_clone = app_handle;
     tauri::async_runtime::spawn(async move {
+        let tokio_listener = match tokio::net::TcpListener::from_std(std_listener) {
+            Ok(l) => l,
+            Err(e) => {
+                log::error!("Failed to register AI TCP listener with Tokio runtime: {e}");
+                return;
+            }
+        };
+
         loop {
             match tokio_listener.accept().await {
                 Ok((stream, _addr)) => {
                     let eng = Arc::clone(&engine);
                     let handle = app_handle_clone.clone();
-                    tokio::spawn(async move {
+                    tauri::async_runtime::spawn(async move {
                         if let Err(e) = handle_http_connection(stream, eng, handle).await {
                             log::warn!("AI HTTP connection error: {e}");
                         }
