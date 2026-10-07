@@ -151,12 +151,28 @@ echo "    clean"
 echo "==> building a DMG from the signed app"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
+mdutil -i off "$STAGE" >/dev/null 2>&1 || true
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 mkdir -p "$(dirname "$OUT_DMG")"
 rm -f "$OUT_DMG"
-hdiutil create -volname "$VOLUME_NAME" -srcfolder "$STAGE" \
-  -ov -format UDZO "$OUT_DMG" >/dev/null
+
+dmg_success=0
+for i in 1 2 3 4 5; do
+  if hdiutil create -volname "$VOLUME_NAME" -srcfolder "$STAGE" \
+    -ov -format UDZO "$OUT_DMG" >/dev/null 2>&1; then
+    dmg_success=1
+    break
+  fi
+  echo "    hdiutil create attempt $i failed (Resource busy), retrying in 2s..."
+  sleep 2
+done
+if [ "$dmg_success" -ne 1 ]; then
+  # Final attempt with verbose error output if it still fails
+  hdiutil create -volname "$VOLUME_NAME" -srcfolder "$STAGE" \
+    -ov -format UDZO "$OUT_DMG"
+fi
+
 codesign --force --sign "$IDENTITY" --timestamp "$OUT_DMG"
 echo "    $OUT_DMG"
 
