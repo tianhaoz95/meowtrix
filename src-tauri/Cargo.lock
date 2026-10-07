@@ -3537,8 +3537,9 @@ dependencies = [
 
 [[package]]
 name = "meowtrix"
-version = "1.23.2"
+version = "1.23.3"
 dependencies = [
+ "anyhow",
  "log",
  "mistralrs",
  "serde",
@@ -3548,6 +3549,7 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "tokio",
 ]
 
 [[package]]

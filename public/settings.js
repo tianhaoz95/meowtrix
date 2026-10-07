@@ -428,6 +428,19 @@ function populateControls(s) {
   document.getElementById('s-gpu-monitor').checked = s.gpuMonitor === true;
   document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
 
+  const aiEngineSel = document.getElementById('s-ai-engine');
+  if (aiEngineSel) aiEngineSel.value = s.aiSelectedEngine || 'mistralrs';
+  const aiApiKey = document.getElementById('s-ai-cloud-api-key');
+  if (aiApiKey) aiApiKey.value = s.aiCloudApiKey || '';
+  const aiBaseUrl = document.getElementById('s-ai-cloud-base-url');
+  if (aiBaseUrl) aiBaseUrl.value = s.aiCloudBaseUrl || 'https://api.openai.com/v1';
+  const aiCloudModel = document.getElementById('s-ai-cloud-model');
+  if (aiCloudModel) aiCloudModel.value = s.aiCloudModel || 'gpt-4o';
+  const aiOllamaUrl = document.getElementById('s-ai-ollama-url');
+  if (aiOllamaUrl) aiOllamaUrl.value = s.aiOllamaUrl || 'http://127.0.0.1:11434';
+  const aiOllamaModel = document.getElementById('s-ai-ollama-model');
+  if (aiOllamaModel) aiOllamaModel.value = s.aiOllamaModel || '';
+
   const chkNetworkServing = document.getElementById('s-network-serving');
   if (chkNetworkServing) {
     chkNetworkServing.checked = s.networkServing === true;
@@ -715,6 +728,46 @@ function wireControls() {
   s('s-https-proxy', 'httpsProxy');
   s('s-ui-mode', 'uiMode');
   s('s-menu-button-mode', 'menuButtonMode');
+
+  s('s-ai-engine', 'aiSelectedEngine');
+  s('s-ai-cloud-api-key', 'aiCloudApiKey');
+  s('s-ai-cloud-base-url', 'aiCloudBaseUrl');
+  s('s-ai-cloud-model', 'aiCloudModel');
+  s('s-ai-ollama-url', 'aiOllamaUrl');
+  s('s-ai-ollama-model', 'aiOllamaModel');
+
+  const btnTestOllama = document.getElementById('btn-test-ollama');
+  if (btnTestOllama) {
+    btnTestOllama.addEventListener('click', async () => {
+      const statusEl = document.getElementById('s-ollama-status');
+      const url = document.getElementById('s-ai-ollama-url')?.value?.trim() || 'http://127.0.0.1:11434';
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--text3)';
+        statusEl.textContent = 'Testing connection to ' + url + '...';
+      }
+      try {
+        const res = await fetch('/api/ai/test-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'ollama', url })
+        });
+        const data = await res.json();
+        if (data.available) {
+          statusEl.style.color = '#34d399';
+          statusEl.textContent = `Connected! ${data.models?.length || 0} models found: ${(data.models || []).slice(0, 3).join(', ')}${data.models?.length > 3 ? '...' : ''}`;
+        } else {
+          statusEl.style.color = '#f87171';
+          statusEl.textContent = `Could not reach Ollama: ${data.error || 'Server offline'}`;
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.style.color = '#f87171';
+          statusEl.textContent = 'Error testing connection: ' + err.message;
+        }
+      }
+    });
+  }
 
   document.getElementById('s-combo-fx').addEventListener('change', async (e) => {
     await saveSetting('comboFx', e.target.checked);

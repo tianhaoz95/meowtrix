@@ -116,6 +116,9 @@
             <button class="agent-btn agent-btn-toggle" id="agent-mode-toggle-${tab.id}" title="Switch between Autonomous and Supervised (Confirm tool actions)">
               <span class="agent-btn-icon">⚡</span> <span class="agent-mode-label">Autonomous</span>
             </button>
+            <button class="agent-btn agent-settings-btn" id="agent-settings-btn-${tab.id}" title="Configure AI & LLM Providers (Cloud API Key, Ollama Host, etc.)">
+              <span class="agent-btn-icon">⚙️</span> Providers
+            </button>
           </div>
           <div class="agent-header-right">
             <button class="agent-btn agent-dir-btn" id="agent-dir-btn-${tab.id}" title="Current working directory">
@@ -235,6 +238,7 @@
     const modelSelect = viewEl.querySelector(`#agent-model-select-${tab.id}`);
     const modeToggleBtn = viewEl.querySelector(`#agent-mode-toggle-${tab.id}`);
     const modeLabel = modeToggleBtn.querySelector('.agent-mode-label');
+    const settingsBtn = viewEl.querySelector(`#agent-settings-btn-${tab.id}`);
     const dirBtn = viewEl.querySelector(`#agent-dir-btn-${tab.id}`);
     const dirLabel = dirBtn.querySelector('.agent-dir-label');
     const clearBtn = viewEl.querySelector(`#agent-clear-btn-${tab.id}`);
@@ -253,6 +257,13 @@
     const downloadBar = viewEl.querySelector(`#agent-download-bar-${tab.id}`);
     const downloadPercent = viewEl.querySelector(`#agent-download-percent-${tab.id}`);
     const downloadFill = viewEl.querySelector(`#agent-download-fill-${tab.id}`);
+
+    // Wire Settings Button
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        if (typeof openSettings === 'function') openSettings();
+      });
+    }
 
     // Update Directory Label
     function updateDirLabel(dir) {
@@ -278,23 +289,39 @@
         .then(r => r.json())
         .then(data => {
           if (!data) return;
+          const currentVal = modelSelect.value;
           modelSelect.innerHTML = '';
 
           // Built-in Native Mistral.rs
+          const grpMistral = document.createElement('optgroup');
+          grpMistral.label = '⚡ Mistral.rs (Native Rust)';
+
+          const optMistralAuto = document.createElement('option');
+          optMistralAuto.value = 'mistralrs:auto';
+          optMistralAuto.textContent = '⚡ Mistral.rs · Auto (Active Engine)';
+          grpMistral.appendChild(optMistralAuto);
+
+          const optMistralQwen3 = document.createElement('option');
+          optMistralQwen3.value = 'mistralrs:qwen3-0.6b';
+          optMistralQwen3.textContent = '⚡ Mistral.rs · Qwen 3 0.6B (Fast)';
+          grpMistral.appendChild(optMistralQwen3);
+
           const optMistral1 = document.createElement('option');
           optMistral1.value = 'mistralrs:qwen2.5-coder-1.5b';
-          optMistral1.textContent = '⚡ Mistral.rs (Native Rust) · Qwen 2.5 Coder 1.5B';
-          modelSelect.appendChild(optMistral1);
+          optMistral1.textContent = '⚡ Mistral.rs · Qwen 2.5 Coder 1.5B';
+          grpMistral.appendChild(optMistral1);
 
           const optMistral2 = document.createElement('option');
           optMistral2.value = 'mistralrs:qwen2.5-coder-3b';
-          optMistral2.textContent = '🧠 Mistral.rs (Native Rust) · Qwen 2.5 Coder 3B';
-          modelSelect.appendChild(optMistral2);
+          optMistral2.textContent = '🧠 Mistral.rs · Qwen 2.5 Coder 3B';
+          grpMistral.appendChild(optMistral2);
+
+          modelSelect.appendChild(grpMistral);
 
           // Local GGUF models on disk
           if (data.localModels && data.localModels.length) {
             const group = document.createElement('optgroup');
-            group.label = 'Local GGUF Models (~/.meowtrix/models)';
+            group.label = '📦 Local GGUF Models (~/.meowtrix/models)';
             data.localModels.forEach(m => {
               const opt = document.createElement('option');
               opt.value = `local:${m.filename}`;
@@ -306,31 +333,76 @@
 
           // Ollama detected models
           const ollamaEngine = (data.engines || []).find(e => e.id === 'ollama');
+          const groupOllama = document.createElement('optgroup');
+          groupOllama.label = '🦙 Ollama Provider';
           if (ollamaEngine && ollamaEngine.available && ollamaEngine.models && ollamaEngine.models.length) {
-            const group = document.createElement('optgroup');
-            group.label = 'Ollama (Local Bridge)';
             ollamaEngine.models.forEach(m => {
               const opt = document.createElement('option');
               opt.value = `ollama:${m}`;
-              opt.textContent = `🦙 ${m}`;
-              group.appendChild(opt);
+              opt.textContent = `🦙 Ollama · ${m}`;
+              groupOllama.appendChild(opt);
             });
-            modelSelect.appendChild(group);
+          } else {
+            const optOllamaDefault = document.createElement('option');
+            optOllamaDefault.value = 'ollama:default';
+            optOllamaDefault.textContent = ollamaEngine && ollamaEngine.available
+              ? '🦙 Ollama (Ready)'
+              : '🦙 Ollama (Configure Host in Settings)';
+            groupOllama.appendChild(optOllamaDefault);
           }
+          modelSelect.appendChild(groupOllama);
 
           // Cloud & Download option
+          const groupCloud = document.createElement('optgroup');
+          groupCloud.label = '☁️ Cloud LLM / OpenAI Compatible';
           const optCloud = document.createElement('option');
-          optCloud.value = 'cloud:custom';
-          optCloud.textContent = '☁️ Cloud / OpenAI-Compatible Endpoint';
-          modelSelect.appendChild(optCloud);
+          optCloud.value = 'cloud:default';
+          const cloudEngine = (data.engines || []).find(e => e.id === 'cloud');
+          optCloud.textContent = cloudEngine && cloudEngine.available
+            ? `☁️ Cloud API · ${cloudEngine.model || 'OpenAI'}`
+            : '☁️ Cloud / OpenAI Compatible (Configure Key)';
+          groupCloud.appendChild(optCloud);
+          modelSelect.appendChild(groupCloud);
 
           const optDl = document.createElement('option');
           optDl.value = 'download';
           optDl.textContent = '📥 Download Recommended Model...';
           modelSelect.appendChild(optDl);
+
+          // Restore selection or pick matching configured engine
+          if (currentVal && [...modelSelect.options].some(o => o.value === currentVal)) {
+            modelSelect.value = currentVal;
+          } else if (data.selectedEngine === 'cloud') {
+            modelSelect.value = 'cloud:default';
+          } else if (data.selectedEngine === 'ollama') {
+            modelSelect.value = groupOllama.children[0]?.value || 'ollama:default';
+          } else {
+            modelSelect.value = 'mistralrs:auto';
+          }
+
+          updateSpecEngineDisplay();
         })
         .catch(() => {});
     }
+
+    function updateSpecEngineDisplay() {
+      if (!specEngineEl) return;
+      const parts = modelSelect.value.split(':');
+      if (parts[0] === 'mistralrs') specEngineEl.textContent = `Mistral.rs (${parts[1] || 'auto'})`;
+      else if (parts[0] === 'ollama') specEngineEl.textContent = `Ollama (${parts[1] || 'bridge'})`;
+      else if (parts[0] === 'cloud') specEngineEl.textContent = `Cloud API (${parts[1] || 'custom'})`;
+      else if (parts[0] === 'local') specEngineEl.textContent = `GGUF (${parts[1] || 'file'})`;
+      else specEngineEl.textContent = parts[0];
+    }
+
+    modelSelect.addEventListener('change', () => {
+      if (modelSelect.value === 'download') {
+        downloadBar.style.display = 'block';
+      } else {
+        downloadBar.style.display = 'none';
+      }
+      updateSpecEngineDisplay();
+    });
 
     refreshModels();
 
@@ -734,5 +806,9 @@
 
       diffListEl.appendChild(card);
     }
+
+    tab.onActivate = () => {
+      refreshModels();
+    };
   }
 })();

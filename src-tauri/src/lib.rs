@@ -13,11 +13,22 @@ use tauri::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
+
+    if args.iter().any(|arg| arg == "infer" || arg == "--infer") {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to start Tokio runtime for CLI inference");
+        if let Err(e) = rt.block_on(ai::run_cli_infer(&args)) {
+            eprintln!("Error running inference: {e:#}");
+            std::process::exit(1);
+        }
+        std::process::exit(0);
+    }
+
     let is_headless = args.iter().any(|arg| arg == "--headless" || arg == "daemon");
 
     let server_manager = ServerManager::new();
-    let ai_engine: SharedAiEngine = Arc::new(Mutex::new(AiEngine::new()));
+    let ai_engine: SharedAiEngine = Arc::new(tokio::sync::Mutex::new(AiEngine::new()));
 
+    let ai_engine_clone = Arc::clone(&ai_engine);
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -32,12 +43,17 @@ pub fn run() {
                 )?;
             }
 
-            // Ensure the backend server is running
+            // Start native Mistral.rs AI daemon on free or preferred port
+            let ai_port = ai::start_ai_server(ai_engine_clone, 9124, Some(app.handle().clone()))
+                .map_err(|e| Box::<dyn std::error::Error>::from(e))?;
+            log::info!("AI inference daemon listening on port {ai_port}");
+
+            // Ensure the backend server is running, passing ai_port to Node
             let state = app.state::<ServerState>();
             let port = {
                 let mut manager = state.lock().unwrap();
                 manager
-                    .ensure_started(app.handle())
+                    .ensure_started(app.handle(), ai_port)
                     .map_err(|e| Box::<dyn std::error::Error>::from(e))?
             };
 

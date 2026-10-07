@@ -1,6 +1,6 @@
 [package]
 name = "meowtrix"
-version = "1.23.2"
+version = "1.23.3"
 description = "Meowtrix Desktop — browser-based remote workspace"
 authors = ["Tianhao Zhou"]
 license = "MIT"
@@ -24,3 +24,5 @@ tauri-plugin-log = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 mistralrs = { version = "0.8.1", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util", "net"] }
+anyhow = "1.0"

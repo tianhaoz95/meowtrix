@@ -112,6 +112,12 @@ const DEFAULT_SETTINGS = {
   showToolButtons: true, // show/hide tool group buttons together
   showZoomButtons: true, // show/hide zoom group buttons together
   showSystemButtons: true, // show/hide system group buttons together
+  aiCloudApiKey: '', // OpenAI / Cloud API key
+  aiCloudBaseUrl: 'https://api.openai.com/v1', // Base URL for OpenAI-compatible endpoint
+  aiCloudModel: 'gpt-4o', // Default Cloud model
+  aiOllamaUrl: 'http://127.0.0.1:11434', // Ollama base URL
+  aiOllamaModel: '', // Ollama default model override
+  aiSelectedEngine: 'mistralrs', // Default AI engine: 'mistralrs' | 'ollama' | 'cloud'
   savedCommands: {
     "status": "git status",
     "log": "git log --oneline -n 10",
@@ -2142,35 +2148,130 @@ async function applyUpdate() {
   return { ok: true, output, depsChanged, restarting: IS_SUPERVISED };
 }
 
+function getDesktopDaemonPort() {
+  if (process.env.MISTRALRS_PORT) {
+    const p = parseInt(process.env.MISTRALRS_PORT, 10);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  try {
+    const portFile = path.join(MEOWTRIX_DATA_DIR, 'ai_port');
+    if (fs.existsSync(portFile)) {
+      const p = parseInt(fs.readFileSync(portFile, 'utf8').trim(), 10);
+      if (!isNaN(p) && p > 0) return p;
+    }
+  } catch {}
+  return null;
+}
+
+function probeDesktopDaemon(p) {
+  return new Promise(resolve => {
+    const port = p || getDesktopDaemonPort();
+    if (!port) return resolve({ available: false });
+    const req = http.get(`http://127.0.0.1:${port}/health`, { timeout: 800 }, res => {
+      resolve({ available: res.statusCode === 200, port });
+    });
+    req.on('error', () => resolve({ available: false }));
+    req.on('timeout', () => { req.destroy(); resolve({ available: false }); });
+  });
+}
+
 app.get('/api/update/check', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  if (daemon.available) {
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        http.get(`http://127.0.0.1:${daemon.port}/update/check`, { timeout: 15000 }, r => {
+          let data = '';
+          r.on('data', c => data += c);
+          r.on('end', () => resolve(JSON.parse(data)));
+        }).on('error', reject);
+      });
+      res.json(resp);
+      return;
+    } catch (e) {
+      console.warn('[Update] Desktop daemon update check error:', e.message);
+    }
+  }
+
   const info = await checkForUpdate({ fetch: true });
   res.json(info);
   broadcastUpdate();
 });
 
 app.post('/api/update/apply', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  if (daemon.available) {
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        const r = http.request({
+          hostname: '127.0.0.1',
+          port: daemon.port,
+          path: '/update/apply',
+          method: 'POST',
+          timeout: 60000
+        }, res => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => resolve(JSON.parse(data)));
+        });
+        r.on('error', reject);
+        r.end();
+      });
+      res.json(resp);
+      return;
+    } catch (e) {
+      console.warn('[Update] Desktop daemon update apply error:', e.message);
+    }
+  }
+
   const result = await applyUpdate();
   res.json(result);
-  // Exit only when supervised, and only after the response has had a moment to
-  // flush — the supervisor relaunches us on the freshly pulled code.
-  // Note: if the service itself was reloaded/restarted, the process will be terminated by the service manager.
   if (result.ok && IS_SUPERVISED && !result.output.includes('service')) {
     setTimeout(() => process.exit(0), 500);
   }
 });
 
-// ── Full restart ─────────────────────────────────────────────────────────────
-// Relaunch the server in place by exiting cleanly and letting the supervisor
-// (launchd KeepAlive / systemd Restart=always) bring it back up on the same
-// code. Only meaningful when supervised — a bare `meowtrix` launcher has nothing
-// to restart it, so we report supervised:false and the client hides the option.
-// GET reports availability (so the UI can gate the control); POST does the exit.
-// Same no-auth stance as the rest of the app: anyone reachable already has a
-// shell here, and a restart only kills the in-memory PTYs (no new capability).
-app.get('/api/restart', (req, res) => res.json({ supervised: IS_SUPERVISED }));
-app.post('/api/restart', (req, res) => {
-  res.json({ ok: IS_SUPERVISED, supervised: IS_SUPERVISED, restarting: IS_SUPERVISED });
-  if (IS_SUPERVISED) setTimeout(() => process.exit(0), 500);
+app.get('/api/restart', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  res.json({
+    supervised: IS_SUPERVISED || daemon.available,
+    restarting: false,
+    isDesktop: daemon.available
+  });
+});
+
+app.post('/api/restart', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  if (daemon.available) {
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        const r = http.request({
+          hostname: '127.0.0.1',
+          port: daemon.port,
+          path: '/restart',
+          method: 'POST',
+          timeout: 5000
+        }, res => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => resolve(JSON.parse(data)));
+        });
+        r.on('error', reject);
+        r.end();
+      });
+      res.json(resp);
+      return;
+    } catch (e) {
+      console.warn('[Restart] Desktop daemon restart error:', e.message);
+    }
+  }
+
+  if (!IS_SUPERVISED) {
+    res.json({ ok: false, restarting: false, reason: 'unsupervised' });
+    return;
+  }
+  res.json({ ok: true, restarting: true });
+  setTimeout(() => process.exit(0), 500);
 });
 
 // Background check: shortly after boot, then hourly. Honors the autoUpdate

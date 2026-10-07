@@ -322,6 +322,52 @@
             <span class="settings-chevron">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </span>
+            AI & LLM Providers
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-ai-engine">Default Engine</label>
+              <select id="s-ai-engine">
+                <option value="mistralrs">⚡ Mistral.rs (Native Rust on Metal/CUDA/CPU)</option>
+                <option value="ollama">🦙 Ollama (Local bridge / Custom host)</option>
+                <option value="cloud">☁️ Cloud / OpenAI-compatible endpoint</option>
+              </select>
+            </div>
+            
+            <div style="font-weight: 600; font-size: 11.5px; color: var(--accent); margin-top: 10px; margin-bottom: 2px;">Cloud / OpenAI-Compatible Endpoint</div>
+            <div class="settings-row">
+              <label for="s-ai-cloud-api-key">API Key</label>
+              <input type="password" id="s-ai-cloud-api-key" placeholder="sk-..." autocomplete="off">
+            </div>
+            <div class="settings-row">
+              <label for="s-ai-cloud-base-url">Base URL</label>
+              <input type="text" id="s-ai-cloud-base-url" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="settings-row">
+              <label for="s-ai-cloud-model">Model Name</label>
+              <input type="text" id="s-ai-cloud-model" placeholder="gpt-4o, claude-3-5-sonnet, deepseek-chat">
+            </div>
+
+            <div style="font-weight: 600; font-size: 11.5px; color: var(--accent); margin-top: 14px; margin-bottom: 2px;">Ollama Provider</div>
+            <div class="settings-row">
+              <label for="s-ai-ollama-url">Ollama Host / URL</label>
+              <input type="text" id="s-ai-ollama-url" placeholder="http://127.0.0.1:11434">
+            </div>
+            <div class="settings-row">
+              <label for="s-ai-ollama-model">Default Model</label>
+              <input type="text" id="s-ai-ollama-model" placeholder="e.g. qwen2.5-coder, llama3.2">
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+              <button id="btn-test-ollama" type="button" style="padding: 5px 10px; border-radius: 7px; background: var(--bg4); border: 1px solid var(--border); color: var(--text); font-size: 11.5px; cursor: pointer;">Test Ollama Connection</button>
+            </div>
+            <div id="s-ollama-status" class="settings-note" style="margin-top: 4px; display: none;"></div>
+          </div>
+        </details>
+        <details class="settings-section" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
             Saved Commands
           </summary>
           <div class="settings-section-content">

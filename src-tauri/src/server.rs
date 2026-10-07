@@ -53,7 +53,7 @@ impl ServerManager {
     ///   with instance-scoped data storage so multiple instances or existing servers never conflict.
     /// - In Lite mode: Connects to an existing server on port 9123, or launches a local server if
     ///   development files are present.
-    pub fn ensure_started(&mut self, app: &AppHandle) -> Result<u16, String> {
+    pub fn ensure_started(&mut self, app: &AppHandle, ai_port: u16) -> Result<u16, String> {
         let is_standalone = matches!(self.detect_mode(app), AppMode::Standalone { .. });
 
         if is_standalone {
@@ -91,11 +91,12 @@ impl ServerManager {
             let _ = std::fs::create_dir_all(&data_dir);
 
             log::info!(
-                "[Standalone] Spawning embedded server: Port={}, Node={:?}, ServerDir={:?}, DataDir={:?}",
+                "[Standalone] Spawning embedded server: Port={}, Node={:?}, ServerDir={:?}, DataDir={:?}, AiPort={}",
                 self.port,
                 node_bin,
                 server_dir,
-                data_dir
+                data_dir,
+                ai_port
             );
 
             let child = Command::new(&node_bin)
@@ -103,6 +104,7 @@ impl ServerManager {
                 .env("PORT", self.port.to_string())
                 .env("HOST", "127.0.0.1")
                 .env("MEOWTRIX_DATA_DIR", &data_dir)
+                .env("MISTRALRS_PORT", ai_port.to_string())
                 .current_dir(&server_dir)
                 .spawn()
                 .map_err(|e| format!("Failed to spawn embedded Node server: {e}"))?;
@@ -149,15 +151,17 @@ impl ServerManager {
                 .to_path_buf();
 
             log::info!(
-                "[Lite] Spawning host server using Node: {:?}, Script: {:?}",
+                "[Lite] Spawning host server using Node: {:?}, Script: {:?}, AiPort: {}",
                 node_bin,
-                server_script
+                server_script,
+                ai_port
             );
 
             let child = Command::new(&node_bin)
                 .arg(&server_script)
                 .env("PORT", DEFAULT_PORT.to_string())
                 .env("HOST", "127.0.0.1")
+                .env("MISTRALRS_PORT", ai_port.to_string())
                 .current_dir(&work_dir)
                 .spawn()
                 .map_err(|e| format!("Failed to spawn Node server: {e}"))?;

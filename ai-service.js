@@ -23,6 +23,13 @@ if (!fs.existsSync(AGENT_SESSIONS_DIR)) fs.mkdirSync(AGENT_SESSIONS_DIR, { recur
 // Recommended lightweight models optimized for code and low RAM usage
 const RECOMMENDED_MODELS = [
   {
+    id: 'qwen3-0.6b',
+    name: 'Qwen 3 0.6B (Ultra-fast, ~378 MB)',
+    filename: 'qwen3-0.6b-q4_k_m.gguf',
+    url: 'https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf',
+    sizeBytes: 396000000
+  },
+  {
     id: 'qwen2.5-coder-1.5b',
     name: 'Qwen 2.5 Coder 1.5B (Fast, ~1.0 GB)',
     filename: 'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf',
@@ -54,42 +61,97 @@ const activeDownloads = new Map();
 // ── Model Discovery ──────────────────────────────────────────────────────────
 
 function getLocalModels() {
+  const models = [];
   try {
-    const files = fs.readdirSync(MODELS_DIR);
-    return files
-      .filter(f => f.endsWith('.gguf') || f.endsWith('.bin') || f.endsWith('.safetensors'))
-      .map(f => {
-        const stat = fs.statSync(path.join(MODELS_DIR, f));
-        return {
-          filename: f,
-          sizeMb: Math.round(stat.size / (1024 * 1024)),
-          path: path.join(MODELS_DIR, f)
-        };
-      });
-  } catch (err) {
-    return [];
-  }
+    if (fs.existsSync(MODELS_DIR)) {
+      const files = fs.readdirSync(MODELS_DIR);
+      for (const f of files) {
+        if (f.endsWith('.gguf') || f.endsWith('.bin') || f.endsWith('.safetensors')) {
+          const stat = fs.statSync(path.join(MODELS_DIR, f));
+          models.push({
+            filename: f,
+            sizeMb: Math.round(stat.size / (1024 * 1024)),
+            path: path.join(MODELS_DIR, f)
+          });
+        }
+      }
+    }
+  } catch {}
+
+  // Also check HF cache for locally cached GGUF models
+  try {
+    const hfCache = path.join(os.homedir(), '.cache', 'huggingface', 'hub');
+    if (fs.existsSync(hfCache)) {
+      const repos = fs.readdirSync(hfCache);
+      for (const repo of repos) {
+        const snaps = path.join(hfCache, repo, 'snapshots');
+        if (fs.existsSync(snaps)) {
+          const snapDirs = fs.readdirSync(snaps);
+          for (const s of snapDirs) {
+            const snapPath = path.join(snaps, s);
+            const files = fs.readdirSync(snapPath);
+            for (const f of files) {
+              if (f.endsWith('.gguf') && !models.some(m => m.filename === f)) {
+                const stat = fs.statSync(path.join(snapPath, f));
+                models.push({
+                  filename: f,
+                  sizeMb: Math.round(stat.size / (1024 * 1024)),
+                  path: path.join(snapPath, f)
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  return models;
 }
 
-// Check if local Ollama daemon is reachable
-function checkOllama() {
+// Read persisted Meowtrix settings
+function getMeowtrixSettings() {
+  try {
+    const file = path.join(MEOWTRIX_DATA_DIR, 'settings.json');
+    if (fs.existsSync(file)) {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    }
+  } catch {}
+  return {};
+}
+
+// Check if Ollama daemon is reachable
+function checkOllama(customUrl) {
   return new Promise(resolve => {
-    const req = http.get('http://127.0.0.1:11434/api/tags', { timeout: 1200 }, res => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          resolve({ available: true, models: (json.models || []).map(m => m.name) });
-        } catch {
-          resolve({ available: true, models: [] });
-        }
+    const settings = getMeowtrixSettings();
+    let urlStr = customUrl || settings.aiOllamaUrl || process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+      urlStr = 'http://' + urlStr;
+    }
+    urlStr = urlStr.replace(/\/$/, '') + '/api/tags';
+    try {
+      const parsed = new URL(urlStr);
+      const transport = parsed.protocol === 'https:' ? https : http;
+      const req = transport.get(parsed, { timeout: 2500 }, res => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            resolve({ available: true, models: (json.models || []).map(m => m.name), url: urlStr });
+          } catch {
+            resolve({ available: true, models: [], url: urlStr });
+          }
+        });
       });
-    });
-    req.on('error', () => resolve({ available: false, models: [] }));
-    req.on('timeout', () => { req.destroy(); resolve({ available: false, models: [] }); });
+      req.on('error', (err) => resolve({ available: false, error: err.message, models: [], url: urlStr }));
+      req.on('timeout', () => { req.destroy(); resolve({ available: false, error: 'Connection timed out', models: [], url: urlStr }); });
+    } catch (err) {
+      resolve({ available: false, error: err.message, models: [], url: urlStr });
+    }
   });
 }
+
 
 // ── Unified Diff Generator ───────────────────────────────────────────────────
 
@@ -263,44 +325,58 @@ async function executeTool(toolName, args, workingDir) {
 
 // ── LLM Inference Engine (Ollama, Cloud, and Local Synthesis) ────────────────
 
-function callOllamaChat(model, messages, onToken) {
+function callOllamaChat(model, messages, onToken, customUrl) {
   return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({ model, messages, stream: true });
-    const req = http.request({
-      hostname: '127.0.0.1',
-      port: 11434,
-      path: '/api/chat',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    }, res => {
-      if (res.statusCode !== 200) {
-        return reject(new Error(`Ollama returned HTTP ${res.statusCode}`));
-      }
-      let fullText = '';
-      let buffer = '';
-      res.on('data', chunk => {
-        buffer += chunk.toString('utf8');
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const data = JSON.parse(line);
-            if (data.message && data.message.content) {
-              fullText += data.message.content;
-              if (onToken) onToken(data.message.content, fullText);
-            }
-          } catch (_) {}
+    const settings = getMeowtrixSettings();
+    let urlStr = customUrl || settings.aiOllamaUrl || process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+      urlStr = 'http://' + urlStr;
+    }
+    urlStr = urlStr.replace(/\/$/, '') + '/api/chat';
+    try {
+      const parsed = new URL(urlStr);
+      const transport = parsed.protocol === 'https:' ? https : http;
+      const postData = JSON.stringify({ model, messages, stream: true });
+      const req = transport.request(parsed, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        },
+        timeout: 180000
+      }, res => {
+        if (res.statusCode !== 200) {
+          let errBody = '';
+          res.on('data', c => errBody += c);
+          res.on('end', () => reject(new Error(`Ollama returned HTTP ${res.statusCode}: ${errBody}`)));
+          return;
         }
+        let fullText = '';
+        let buffer = '';
+        res.on('data', chunk => {
+          buffer += chunk.toString('utf8');
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const data = JSON.parse(line);
+              if (data.message && data.message.content) {
+                fullText += data.message.content;
+                if (onToken) onToken(data.message.content, fullText);
+              }
+            } catch (_) {}
+          }
+        });
+        res.on('end', () => resolve(fullText));
       });
-      res.on('end', () => resolve(fullText));
-    });
-    req.on('error', reject);
-    req.write(postData);
-    req.end();
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Ollama request timed out')); });
+      req.write(postData);
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -355,6 +431,174 @@ function callOpenAiChat({ apiKey, baseUrl, model, messages, onToken }) {
   });
 }
 
+// ── Native Mistral.rs (Rust) Engine Bridge ──────────────────────────────────
+
+function getMistralRsPort() {
+  if (process.env.MISTRALRS_PORT) {
+    const p = parseInt(process.env.MISTRALRS_PORT, 10);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  try {
+    const portFile = path.join(MEOWTRIX_DATA_DIR, 'ai_port');
+    if (fs.existsSync(portFile)) {
+      const p = parseInt(fs.readFileSync(portFile, 'utf8').trim(), 10);
+      if (!isNaN(p) && p > 0) return p;
+    }
+  } catch {}
+  return 9124;
+}
+
+function checkMistralRsDaemon(port) {
+  return new Promise(resolve => {
+    const p = port || getMistralRsPort();
+    const req = http.get(`http://127.0.0.1:${p}/status`, { timeout: 1200 }, res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve({ available: true, port: p, ...json });
+        } catch {
+          resolve({ available: true, port: p });
+        }
+      });
+    });
+    req.on('error', () => resolve({ available: false, port: p }));
+    req.on('timeout', () => { req.destroy(); resolve({ available: false, port: p }); });
+  });
+}
+
+function findMeowtrixCli() {
+  const candidatePaths = [
+    path.join(__dirname, 'src-tauri', 'target', 'release', 'meowtrix'),
+    path.join(__dirname, 'src-tauri', 'target', 'debug', 'meowtrix'),
+    path.join(os.homedir(), '.local', 'bin', 'meowtrix'),
+    '/usr/local/bin/meowtrix',
+  ];
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+async function callMistralRsChat({ model, messages, onToken }) {
+  const port = getMistralRsPort();
+  const daemon = await checkMistralRsDaemon(port);
+
+  if (daemon.available) {
+    return new Promise((resolve, reject) => {
+      const payload = JSON.stringify({
+        model: (model && model !== 'auto' && model !== 'default') ? model : undefined,
+        messages: messages,
+        stream: true
+      });
+
+      const options = {
+        hostname: '127.0.0.1',
+        port: port,
+        path: '/chat',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 180000
+      };
+
+      const req = http.request(options, res => {
+        if (res.statusCode !== 200) {
+          let errBody = '';
+          res.on('data', c => errBody += c);
+          res.on('end', () => reject(new Error(`Mistral.rs HTTP ${res.statusCode}: ${errBody}`)));
+          return;
+        }
+
+        let fullText = '';
+        let buffer = '';
+
+        res.on('data', chunk => {
+          buffer += chunk.toString('utf8');
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep remainder
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data:')) {
+              const jsonStr = trimmed.slice(5).trim();
+              if (jsonStr) {
+                try {
+                  const data = JSON.parse(jsonStr);
+                  if (data.delta) {
+                    fullText += data.delta;
+                    if (onToken) onToken(data.delta, fullText);
+                  }
+                  if (data.error) {
+                    console.error('[Mistral.rs SSE error]:', data.error);
+                  }
+                } catch (_) {}
+              }
+            }
+          }
+        });
+
+        res.on('end', () => {
+          if (buffer.trim().startsWith('data:')) {
+            try {
+              const data = JSON.parse(buffer.trim().slice(5).trim());
+              if (data.delta) {
+                fullText += data.delta;
+                if (onToken) onToken(data.delta, fullText);
+              }
+            } catch (_) {}
+          }
+          resolve(fullText);
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Mistral.rs request timed out'));
+      });
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  // Fallback: spawn local Meowtrix CLI infer if daemon is not running
+  const cliBin = findMeowtrixCli();
+  if (cliBin) {
+    return new Promise((resolve, reject) => {
+      let fullText = '';
+      const promptText = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+      const args = ['infer', '--stream', '--prompt', promptText];
+      if (model && model !== 'auto' && model !== 'default') {
+        args.push('--model', model);
+      }
+
+      const proc = spawn(cliBin, args);
+      proc.stdout.on('data', data => {
+        const str = data.toString('utf8');
+        fullText += str;
+        if (onToken) onToken(str, fullText);
+      });
+      proc.stderr.on('data', data => {
+        console.error('[meowtrix infer stderr]:', data.toString('utf8'));
+      });
+      proc.on('close', code => {
+        if (code === 0 || fullText.length > 0) {
+          resolve(fullText);
+        } else {
+          reject(new Error(`CLI inference exited with code ${code}`));
+        }
+      });
+      proc.on('error', reject);
+    });
+  }
+
+  throw new Error('Mistral.rs daemon is not online and local CLI binary was not found.');
+}
+
 function generateWorkspaceSynthesis(prompt, context) {
   const dirName = path.basename(context.workingDir) || 'workspace';
   const totalFiles = (context.files || []).length;
@@ -370,7 +614,7 @@ function generateWorkspaceSynthesis(prompt, context) {
 
 #### 💡 Resolution & Next Steps
 - The agent validated the project files and verified current Git status against your prompt.
-- **Live Model Execution:** To stream live local inference directly into this agent tab, launch an Ollama model (e.g. \`ollama pull qwen2.5-coder:1.5b\`) or configure \`OPENAI_API_KEY\` in your environment.
+- **Native Mistral.rs Engine:** Launch Meowtrix Desktop or download a model from the Models tab to stream live Rust inference.
 - **Autonomous Mode:** All modifications were verified with native workspace sandboxing.`;
 }
 
@@ -391,31 +635,113 @@ Analyze the user task and deliver a concise, actionable, and formatted response 
     { role: 'user', content: prompt }
   ];
 
-  // 1. Try Ollama if running
-  const ollama = await checkOllama();
-  if (ollama.available) {
-    let targetModel = (model && model !== 'auto' && !model.includes(':')) ? model : null;
-    if (!targetModel && ollama.models && ollama.models.length > 0) {
-      targetModel = ollama.models[0];
-    }
-    if (targetModel && ollama.models.includes(targetModel)) {
-      return await callOllamaChat(targetModel, messages, onToken);
+  const settings = getMeowtrixSettings();
+  const selectedEngine = engine || settings.aiSelectedEngine || 'mistralrs';
+
+  // 1. If Cloud engine requested or selected
+  if (selectedEngine === 'cloud') {
+    const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY || settings.aiCloudApiKey;
+    if (apiKey) {
+      try {
+        const cloudModel = (model && model !== 'auto' && model !== 'default' && model !== 'custom' && !model.includes(':'))
+          ? model
+          : (settings.aiCloudModel || 'gpt-4o');
+        const cloudBaseUrl = process.env.AI_BASE_URL || settings.aiCloudBaseUrl || 'https://api.openai.com/v1';
+        return await callOpenAiChat({
+          apiKey,
+          baseUrl: cloudBaseUrl,
+          model: cloudModel,
+          messages,
+          onToken
+        });
+      } catch (cloudErr) {
+        console.warn('[AI] Cloud API error, trying fallbacks:', cloudErr.message);
+      }
+    } else {
+      console.warn('[AI] Cloud engine selected but no API key configured in Settings.');
     }
   }
 
-  // 2. Try Cloud API if key is present
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
-  if (apiKey) {
-    return await callOpenAiChat({
-      apiKey,
-      baseUrl: process.env.AI_BASE_URL || 'https://api.openai.com/v1',
-      model: model && !model.includes(':') ? model : 'gpt-4o',
-      messages,
-      onToken
-    });
+  // 2. If Ollama engine requested or selected
+  if (selectedEngine === 'ollama') {
+    const ollama = await checkOllama(settings.aiOllamaUrl);
+    if (ollama.available) {
+      let targetModel = (model && model !== 'auto' && model !== 'default' && !model.includes(':'))
+        ? model
+        : (settings.aiOllamaModel || null);
+      if (!targetModel && ollama.models && ollama.models.length > 0) {
+        targetModel = ollama.models[0];
+      }
+      if (targetModel) {
+        try {
+          return await callOllamaChat(targetModel, messages, onToken, settings.aiOllamaUrl);
+        } catch (ollamaErr) {
+          console.warn('[AI] Ollama error, trying fallbacks:', ollamaErr.message);
+        }
+      }
+    }
   }
 
-  // 3. Dynamic contextual synthesis if external model service is offline
+  // 3. Mistral.rs (Native Rust engine) - Primary for 'mistralrs' or default
+  if (selectedEngine === 'mistralrs' || !selectedEngine || (model && model.endsWith('.gguf'))) {
+    try {
+      const mistralText = await callMistralRsChat({ model, messages, onToken });
+      if (mistralText && mistralText.trim()) {
+        return mistralText;
+      }
+    } catch (mistralErr) {
+      console.warn('[AI] Mistral.rs native engine notice:', mistralErr.message);
+    }
+  }
+
+  // ── Fallback cascade across remaining engines ──────────────────────────────
+
+  // Fallback A: Mistral.rs if not yet attempted
+  if (selectedEngine !== 'mistralrs') {
+    try {
+      const mistralText = await callMistralRsChat({ model, messages, onToken });
+      if (mistralText && mistralText.trim()) return mistralText;
+    } catch (_) {}
+  }
+
+  // Fallback B: Ollama
+  if (selectedEngine !== 'ollama') {
+    const ollama = await checkOllama(settings.aiOllamaUrl);
+    if (ollama.available) {
+      let targetModel = (model && model !== 'auto' && model !== 'default' && !model.includes(':'))
+        ? model
+        : (settings.aiOllamaModel || null);
+      if (!targetModel && ollama.models && ollama.models.length > 0) {
+        targetModel = ollama.models[0];
+      }
+      if (targetModel) {
+        try {
+          return await callOllamaChat(targetModel, messages, onToken, settings.aiOllamaUrl);
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Fallback C: Cloud API
+  if (selectedEngine !== 'cloud') {
+    const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY || settings.aiCloudApiKey;
+    if (apiKey) {
+      try {
+        const cloudModel = (model && model !== 'auto' && model !== 'default' && !model.includes(':'))
+          ? model
+          : (settings.aiCloudModel || 'gpt-4o');
+        return await callOpenAiChat({
+          apiKey,
+          baseUrl: process.env.AI_BASE_URL || settings.aiCloudBaseUrl || 'https://api.openai.com/v1',
+          model: cloudModel,
+          messages,
+          onToken
+        });
+      } catch (_) {}
+    }
+  }
+
+  // Fallback D: Dynamic contextual synthesis if all engines are offline
   const result = generateWorkspaceSynthesis(prompt, context);
   if (onToken) onToken(result, result);
   return result;
@@ -681,35 +1007,49 @@ function downloadModel(modelId, onProgress) {
 function mountAiRoutes(app) {
   // 1. AI Engine Status
   app.get('/api/ai/status', async (req, res) => {
-    const ollama = await checkOllama();
+    const mistral = await checkMistralRsDaemon();
+    const settings = getMeowtrixSettings();
+    const ollama = await checkOllama(settings.aiOllamaUrl);
     const localModels = getLocalModels();
+    const hasCloudKey = !!(settings.aiCloudApiKey || process.env.OPENAI_API_KEY || process.env.AI_API_KEY);
 
     res.json({
       engines: [
         {
           id: 'mistralrs',
           name: 'Mistral.rs (Native Rust)',
-          available: true,
-          status: 'ready',
-          description: 'Built-in high-performance Rust inference engine with Metal & CUDA acceleration'
+          available: mistral.available || true,
+          status: mistral.available ? 'online' : 'ready',
+          port: mistral.port,
+          activeModel: mistral.active_model,
+          description: mistral.available
+            ? `Online on port ${mistral.port}${mistral.active_model ? ` (Loaded: ${mistral.active_model})` : ' (Ready)'}`
+            : 'Built-in high-performance Rust inference engine with Metal & CUDA acceleration'
         },
         {
           id: 'ollama',
           name: 'Ollama (Local Bridge)',
           available: ollama.available,
           status: ollama.available ? 'online' : 'offline',
+          url: settings.aiOllamaUrl || 'http://127.0.0.1:11434',
           models: ollama.models,
-          description: ollama.available ? `Connected (${ollama.models.length} models detected)` : 'Not detected on port 11434'
+          description: ollama.available
+            ? `Connected (${ollama.models.length} models detected)`
+            : `Not detected at ${settings.aiOllamaUrl || 'http://127.0.0.1:11434'}`
         },
         {
           id: 'cloud',
           name: 'Cloud / OpenAI-compatible API',
-          available: true,
-          status: 'configured',
-          description: 'Custom endpoint (OpenAI, Anthropic, OpenRouter, Gemini, Groq)'
+          available: hasCloudKey,
+          status: hasCloudKey ? 'configured' : 'needs_key',
+          baseUrl: settings.aiCloudBaseUrl || 'https://api.openai.com/v1',
+          model: settings.aiCloudModel || 'gpt-4o',
+          description: hasCloudKey
+            ? `Endpoint configured (${settings.aiCloudModel || 'gpt-4o'})`
+            : 'API key not configured in Settings'
         }
       ],
-      selectedEngine: 'mistralrs',
+      selectedEngine: settings.aiSelectedEngine || 'mistralrs',
       localModels,
       recommendedModels: RECOMMENDED_MODELS
     });
@@ -717,13 +1057,52 @@ function mountAiRoutes(app) {
 
   // 2. Models List
   app.get('/api/ai/models', async (req, res) => {
-    const ollama = await checkOllama();
+    const settings = getMeowtrixSettings();
+    const ollama = await checkOllama(settings.aiOllamaUrl);
     const local = getLocalModels();
     res.json({
       localModels: local,
       ollamaModels: ollama.models || [],
       recommendedModels: RECOMMENDED_MODELS
     });
+  });
+
+  // 2b. Test Provider Connection
+  app.post('/api/ai/test-provider', async (req, res) => {
+    const { provider, url, apiKey, baseUrl } = req.body || {};
+    if (provider === 'ollama') {
+      const result = await checkOllama(url);
+      return res.json(result);
+    }
+    if (provider === 'cloud') {
+      try {
+        const key = apiKey || process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
+        if (!key) return res.json({ available: false, error: 'No API key provided' });
+        const targetUrl = (baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '') + '/models';
+        const parsed = new URL(targetUrl);
+        const transport = parsed.protocol === 'https:' ? https : http;
+        const reqTest = transport.get(parsed, {
+          headers: { 'Authorization': `Bearer ${key}` },
+          timeout: 6000
+        }, r => {
+          let body = '';
+          r.on('data', d => body += d);
+          r.on('end', () => {
+            if (r.statusCode >= 200 && r.statusCode < 300) {
+              res.json({ available: true, status: 'connected' });
+            } else {
+              res.json({ available: false, error: `HTTP ${r.statusCode}: ${body.slice(0, 100)}` });
+            }
+          });
+        });
+        reqTest.on('error', err => res.json({ available: false, error: err.message }));
+        reqTest.on('timeout', () => { reqTest.destroy(); res.json({ available: false, error: 'Request timed out' }); });
+      } catch (err) {
+        res.json({ available: false, error: err.message });
+      }
+      return;
+    }
+    res.status(400).json({ error: 'Unknown provider' });
   });
 
   // 3. Download Model (SSE Progress)
