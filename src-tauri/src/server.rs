@@ -57,9 +57,20 @@ impl ServerManager {
         let is_standalone = matches!(self.detect_mode(app), AppMode::Standalone { .. });
 
         if is_standalone {
-            // Standalone mode: Always allocate an ephemeral, conflict-free port
-            let free_port = get_free_port();
-            self.port = free_port;
+            // Standalone mode: Connect to existing Meowtrix server on DEFAULT_PORT if already running
+            if check_server_ready(DEFAULT_PORT) {
+                log::info!("[Standalone] Connected to existing server on port {}", DEFAULT_PORT);
+                self.port = DEFAULT_PORT;
+                return Ok(self.port);
+            }
+
+            // Otherwise allocate port (prefer DEFAULT_PORT if available, else ephemeral)
+            let chosen_port = if TcpListener::bind(format!("127.0.0.1:{}", DEFAULT_PORT)).is_ok() {
+                DEFAULT_PORT
+            } else {
+                get_free_port()
+            };
+            self.port = chosen_port;
 
             let (node_bin, server_dir) = match self.mode.as_ref().unwrap() {
                 AppMode::Standalone { node_bin, server_dir } => {
@@ -81,13 +92,11 @@ impl ServerManager {
                 }
             }
 
-            // Instance-isolated data directory to prevent storage collisions between multiple instances
-            let instance_id = std::process::id();
+            // Shared persistent data directory across desktop and web sessions
             let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-            let data_dir = PathBuf::from(home)
-                .join(".meowtrix")
-                .join("standalone")
-                .join(format!("instance-{instance_id}"));
+            let data_dir = std::env::var("MEOWTRIX_DATA_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from(home).join(".meowtrix"));
             let _ = std::fs::create_dir_all(&data_dir);
 
             log::info!(

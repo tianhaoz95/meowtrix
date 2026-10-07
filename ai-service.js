@@ -198,7 +198,11 @@ function loadAgentSession(agentId) {
   try {
     const file = getSessionPath(agentId);
     if (fs.existsSync(file)) {
-      return JSON.parse(fs.readFileSync(file, 'utf8'));
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!Array.isArray(data.plan)) data.plan = [];
+      if (!Array.isArray(data.history)) data.history = [];
+      if (!Array.isArray(data.diffs)) data.diffs = [];
+      return data;
     }
   } catch {}
   return {
@@ -209,6 +213,7 @@ function loadAgentSession(agentId) {
     status: 'idle',
     plan: [],
     history: [],
+    diffs: [],
     artifacts: [],
     subagents: []
   };
@@ -216,6 +221,8 @@ function loadAgentSession(agentId) {
 
 function saveAgentSession(session) {
   try {
+    const dir = path.dirname(getSessionPath(session.id));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(getSessionPath(session.id), JSON.stringify(session, null, 2), 'utf8');
   } catch (err) {
     console.error('Failed to save agent session:', err);
@@ -887,8 +894,19 @@ async function runAgentLoop({ prompt, agentId, workingDir, mode, model, engine, 
       output: execResult.stdout || execResult.output || JSON.stringify(execResult)
     });
 
+    if (execResult.diff && execResult.path) {
+      session.diffs = session.diffs || [];
+      if (!session.diffs.find(d => d.path === execResult.path)) {
+        session.diffs.push({ path: execResult.path, diff: execResult.diff });
+      }
+      onEvent('diff', { path: execResult.path, diff: execResult.diff });
+      saveAgentSession(session);
+    }
+
     initialPlan[2].status = 'completed';
     initialPlan[3].status = 'running';
+    session.plan = initialPlan;
+    saveAgentSession(session);
     onEvent('plan', { plan: session.plan });
 
     await new Promise(r => setTimeout(r, 600));
@@ -897,6 +915,8 @@ async function runAgentLoop({ prompt, agentId, workingDir, mode, model, engine, 
     // Step 4: Verification & Response
     initialPlan[3].status = 'completed';
     session.status = 'idle';
+    session.plan = initialPlan;
+    saveAgentSession(session);
     onEvent('plan', { plan: session.plan });
 
     onEvent('thinking', { text: `Synthesizing final response with ${engine || 'agent'} (${model || 'default'})...` });
@@ -933,6 +953,8 @@ async function runAgentLoop({ prompt, agentId, workingDir, mode, model, engine, 
 
   } catch (err) {
     session.status = 'error';
+    session.history.push({ role: 'assistant', content: 'Execution error: ' + err.message, timestamp: Date.now() });
+    saveAgentSession(session);
     onEvent('status', { status: 'error' });
     onEvent('error', { message: err.message });
   } finally {
@@ -1128,7 +1150,29 @@ function mountAiRoutes(app) {
   // 4. Agent Session State
   app.get('/api/ai/agent/session/:id', (req, res) => {
     const session = loadAgentSession(req.params.id);
+    session.isRunning = activeAgents.has(req.params.id);
     res.json(session);
+  });
+
+  // 4b. Reset Agent Session
+  app.post('/api/ai/agent/session/:id/reset', (req, res) => {
+    const session = loadAgentSession(req.params.id);
+    session.history = [];
+    session.plan = [];
+    session.diffs = [];
+    session.status = 'idle';
+    saveAgentSession(session);
+    res.json({ ok: true });
+  });
+
+  // 4c. Update Agent Session State
+  app.post('/api/ai/agent/session/:id/update', (req, res) => {
+    const session = loadAgentSession(req.params.id);
+    const { workingDir, mode } = req.body || {};
+    if (workingDir) session.workingDir = workingDir;
+    if (mode) session.mode = mode;
+    saveAgentSession(session);
+    res.json({ ok: true });
   });
 
   // 5. Run Agent Task (SSE Event Stream)

@@ -684,3 +684,94 @@ pub async fn run_cli_infer(args: &[String]) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    #[test]
+    fn test_start_ai_server_outside_tokio_context_does_not_panic() {
+        // Run in a thread guaranteed to have NO Tokio runtime context on the thread stack.
+        // This directly guards against the crash caused by registering TcpListener outside of async runtime.
+        let handle = std::thread::spawn(|| {
+            let engine = Arc::new(Mutex::new(AiEngine::new()));
+            let port = start_ai_server(engine, 0, None)
+                .expect("start_ai_server must succeed without panic outside Tokio runtime");
+            assert!(port > 0, "Server must bind to a valid ephemeral port");
+
+            // Verify that the listener accepts connections and responds to /health
+            let mut stream = None;
+            for _ in 0..60 {
+                if let Ok(s) = TcpStream::connect(format!("127.0.0.1:{port}")) {
+                    stream = Some(s);
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+
+            let mut stream = stream.expect("Failed to connect to AI server");
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .unwrap();
+            stream
+                .write_all(b"GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                .unwrap();
+
+            let mut response = String::new();
+            stream.read_to_string(&mut response).unwrap();
+            assert!(
+                response.contains("200 OK"),
+                "Expected 200 OK from /health, got: {response}"
+            );
+            assert!(
+                response.contains("\"engine\":\"mistral.rs\""),
+                "Expected engine:mistral.rs in /health payload, got: {response}"
+            );
+            assert!(
+                response.contains("\"is_ready\":true"),
+                "Expected is_ready:true in /health payload, got: {response}"
+            );
+        });
+
+        handle.join().expect("Thread panicked during test");
+    }
+
+    #[test]
+    fn test_ai_status_endpoint() {
+        let handle = std::thread::spawn(|| {
+            let engine = Arc::new(Mutex::new(AiEngine::new()));
+            let port = start_ai_server(engine, 0, None)
+                .expect("start_ai_server must succeed");
+
+            let mut stream = None;
+            for _ in 0..60 {
+                if let Ok(s) = TcpStream::connect(format!("127.0.0.1:{port}")) {
+                    stream = Some(s);
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+
+            let mut stream = stream.expect("Failed to connect to AI server");
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .unwrap();
+            stream
+                .write_all(b"GET /status HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                .unwrap();
+
+            let mut response = String::new();
+            stream.read_to_string(&mut response).unwrap();
+            assert!(response.contains("200 OK"));
+            assert!(response.contains("\"engine\":\"mistral.rs\""));
+            assert!(response.contains("\"is_ready\":true"));
+        });
+
+        handle.join().expect("Thread panicked during test");
+    }
+}
+

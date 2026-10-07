@@ -194,7 +194,7 @@ function captureWorkspaceState(index = activeWorkspaceIndex) {
           ptyId: t.ptyId || null,
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
           browserConsoleOpen: t.type === 'browser' ? !!t.consoleOpen : null,
-          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'agent' ? t.agentDir : (t.type === 'terminal' ? t.terminalDir : null)),
+          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'agent' ? (t.agentDir || t.workingDir) : (t.type === 'terminal' ? t.terminalDir : null)),
           sshHost: t.type === 'terminal' ? (t.sshHost || null) : null,
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
@@ -523,6 +523,9 @@ function onSessionState(activeTabId) {
       // Reconnected while still active (e.g. a network blip): layout is
       // unchanged, just re-grab the live PTY streams.
       reconnectAllPtys();
+    }
+    if (typeof refreshAllAgentTabs === 'function') {
+      refreshAllAgentTabs();
     }
     everActive = true;
     streamsLost = false;

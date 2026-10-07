@@ -266,11 +266,42 @@
     }
 
     // Update Directory Label
-    function updateDirLabel(dir) {
+    function updateDirLabel(dir, syncServer = true) {
       tab.workingDir = dir;
+      tab.agentDir = dir;
       const base = dir ? (dir.split('/').pop() || dir) : 'Workspace';
       dirLabel.textContent = base;
       specDirEl.textContent = dir || '~';
+      if (syncServer && tab.agentId) {
+        fetch('/api/ai/agent/session/' + tab.agentId + '/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workingDir: dir })
+        }).catch(() => {});
+      }
+      if (typeof saveSessionState === 'function') saveSessionState();
+    }
+
+    function setMode(mode, syncServer = true) {
+      tab.mode = mode;
+      if (mode === 'supervised') {
+        modeToggleBtn.classList.add('agent-mode-supervised');
+        modeLabel.textContent = 'Supervised';
+        modeToggleBtn.querySelector('.agent-btn-icon').textContent = '🛡️';
+        specModeEl.textContent = 'Supervised';
+      } else {
+        modeToggleBtn.classList.remove('agent-mode-supervised');
+        modeLabel.textContent = 'Autonomous';
+        modeToggleBtn.querySelector('.agent-btn-icon').textContent = '⚡';
+        specModeEl.textContent = 'Autonomous';
+      }
+      if (syncServer && tab.agentId) {
+        fetch('/api/ai/agent/session/' + tab.agentId + '/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode })
+        }).catch(() => {});
+      }
     }
 
     // Default working directory
@@ -408,19 +439,7 @@
 
     // Mode Toggle
     modeToggleBtn.addEventListener('click', () => {
-      if (tab.mode === 'autonomous') {
-        tab.mode = 'supervised';
-        modeToggleBtn.classList.add('agent-mode-supervised');
-        modeLabel.textContent = 'Supervised';
-        modeToggleBtn.querySelector('.agent-btn-icon').textContent = '🛡️';
-        specModeEl.textContent = 'Supervised';
-      } else {
-        tab.mode = 'autonomous';
-        modeToggleBtn.classList.remove('agent-mode-supervised');
-        modeLabel.textContent = 'Autonomous';
-        modeToggleBtn.querySelector('.agent-btn-icon').textContent = '⚡';
-        specModeEl.textContent = 'Autonomous';
-      }
+      setMode(tab.mode === 'autonomous' ? 'supervised' : 'autonomous', true);
     });
 
     // Model Selector Change
@@ -469,6 +488,7 @@
     stopBtn.addEventListener('click', stopTask);
 
     clearBtn.addEventListener('click', () => {
+      fetch('/api/ai/agent/session/' + tab.agentId + '/reset', { method: 'POST' }).catch(() => {});
       streamEl.innerHTML = `
         <div class="agent-welcome-card">
           <div class="agent-welcome-icon">🤖</div>
@@ -579,6 +599,9 @@
 
     // Append Chat Card to Stream
     function appendMessageCard(role, text) {
+      const welcomeCard = streamEl.querySelector('.agent-welcome-card');
+      if (welcomeCard) welcomeCard.remove();
+
       const card = document.createElement('div');
       card.className = `agent-card agent-card-${role}`;
 
@@ -783,6 +806,9 @@
 
     // Add Diff Card to Right Column
     function addDiffCard(filePath, diffText) {
+      const emptyHint = diffListEl.querySelector('.agent-empty-hint');
+      if (emptyHint) emptyHint.remove();
+
       if (!tab.diffs.find(d => d.path === filePath)) {
         tab.diffs.push({ path: filePath, diff: diffText });
       }
@@ -807,8 +833,59 @@
       diffListEl.appendChild(card);
     }
 
+    // Load persisted session history from host server
+    function loadSessionHistory() {
+      if (tab.isRunning) return;
+      fetch('/api/ai/agent/session/' + tab.agentId)
+        .then(r => r.json())
+        .then(sessionData => {
+          if (!sessionData) return;
+          if (sessionData.workingDir) {
+            updateDirLabel(sessionData.workingDir, false);
+          }
+          if (sessionData.mode && sessionData.mode !== tab.mode) {
+            setMode(sessionData.mode, false);
+          }
+          if (sessionData.plan && Array.isArray(sessionData.plan) && sessionData.plan.length > 0) {
+            renderPlan(sessionData.plan);
+          }
+          if (sessionData.diffs && Array.isArray(sessionData.diffs) && sessionData.diffs.length > 0) {
+            diffListEl.innerHTML = '';
+            tab.diffs = [];
+            sessionData.diffs.forEach(d => addDiffCard(d.path, d.diff));
+          }
+          if (sessionData.history && Array.isArray(sessionData.history) && sessionData.history.length > 0) {
+            streamEl.innerHTML = '';
+            sessionData.history.forEach(item => {
+              appendMessageCard(item.role, item.content);
+            });
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to load agent session history:', err);
+        });
+    }
+
+    tab.refreshSessionHistory = loadSessionHistory;
     tab.onActivate = () => {
       refreshModels();
+      loadSessionHistory();
     };
+
+    // Hydrate existing session history upon initialization
+    loadSessionHistory();
   }
+
+  // Globally expose helper to refresh all agent tabs across panes (e.g. after session handoff)
+  window.refreshAllAgentTabs = function() {
+    if (typeof getAllPanes === 'function') {
+      getAllPanes().forEach(p => {
+        (p.tabs || []).forEach(t => {
+          if (t.type === 'agent' && typeof t.refreshSessionHistory === 'function') {
+            t.refreshSessionHistory();
+          }
+        });
+      });
+    }
+  };
 })();

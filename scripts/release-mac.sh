@@ -85,6 +85,9 @@ STANDALONE_APP="$ROOT/src-tauri/target/release/bundle/macos/Meowtrix Standalone.
 
 # --------------------------------------------------------------------- build
 if [ "$SKIP_BUILD" -eq 0 ]; then
+  say "running desktop & AI server regression tests"
+  (cd "$ROOT" && cargo test --manifest-path "$ROOT/src-tauri/Cargo.toml")
+
   say "building Meowtrix Lite (Client Edition)"
   (cd "$ROOT" && npm run tauri build -- -c "$ROOT/src-tauri/tauri.lite.conf.json" -b app --no-sign)
 
