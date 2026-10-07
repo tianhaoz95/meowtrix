@@ -6,6 +6,18 @@ const http = require('http');
 
 test.describe('Desktop AI Daemon & Startup Regression Tests', () => {
   test('cargo test passes without Tokio reactor panic', async () => {
+    // Check if cargo is installed in the test environment (e.g. absent in standard Playwright Docker container)
+    const hasCargo = await new Promise(resolve => {
+      const check = spawn('cargo', ['--version']);
+      check.on('error', () => resolve(false));
+      check.on('close', code => resolve(code === 0));
+    });
+
+    if (!hasCargo) {
+      test.skip(true, 'Cargo is not installed in this environment');
+      return;
+    }
+
     // Run cargo test directly
     await new Promise((resolve, reject) => {
       const proc = spawn('cargo', ['test', '--manifest-path', 'src-tauri/Cargo.toml'], {
