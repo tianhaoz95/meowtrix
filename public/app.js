@@ -527,6 +527,9 @@ function onSessionState(activeTabId) {
     if (typeof refreshAllAgentTabs === 'function') {
       refreshAllAgentTabs();
     }
+    if (typeof focusOverlayActiveInput === 'function' && typeof isOverlayActive !== 'undefined' && isOverlayActive) {
+      focusOverlayActiveInput();
+    }
     everActive = true;
     streamsLost = false;
   } else {

@@ -6,6 +6,7 @@ use mistralrs::{
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::Manager;
 use tauri_plugin_updater::UpdaterExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
@@ -420,6 +421,66 @@ pub async fn handle_http_connection(
                 return Ok(());
             }
         }
+    }
+
+    if path == "/api/overlay/hide" || path == "/overlay/hide" {
+        if let Some(ref handle) = app_handle {
+            if let Some(w) = handle.get_webview_window("main") {
+                let _ = w.hide();
+            }
+        }
+        let body = serde_json::to_vec(&serde_json::json!({
+            "ok": true,
+            "hidden": true
+        }))?;
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        stream.write_all(header.as_bytes()).await?;
+        stream.write_all(&body).await?;
+        stream.flush().await?;
+        return Ok(());
+    }
+
+    if path == "/api/overlay/show" || path == "/overlay/show" {
+        if let Some(ref handle) = app_handle {
+            if let Some(w) = handle.get_webview_window("main") {
+                crate::summon_overlay_window(&w);
+            }
+        }
+        let body = serde_json::to_vec(&serde_json::json!({
+            "ok": true,
+            "shown": true
+        }))?;
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        stream.write_all(header.as_bytes()).await?;
+        stream.write_all(&body).await?;
+        stream.flush().await?;
+        return Ok(());
+    }
+
+    if path == "/api/overlay/status" || path == "/overlay/status" {
+        let conf = crate::read_quick_overlay_config();
+        let body = serde_json::to_vec(&serde_json::json!({
+            "isDesktop": true,
+            "platform": "macos",
+            "enabled": conf.enabled,
+            "shortcut": conf.shortcut,
+            "autoClaim": conf.auto_claim,
+            "dismissOnBlur": conf.dismiss_on_blur,
+        }))?;
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        stream.write_all(header.as_bytes()).await?;
+        stream.write_all(&body).await?;
+        stream.flush().await?;
+        return Ok(());
     }
 
     if method == "POST" && (path == "/chat" || path == "/api/ai/chat") {

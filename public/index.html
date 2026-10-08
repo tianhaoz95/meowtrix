@@ -25,6 +25,22 @@
     <input type="password" name="password" autocomplete="current-password" tabindex="-1">
   </form>
   <div id="app">
+    <div id="dynamic-island-notch" class="dynamic-island-notch" title="Click to collapse overlay">
+      <div class="dynamic-island-pill">
+        <div class="di-left">
+          <span class="di-icon">🐾</span>
+          <span class="di-label">Meowtrix</span>
+        </div>
+        <div class="di-center">
+          <span class="di-status"><span class="di-indicator"></span><span id="di-workspace-name">Overlay</span></span>
+        </div>
+        <div class="di-right">
+          <button id="di-btn-dismiss" class="di-dismiss-btn" title="Collapse overlay (Esc)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          </button>
+        </div>
+      </div>
+    </div>
     <div id="toolbar">
       <span id="logo">
         <span id="logo-icon">
@@ -480,6 +496,53 @@
             <p class="settings-note">Requires an NVIDIA GPU and <code>nvidia-smi</code> on the host. No effect otherwise.</p>
           </div>
         </details>
+        <details class="settings-section" id="sec-quick-overlay" open>
+          <summary class="settings-section-title">
+            <span class="settings-chevron">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            Quick Overlay (Dynamic Island)
+          </summary>
+          <div class="settings-section-content">
+            <div class="settings-row">
+              <label for="s-quick-overlay-enabled">Enable Quick Overlay</label>
+              <input type="checkbox" id="s-quick-overlay-enabled">
+            </div>
+            <p class="settings-note">Summon Meowtrix anywhere with a global shortcut as a floating overlay from the MacBook notch / Dynamic Island.</p>
+
+            <div class="settings-row">
+              <label for="s-quick-overlay-shortcut">Global Shortcut</label>
+              <div class="settings-row-right">
+                <input type="text" id="s-quick-overlay-shortcut" placeholder="Option+Space" style="width: 140px; text-align: center; font-family: monospace; font-size: 12px; padding: 4px 8px;">
+              </div>
+            </div>
+            <div class="settings-row" style="margin-top: -4px;">
+              <label style="font-size: 11px; color: var(--text3);">Presets</label>
+              <div class="settings-row-right" style="gap: 4px; flex-wrap: wrap;">
+                <button type="button" class="btn-preset-shortcut" data-sc="Option+Space" style="font-size: 11px; padding: 2px 7px;">⌥ Space</button>
+                <button type="button" class="btn-preset-shortcut" data-sc="CommandOrControl+Shift+Space" style="font-size: 11px; padding: 2px 7px;">⌘⇧ Space</button>
+                <button type="button" class="btn-preset-shortcut" data-sc="Control+Alt+Space" style="font-size: 11px; padding: 2px 7px;">⌃⌥ Space</button>
+                <button type="button" class="btn-preset-shortcut" data-sc="CommandOrControl+Shift+M" style="font-size: 11px; padding: 2px 7px;">⌘⇧ M</button>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <label for="s-quick-overlay-autoclaim">Auto-claim session on summon</label>
+              <input type="checkbox" id="s-quick-overlay-autoclaim">
+            </div>
+            <p class="settings-note">Automatically makes this window the active session on summon so you can type immediately without clicking "Move session here".</p>
+
+            <div class="settings-row">
+              <label for="s-quick-overlay-dismiss-blur">Dismiss on blur (click outside)</label>
+              <input type="checkbox" id="s-quick-overlay-dismiss-blur">
+            </div>
+
+            <div class="settings-row">
+              <label for="s-quick-overlay-animation">Dynamic Island expansion animation</label>
+              <input type="checkbox" id="s-quick-overlay-animation">
+            </div>
+          </div>
+        </details>
         <details class="settings-section">
           <summary class="settings-section-title">
             <span class="settings-chevron">
@@ -520,6 +583,7 @@
   <script src="app.js"></script>
   <script src="mobile.js"></script>
   <script src="settings.js"></script>
+  <script src="overlay.js"></script>
   <script src="palette.js"></script>
   <script src="schedule.js"></script>
   <script src="update.js"></script>

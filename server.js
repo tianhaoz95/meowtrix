@@ -106,6 +106,11 @@ const DEFAULT_SETTINGS = {
   httpProxy: '', // optional HTTP proxy for updates
   httpsProxy: '', // optional HTTPS proxy for updates
   autoUpdate: true, // background-check the git clone for updates (see self-update below)
+  quickOverlayEnabled: true, // macOS desktop app: quick callout overlay from Dynamic Island / notch
+  quickOverlayShortcut: 'Option+Space', // customizable global shortcut accelerator
+  quickOverlayAutoClaim: true, // automatically claim active session on summon
+  quickOverlayDismissOnBlur: true, // automatically dismiss overlay when focus is lost
+  quickOverlayAnimation: true, // animate expansion from Dynamic Island / notch
   gpuMonitor: false, // background-poll `nvidia-smi` for GPU stats and show a toolbar widget (NVIDIA hosts only)
   comboFx: false, // keystroke-streak visual effects, opt-in (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
@@ -2252,6 +2257,82 @@ app.get('/api/restart', async (req, res) => {
     isDesktop: daemon.available
   });
 });
+
+app.post('/api/overlay/hide', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  if (daemon.available) {
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        const r = http.request({
+          hostname: '127.0.0.1',
+          port: daemon.port,
+          path: '/api/overlay/hide',
+          method: 'POST',
+          timeout: 2000
+        }, resStream => {
+          let data = '';
+          resStream.on('data', c => data += c);
+          resStream.on('end', () => resolve(JSON.parse(data)));
+        });
+        r.on('error', reject);
+        r.end();
+      });
+      return res.json(resp);
+    } catch {}
+  }
+  res.json({ ok: false, desktop: false });
+});
+
+app.post('/api/overlay/show', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  if (daemon.available) {
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        const r = http.request({
+          hostname: '127.0.0.1',
+          port: daemon.port,
+          path: '/api/overlay/show',
+          method: 'POST',
+          timeout: 2000
+        }, resStream => {
+          let data = '';
+          resStream.on('data', c => data += c);
+          resStream.on('end', () => resolve(JSON.parse(data)));
+        });
+        r.on('error', reject);
+        r.end();
+      });
+      return res.json(resp);
+    } catch {}
+  }
+  res.json({ ok: false, desktop: false });
+});
+
+app.get('/api/overlay/status', async (req, res) => {
+  const daemon = await probeDesktopDaemon();
+  if (daemon.available) {
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        http.get(`http://127.0.0.1:${daemon.port}/api/overlay/status`, { timeout: 2000 }, resStream => {
+          let data = '';
+          resStream.on('data', c => data += c);
+          resStream.on('end', () => resolve(JSON.parse(data)));
+        }).on('error', reject);
+      });
+      return res.json(resp);
+    } catch {}
+  }
+  const settings = readSettings();
+  res.json({
+    isDesktop: false,
+    platform: process.platform,
+    enabled: settings.quickOverlayEnabled !== false,
+    shortcut: settings.quickOverlayShortcut || 'Option+Space',
+    autoClaim: settings.quickOverlayAutoClaim !== false,
+    dismissOnBlur: settings.quickOverlayDismissOnBlur !== false
+  });
+});
+
 
 app.post('/api/restart', async (req, res) => {
   const daemon = await probeDesktopDaemon();

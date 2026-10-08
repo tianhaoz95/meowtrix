@@ -559,5 +559,50 @@ test.describe('Meowtrix E2E Tests', () => {
     expect(json.path).toContain('.meowtrix');
     expect(json.path).toContain('.png');
   });
+
+  test('quick overlay dynamic island settings and summon/dismiss lifecycle', async ({ page, request }) => {
+    // Check overlay status endpoint
+    const statusRes = await request.get('/api/overlay/status');
+    expect(statusRes.ok()).toBeTruthy();
+    const statusJson = await statusRes.json();
+    expect(statusJson.enabled).toBe(true);
+    expect(statusJson.shortcut).toBeDefined();
+
+    await page.goto('/');
+    await page.waitForSelector('.pane');
+
+    // 1. Verify Quick Overlay settings section in settings modal
+    await page.click('#btn-settings');
+    await page.waitForSelector('#settings-panel.open');
+
+    const overlaySection = page.locator('#sec-quick-overlay');
+    await expect(overlaySection).toBeVisible();
+
+    const shortcutInput = page.locator('#s-quick-overlay-shortcut');
+    await expect(shortcutInput).toBeVisible();
+
+    // Click a preset button (e.g. ⌘⇧ Space)
+    const presetBtn = page.locator('.btn-preset-shortcut[data-sc="CommandOrControl+Shift+Space"]');
+    await presetBtn.click();
+    await expect(shortcutInput).toHaveValue('CommandOrControl+Shift+Space');
+
+    // Close settings modal
+    await page.click('#settings-close');
+    await page.waitForSelector('#settings-panel:not(.open)');
+
+    // 2. Test overlay summon
+    await page.evaluate(() => window.summonQuickOverlay());
+    await expect(page.locator('body')).toHaveClass(/dynamic-island-active/);
+    await expect(page.locator('#dynamic-island-notch')).toBeVisible();
+
+    // Verify session inactive overlay is suppressed
+    await expect(page.locator('#inactive-overlay')).toBeHidden();
+
+    // 3. Test overlay dismiss via dismiss button or Esc
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    await expect(page.locator('body')).not.toHaveClass(/dynamic-island-active/);
+  });
 });
+
 

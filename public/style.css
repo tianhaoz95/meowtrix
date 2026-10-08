@@ -4916,3 +4916,170 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
   white-space: nowrap;
 }
 
+/* ── Dynamic Island & Quick Overlay ────────────────────────────────────────── */
+#dynamic-island-notch {
+  display: none;
+}
+
+body.dynamic-island-active #dynamic-island-notch {
+  display: flex;
+  justify-content: center;
+  position: fixed;
+  top: 4px;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+.dynamic-island-pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 30px;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 0 12px;
+  border-radius: 18px;
+  background: rgba(10, 14, 24, 0.94);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.8);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.dynamic-island-pill:hover {
+  transform: scale(1.02);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.7), 0 0 12px rgba(99, 102, 241, 0.3);
+}
+
+.di-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.di-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.di-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.di-center {
+  display: flex;
+  align-items: center;
+}
+
+.di-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.di-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  display: inline-block;
+  animation: diPulse 2s infinite ease-in-out;
+}
+
+@keyframes diPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
+
+.di-right {
+  display: flex;
+  align-items: center;
+}
+
+.di-dismiss-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text2);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.di-dismiss-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* Dynamic Island dropdown animation */
+body.dynamic-island-animating #app {
+  animation: dynamicIslandDropIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top center;
+}
+
+@keyframes dynamicIslandDropIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.96);
+    filter: blur(6px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.005);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+body.dynamic-island-collapsing #app {
+  animation: dynamicIslandCollapse 0.20s cubic-bezier(0.4, 0, 1, 1) both;
+  transform-origin: top center;
+}
+
+@keyframes dynamicIslandCollapse {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.95);
+    filter: blur(6px);
+  }
+}
+
+body.dynamic-island-active #app {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border);
+}
+
+body.dynamic-island-active #toolbar {
+  padding-top: 2px;
+}
+
+

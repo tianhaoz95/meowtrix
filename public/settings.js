@@ -509,6 +509,18 @@ function populateControls(s) {
   document.getElementById('s-gpu-monitor').checked = s.gpuMonitor === true;
   document.getElementById('s-editor-minimap').checked = s.editorMinimap !== false;
 
+  const sQuickOverlayEnabled = document.getElementById('s-quick-overlay-enabled');
+  if (sQuickOverlayEnabled) sQuickOverlayEnabled.checked = s.quickOverlayEnabled !== false;
+  const sQuickOverlayShortcut = document.getElementById('s-quick-overlay-shortcut');
+  if (sQuickOverlayShortcut) sQuickOverlayShortcut.value = s.quickOverlayShortcut || 'Option+Space';
+  const sQuickOverlayAutoClaim = document.getElementById('s-quick-overlay-autoclaim');
+  if (sQuickOverlayAutoClaim) sQuickOverlayAutoClaim.checked = s.quickOverlayAutoClaim !== false;
+  const sQuickOverlayDismissBlur = document.getElementById('s-quick-overlay-dismiss-blur');
+  if (sQuickOverlayDismissBlur) sQuickOverlayDismissBlur.checked = s.quickOverlayDismissOnBlur !== false;
+  const sQuickOverlayAnimation = document.getElementById('s-quick-overlay-animation');
+  if (sQuickOverlayAnimation) sQuickOverlayAnimation.checked = s.quickOverlayAnimation !== false;
+
+
   const aiEngineSel = document.getElementById('s-ai-engine');
   if (aiEngineSel) aiEngineSel.value = s.aiSelectedEngine || 'mistralrs';
   const aiApiKey = document.getElementById('s-ai-cloud-api-key');
@@ -899,6 +911,54 @@ function wireControls() {
     await saveSetting('editorMinimap', e.target.checked);
     onSettingChanged('editorMinimap', e.target.checked);
   });
+
+  const elOverlayEnabled = document.getElementById('s-quick-overlay-enabled');
+  if (elOverlayEnabled) {
+    elOverlayEnabled.addEventListener('change', async (e) => {
+      await saveSetting('quickOverlayEnabled', e.target.checked);
+    });
+  }
+
+  const elOverlayShortcut = document.getElementById('s-quick-overlay-shortcut');
+  if (elOverlayShortcut) {
+    elOverlayShortcut.addEventListener('change', async (e) => {
+      const val = e.target.value.trim() || 'Option+Space';
+      elOverlayShortcut.value = val;
+      await saveSetting('quickOverlayShortcut', val);
+    });
+  }
+
+  document.querySelectorAll('.btn-preset-shortcut').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const sc = btn.dataset.sc;
+      if (sc && elOverlayShortcut) {
+        elOverlayShortcut.value = sc;
+        await saveSetting('quickOverlayShortcut', sc);
+      }
+    });
+  });
+
+  const elOverlayAutoClaim = document.getElementById('s-quick-overlay-autoclaim');
+  if (elOverlayAutoClaim) {
+    elOverlayAutoClaim.addEventListener('change', async (e) => {
+      await saveSetting('quickOverlayAutoClaim', e.target.checked);
+    });
+  }
+
+  const elOverlayDismissBlur = document.getElementById('s-quick-overlay-dismiss-blur');
+  if (elOverlayDismissBlur) {
+    elOverlayDismissBlur.addEventListener('change', async (e) => {
+      await saveSetting('quickOverlayDismissOnBlur', e.target.checked);
+    });
+  }
+
+  const elOverlayAnim = document.getElementById('s-quick-overlay-animation');
+  if (elOverlayAnim) {
+    elOverlayAnim.addEventListener('change', async (e) => {
+      await saveSetting('quickOverlayAnimation', e.target.checked);
+    });
+  }
+
 
   const chkNetworkServingEl = document.getElementById('s-network-serving');
   if (chkNetworkServingEl) {

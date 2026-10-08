@@ -118,6 +118,8 @@ function buildCommands() {
         const cb = document.getElementById('s-gpu-monitor'); if (cb) cb.checked = on;
         if (typeof renderGpuBadge === 'function') renderGpuBadge();
       } },
+    { icon: '🐾', title: 'Toggle Quick Overlay (Dynamic Island)', hint: '⌥ Space', keywords: 'dynamic island overlay dropdown quake notch macos summon callout',
+      run: () => { if (typeof toggleQuickOverlay === 'function') toggleQuickOverlay(); } },
   ];
   // Only offer the apply action when the server has reported an update.
   if (typeof updateAvailable === 'function' && updateAvailable()) {
