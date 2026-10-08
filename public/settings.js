@@ -379,15 +379,96 @@ function closeSettings() {
   toggleSettingsInputs(false);
 }
 
+// ── Custom Theme Dropdown ──────────────────────────────────────────────────
+let activeThemeMenu = null;
+
+function updateThemePickerBtn(meta) {
+  if (!meta && typeof THEMES !== 'undefined') {
+    const sel = document.getElementById('s-theme');
+    const id = sel ? sel.value : (localStorage.getItem('theme') || 'auto');
+    meta = THEMES.find(t => t.id === id) || THEMES[0];
+  }
+  if (!meta) return;
+  const btn = document.getElementById('s-theme-btn');
+  if (!btn) return;
+  const iconEl = btn.querySelector('.custom-select-icon');
+  const labelEl = btn.querySelector('.custom-select-label');
+  if (iconEl) iconEl.innerHTML = meta.icon;
+  if (labelEl) labelEl.textContent = meta.label;
+}
+
+function closeThemeMenu() {
+  if (activeThemeMenu) {
+    activeThemeMenu.remove();
+    activeThemeMenu = null;
+    const btn = document.getElementById('s-theme-btn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function openThemeMenu() {
+  if (activeThemeMenu) {
+    closeThemeMenu();
+    return;
+  }
+  const btn = document.getElementById('s-theme-btn');
+  if (!btn || typeof THEMES === 'undefined') return;
+
+  btn.setAttribute('aria-expanded', 'true');
+  const sel = document.getElementById('s-theme');
+  const currentId = sel ? sel.value : (localStorage.getItem('theme') || 'auto');
+
+  const menu = document.createElement('div');
+  menu.className = 'custom-select-menu';
+  menu.setAttribute('role', 'listbox');
+
+  THEMES.forEach(t => {
+    const isSelected = t.id === currentId;
+    const item = document.createElement('div');
+    item.className = 'custom-select-item' + (isSelected ? ' active' : '');
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    item.innerHTML = `
+      <span class="custom-select-item-icon">${t.icon}</span>
+      <span class="custom-select-item-label">${t.label}</span>
+      <span class="custom-select-item-check">${isSelected ? '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span>
+    `;
+    item.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      closeThemeMenu();
+      if (sel) {
+        sel.value = t.id;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      } else {
+        await saveSetting('theme', t.id);
+        applyTheme(t.id);
+      }
+    });
+    menu.appendChild(item);
+  });
+
+  const wrap = document.getElementById('theme-select-wrap') || btn.parentElement;
+  wrap.appendChild(menu);
+  activeThemeMenu = menu;
+}
+
+document.addEventListener('click', (e) => {
+  if (activeThemeMenu && !e.target.closest('#theme-select-wrap')) {
+    closeThemeMenu();
+  }
+});
+
 // ── Populate + wire controls ─────────────────────────────────────────────────
 function populateControls(s) {
   const themeSel = document.getElementById('s-theme');
   // Build options once from the shared THEMES list (defined in app.js).
   if (!themeSel.dataset.built && typeof THEMES !== 'undefined') {
-    themeSel.innerHTML = THEMES.map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+    themeSel.innerHTML = THEMES.map(t => `<option value="${t.id}">${t.label}</option>`).join('');
     themeSel.dataset.built = '1';
   }
   themeSel.value = s.theme;
+  const currentMeta = (typeof THEMES !== 'undefined') ? THEMES.find(t => t.id === s.theme) : null;
+  if (currentMeta) updateThemePickerBtn(currentMeta);
   document.getElementById('s-ui-mode').value = s.uiMode || 'auto';
   document.getElementById('s-menu-button-mode').value = s.menuButtonMode || 'both';
   const fontSize = document.getElementById('s-font-size');
@@ -692,10 +773,23 @@ function wireControls() {
     });
   };
 
+  // Custom theme dropdown button
+  const themeBtn = document.getElementById('s-theme-btn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openThemeMenu();
+    });
+  }
+
   // Theme also needs input event for immediate feel
   document.getElementById('s-theme').addEventListener('change', async (e) => {
     await saveSetting('theme', e.target.value);
     applyTheme(e.target.value);
+    if (typeof THEMES !== 'undefined') {
+      const meta = THEMES.find(t => t.id === e.target.value);
+      if (meta) updateThemePickerBtn(meta);
+    }
   });
 
   document.getElementById('s-font-size').addEventListener('input', async (e) => {

@@ -203,6 +203,25 @@ test.describe('Meowtrix E2E Tests', () => {
     const resolvedTheme = await htmlElement.getAttribute('data-theme');
     expect(['dark', 'light']).toContain(resolvedTheme);
 
+    // Verify custom styled theme dropdown button and Linear Precision vector icons
+    const themeBtn = page.locator('#s-theme-btn');
+    await expect(themeBtn).toBeVisible();
+    await expect(themeBtn.locator('.custom-select-icon svg')).toBeVisible();
+
+    // Open custom dropdown menu
+    await themeBtn.click();
+    const themeMenu = page.locator('.custom-select-menu');
+    await expect(themeMenu).toBeVisible();
+    await expect(themeMenu.locator('.custom-select-item')).toHaveCount(5);
+    await expect(themeMenu.locator('.custom-select-item-icon svg')).toHaveCount(5);
+
+    // Select OLED from the custom dropdown menu
+    const oledItem = themeMenu.locator('.custom-select-item', { hasText: 'Retina OLED' });
+    await oledItem.click();
+    await expect(themeMenu).not.toBeVisible();
+    await expect(htmlElement).toHaveAttribute('data-theme', 'oled');
+    await expect(themeBtn.locator('.custom-select-label')).toContainText('Retina OLED');
+
     // Verify WebGL renderer indicator in settings
     const webglIndicator = page.locator('#s-webgl-indicator');
     await expect(webglIndicator).toBeVisible();

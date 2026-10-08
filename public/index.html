@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>Meowtrix</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.25.0">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=1.25.0">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=1.25.0">
-  <link rel="shortcut icon" href="favicon.ico?v=1.25.0">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1.25.0">
-  <link rel="manifest" href="manifest.json?v=1.25.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.25.1">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=1.25.1">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=1.25.1">
+  <link rel="shortcut icon" href="favicon.ico?v=1.25.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1.25.1">
+  <link rel="manifest" href="manifest.json?v=1.25.1">
   <meta name="theme-color" content="#0b0f19">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -123,10 +123,17 @@
           <div class="settings-section-content">
             <div class="settings-row">
               <label for="s-theme">Theme</label>
-              <select id="s-theme">
-                <!-- options populated from THEMES (app.js) by settings.js -->
-                <option value="dark">Midnight</option>
-              </select>
+              <div class="custom-select-wrap" id="theme-select-wrap">
+                <button type="button" class="custom-select-btn" id="s-theme-btn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="custom-select-icon"></span>
+                  <span class="custom-select-label">Linear Slate (Dark)</span>
+                  <span class="custom-select-chevron"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                </button>
+                <select id="s-theme">
+                  <!-- options populated from THEMES (app.js) by settings.js -->
+                  <option value="dark">Linear Slate (Dark)</option>
+                </select>
+              </div>
             </div>
             <div class="settings-row">
               <label for="s-ui-mode">Interface mode</label>

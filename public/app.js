@@ -658,11 +658,11 @@ function showTabTypePicker(e, pane) {
 // matches a `html[data-theme="…"]` block in style.css (except 'dark', which
 // is the :root default). `icon` shows on the toolbar button for the theme.
 const THEMES = [
-  { id: 'auto',           label: 'Auto (System)',              icon: '🌓' },
-  { id: 'dark',           label: 'Linear Slate (Dark)',        icon: '🌙' },
-  { id: 'light',          label: 'Linear Slate (Light)',       icon: '☀️' },
-  { id: 'oled',           label: 'Retina OLED (Jet Black)',    icon: '🖤' },
-  { id: 'contrast-light', label: 'High Contrast Light',        icon: '⚪' },
+  { id: 'auto',           label: 'Auto (System)',              icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>` },
+  { id: 'dark',           label: 'Linear Slate (Dark)',        icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>` },
+  { id: 'light',          label: 'Linear Slate (Light)',       icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m14.14-14.14l-1.41 1.41"/></svg>` },
+  { id: 'oled',           label: 'Retina OLED (Jet Black)',    icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>` },
+  { id: 'contrast-light', label: 'High Contrast Light',        icon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>` },
 ];
 
 // Exposed globally so settings.js can call it
@@ -679,15 +679,16 @@ function applyTheme(theme) {
   if (themeBtn) {
     const iconEl = themeBtn.querySelector('.btn-icon');
     if (iconEl) {
-      iconEl.textContent = meta.icon;
+      iconEl.innerHTML = meta.icon;
     } else {
-      themeBtn.textContent = meta.icon;
+      themeBtn.innerHTML = meta.icon;
     }
     themeBtn.title = `Theme: ${meta.label} — click to cycle`;
   }
   localStorage.setItem('theme', meta.id);
   const sel = document.getElementById('s-theme');
   if (sel) sel.value = meta.id;
+  if (typeof updateThemePickerBtn === 'function') updateThemePickerBtn(meta);
   const newTheme = getTermTheme();
   getAllPanesAllWorkspaces().forEach(p => p.tabs.forEach(t => {
     if (t.term) t.term.options.theme = newTheme;
