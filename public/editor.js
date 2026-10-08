@@ -2006,7 +2006,7 @@ function initEditorTab(tab, viewEl, dir) {
       items.push({ type: 'divider' });
       items.push({
         label: 'Open in Terminal',
-        icon: '⬛',
+        icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('terminal') : '⬛',
         onClick: () => {
           if (typeof activePane !== 'undefined' && activePane) {
             addTab(activePane, 'terminal', undefined, undefined, undefined, path);
@@ -2051,7 +2051,7 @@ function initEditorTab(tab, viewEl, dir) {
       items.push({ type: 'divider' });
       items.push({
         label: 'Open in Terminal',
-        icon: '⬛',
+        icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('terminal') : '⬛',
         onClick: () => {
           if (typeof activePane !== 'undefined' && activePane) {
             addTab(activePane, 'terminal', undefined, undefined, undefined, itemPath);
@@ -2061,7 +2061,7 @@ function initEditorTab(tab, viewEl, dir) {
       });
       items.push({
         label: 'Open in Editor',
-        icon: '📝',
+        icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('editor') : '📝',
         onClick: () => {
           if (typeof activePane !== 'undefined' && activePane) {
             addTab(activePane, 'editor', undefined, undefined, undefined, itemPath);
@@ -2167,7 +2167,11 @@ function initEditorTab(tab, viewEl, dir) {
         
         const iconSpan = document.createElement('span');
         iconSpan.className = 'editor-context-menu-item-icon';
-        iconSpan.textContent = item.icon || '';
+        if (item.icon && typeof item.icon === 'string' && item.icon.startsWith('<svg')) {
+          iconSpan.innerHTML = item.icon;
+        } else {
+          iconSpan.textContent = item.icon || '';
+        }
         
         const labelSpan = document.createElement('span');
         labelSpan.className = 'editor-context-menu-item-label';

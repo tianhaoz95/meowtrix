@@ -1,0 +1,934 @@
+/* style.css — Meowtrix Icon Redesign Candidate Review Site */
+:root {
+  --bg-page: #0b0f19;
+  --bg-surface: #121826;
+  --bg-card: #182234;
+  --bg-card-hover: #1e2b42;
+  --border: #233148;
+  --border-focus: #3b82f6;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.25);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --icon-size: 24px;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+html[data-theme="oled"] {
+  --bg-page: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-card: #121212;
+  --bg-card-hover: #1c1c1c;
+  --border: #272727;
+  --border-focus: #ffffff;
+  --text-main: #ffffff;
+  --text-muted: #a3a3a3;
+  --text-dim: #737373;
+  --accent: #ffffff;
+  --accent-light: #ffffff;
+  --accent-glow: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="light"] {
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #f1f5f9;
+  --bg-card-hover: #e2e8f0;
+  --border: #cbd5e1;
+  --border-focus: #4f46e5;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #94a3b8;
+  --accent: #4f46e5;
+  --accent-light: #6366f1;
+  --accent-glow: rgba(79, 70, 229, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top Navigation ────────────────────────────────────────── */
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-title {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.nav-badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--accent-glow);
+  color: var(--accent-light);
+  font-weight: 600;
+  border: 1px solid var(--accent);
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  padding: 3px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.control-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-right: 4px;
+  padding-left: 4px;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.theme-btn, .size-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.theme-btn:hover, .size-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-card-hover);
+}
+
+.theme-btn.active, .size-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+html[data-theme="oled"] .theme-btn.active,
+html[data-theme="oled"] .size-btn.active {
+  color: #000000;
+}
+
+.action-btn {
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.primary-action {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+html[data-theme="oled"] .primary-action {
+  color: #000000;
+}
+
+.primary-action:hover {
+  opacity: 0.9;
+}
+
+.success-action {
+  background: var(--success);
+  color: #ffffff;
+}
+
+/* ── Content Layout ────────────────────────────────────────── */
+.content-container {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.hero-section {
+  text-align: center;
+  max-width: 840px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.hero-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-light);
+  background: var(--accent-glow);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--accent);
+}
+
+.hero-title {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-main);
+}
+
+.hero-subtitle {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-light);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Section Cards ─────────────────────────────────────────── */
+.section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.section-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Mockup UI Shell ───────────────────────────────────────── */
+.app-window-frame {
+  background: #090d16;
+  border: 1px solid #233148;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+html[data-theme="oled"] .app-window-frame {
+  background: #000000;
+  border-color: #333333;
+}
+
+html[data-theme="light"] .app-window-frame {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.mockup-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #0e1422;
+  border-bottom: 1px solid #233148;
+}
+
+html[data-theme="oled"] .mockup-toolbar {
+  background: #080808;
+  border-color: #262626;
+}
+
+html[data-theme="light"] .mockup-toolbar {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.mockup-window-controls {
+  display: flex;
+  gap: 7px;
+}
+
+.mac-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.mac-dot.red { background: #ff5f56; }
+.mac-dot.yellow { background: #ffbd2e; }
+.mac-dot.green { background: #27c93f; }
+
+.mockup-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mockup-app-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mockup-toolbar-items {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-muted);
+}
+
+html[data-theme="light"] .mock-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.mock-btn.highlight-btn {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--text-main);
+}
+
+.mock-btn.highlight-btn strong {
+  color: var(--success);
+}
+
+/* ── Mockup Tab Bar ────────────────────────────────────────── */
+.mockup-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px 0;
+  background: #0a0f1c;
+  border-bottom: 1px solid #233148;
+}
+
+html[data-theme="oled"] .mockup-tab-bar {
+  background: #000000;
+  border-color: #262626;
+}
+
+html[data-theme="light"] .mockup-tab-bar {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.mock-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid transparent;
+  border-bottom: none;
+}
+
+.mock-tab.active {
+  background: #121826;
+  color: var(--text-main);
+  border-color: #233148;
+}
+
+html[data-theme="oled"] .mock-tab.active {
+  background: #111111;
+  border-color: #333333;
+}
+
+html[data-theme="light"] .mock-tab.active {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.mock-tab-close {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+.mock-tab-add {
+  font-size: 14px;
+  padding: 4px 8px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+/* ── Mockup Content Area ───────────────────────────────────── */
+.mockup-viewport {
+  padding: 16px;
+  min-height: 260px;
+}
+
+.mockup-pane-split {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 16px;
+  height: 100%;
+}
+
+.mock-pane-view {
+  background: #101624;
+  border: 1px solid #233148;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+html[data-theme="oled"] .mock-pane-view {
+  background: #050505;
+  border-color: #222222;
+}
+
+html[data-theme="light"] .mock-pane-view {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.terminal-view {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.term-dim { color: var(--text-dim); }
+.term-prompt { color: #38bdf8; font-weight: 600; }
+.term-path { color: #818cf8; }
+.term-git { color: #a855f7; }
+.term-sym { color: #10b981; }
+.term-cmd { color: #f1f5f9; }
+.term-output {
+  margin: 6px 0;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.3);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+.term-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--text-main);
+  vertical-align: middle;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+/* ── Dropdown Preview inside Mockup ────────────────────────── */
+.mock-dropdown-card {
+  background: #182234;
+  border: 1px solid #2d3f5d;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+html[data-theme="oled"] .mock-dropdown-card {
+  background: #121212;
+  border-color: #333333;
+}
+
+html[data-theme="light"] .mock-dropdown-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.mock-dropdown-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 4px 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mock-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.mock-dropdown-item:hover, .mock-dropdown-item.highlight-item {
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+}
+
+.item-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.item-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Inconsistent Icons Audit Table ────────────────────────── */
+.audit-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.audit-table th, .audit-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.audit-table th {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  background: var(--bg-card);
+}
+
+.audit-table td {
+  font-size: 13.5px;
+}
+
+.current-emoji-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emoji-large {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.issue-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.active-preview-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--accent-light);
+}
+
+/* ── Candidates Comparison Grid ────────────────────────────── */
+.candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 20px;
+}
+
+.candidate-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.candidate-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-light);
+  transform: translateY(-2px);
+}
+
+.candidate-card.active-candidate {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+  background: var(--bg-card-hover);
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cand-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.cand-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--accent-glow);
+  color: var(--accent-light);
+  border: 1px solid var(--accent);
+  white-space: nowrap;
+}
+
+.cand-tagline {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.cand-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trait-pill {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.cand-icons-matrix {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  background: var(--bg-surface);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.cand-icon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.cand-icon-item .icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  transition: transform 0.15s ease;
+}
+
+.cand-icon-item:hover .icon-wrapper {
+  transform: scale(1.15);
+  color: var(--accent-light);
+}
+
+.cand-icon-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-card-select {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+html[data-theme="oled"] .btn-card-select {
+  color: #000000;
+}
+
+.btn-card-copy {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 5px 10px;
+}
+
+.btn-card-copy:hover {
+  color: var(--text-main);
+}
+
+/* ── Winner Section ────────────────────────────────────────── */
+.winner-selector-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.winner-selection-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+select {
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+}
+
+select:focus {
+  border-color: var(--border-focus);
+}
+
+.winner-details-preview {
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.export-code-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.copy-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.copy-btn:hover {
+  background: var(--bg-card-hover);
+}
+
+.code-preview {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: #090d16;
+  border: 1px solid #233148;
+  border-radius: 8px;
+  padding: 16px;
+  color: #38bdf8;
+  overflow-x: auto;
+  max-height: 320px;
+}
+
+html[data-theme="oled"] .code-preview {
+  background: #000000;
+  border-color: #262626;
+  color: #ffffff;
+}
+
+/* ── Footer ────────────────────────────────────────────────── */
+.site-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 20px 24px;
+}
+
+.footer-inner {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── SVG Scaling Control ───────────────────────────────────── */
+.mock-icon-slot svg,
+.cand-icon-item svg,
+.preview-chip svg {
+  display: block;
+}
+
+/* Dynamic size adjustments */
+body[data-icon-size="16"] .cand-icon-item svg { width: 16px; height: 16px; }
+body[data-icon-size="24"] .cand-icon-item svg { width: 24px; height: 24px; }
+body[data-icon-size="32"] .cand-icon-item svg { width: 32px; height: 32px; }
+body[data-icon-size="48"] .cand-icon-item svg { width: 48px; height: 48px; }
+
+.mockup-toolbar svg,
+.mockup-tab-bar svg,
+.mock-dropdown-card svg {
+  width: 14px;
+  height: 14px;
+}

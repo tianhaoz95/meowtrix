@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="slate">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meowtrix — Icon Redesign Candidate Review</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2312151c'/><path d='M7 19.5 13.5 13 7 6.5' stroke='%23818cf8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='21' cy='18' r='3.5' fill='%2338bdf8'/></svg>">
+</head>
+<body>
+  <!-- Top Navigation & Controls Bar -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <div class="logo-mark">
+        <svg viewBox="0 0 32 32" width="22" height="22">
+          <rect width="32" height="32" rx="7" fill="#12151c"/>
+          <path d="M7 19.5 13.5 13 7 6.5" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="21" cy="18" r="3.5" fill="#38bdf8"/>
+        </svg>
+      </div>
+      <div class="nav-title-group">
+        <span class="nav-title">Meowtrix Design Lab</span>
+        <span class="nav-badge">Icon System Redesign</span>
+      </div>
+    </div>
+
+    <div class="nav-controls">
+      <div class="control-group">
+        <span class="control-label">Theme:</span>
+        <button class="theme-btn active" data-theme="slate">Linear Slate</button>
+        <button class="theme-btn" data-theme="oled">Retina OLED</button>
+        <button class="theme-btn" data-theme="light">Linear Light</button>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Icon Size:</span>
+        <button class="size-btn" data-size="16">16px (Tab)</button>
+        <button class="size-btn active" data-size="24">24px (Standard)</button>
+        <button class="size-btn" data-size="32">32px</button>
+        <button class="size-btn" data-size="48">48px (Macro)</button>
+      </div>
+
+      <a href="#pick-winner" class="action-btn primary-action">Pick Winner ➔</a>
+    </div>
+  </header>
+
+  <main class="content-container">
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-badge">Style Consistency Overhaul</div>
+      <h1 class="hero-title">Icon System Redesign Candidates</h1>
+      <p class="hero-subtitle">
+        Eliminating skeuomorphic 3D emojis (like the 🎮 gamepad and 🤖 robot) in favor of cohesive, precision vector line icons aligned with the <strong>Linear Slate</strong> and <strong>Retina OLED</strong> design language.
+      </p>
+
+      <!-- Quick Summary Cards -->
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-num">10</div>
+          <div class="stat-label">Design Candidates</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">10</div>
+          <div class="stat-label">Inconsistent Emojis Fixed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">100%</div>
+          <div class="stat-label">Scalable Vector SVGs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">0 ms</div>
+          <div class="stat-label">Zero Asset Lag (Pure CSS/SVG)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Live Meowtrix UI Mockup -->
+    <section class="section-card mockup-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Interactive Meowtrix UI Live Preview</h2>
+          <p class="section-desc">Experience how each candidate renders inside the real Meowtrix toolbar, tab headers, and tab picker dropdown.</p>
+        </div>
+        <div class="candidate-quick-select">
+          <label for="mockup-candidate-select">Active Candidate:</label>
+          <select id="mockup-candidate-select"></select>
+        </div>
+      </div>
+
+      <!-- Live Mockup Window Shell -->
+      <div class="app-window-frame">
+        <!-- Mockup Window Titlebar / Toolbar -->
+        <div class="mockup-toolbar">
+          <div class="mockup-window-controls">
+            <span class="mac-dot red"></span>
+            <span class="mac-dot yellow"></span>
+            <span class="mac-dot green"></span>
+          </div>
+
+          <div class="mockup-logo-area">
+            <svg viewBox="0 0 32 32" width="18" height="18">
+              <path d="M7 19.5 13.5 13 7 6.5" stroke="#818cf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <circle cx="21" cy="18" r="3.5" fill="#38bdf8"/>
+            </svg>
+            <span class="mockup-app-name">meowtrix</span>
+          </div>
+
+          <div class="mockup-toolbar-items">
+            <div class="mock-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="3" x2="12" y2="21"/></svg> Split V</div>
+            <div class="mock-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.93 19.07a10 10 0 0 1 0-14.14M19.07 4.93a10 10 0 0 1 0 14.14"/><circle cx="12" cy="12" r="2"/></svg> Broadcast</div>
+            
+            <!-- THE REDESIGNED GPU BUTTON -->
+            <div class="mock-btn highlight-btn" id="mockup-btn-gpu">
+              <span class="mock-icon-slot" id="slot-gpu-toolbar"></span>
+              <span class="mock-btn-text">GPU <strong>14%</strong> 48°C</span>
+            </div>
+
+            <div class="mock-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</div>
+          </div>
+        </div>
+
+        <!-- Mockup Tab Bar -->
+        <div class="mockup-tab-bar">
+          <div class="mock-tab active">
+            <span class="mock-icon-slot" id="slot-terminal-tab"></span>
+            <span class="mock-tab-title">zsh</span>
+            <span class="mock-tab-close">✕</span>
+          </div>
+          <div class="mock-tab">
+            <span class="mock-icon-slot" id="slot-agent-tab"></span>
+            <span class="mock-tab-title">AI Agent</span>
+            <span class="mock-tab-close">✕</span>
+          </div>
+          <div class="mock-tab">
+            <span class="mock-icon-slot" id="slot-editor-tab"></span>
+            <span class="mock-tab-title">Editor</span>
+            <span class="mock-tab-close">✕</span>
+          </div>
+          <div class="mock-tab">
+            <span class="mock-icon-slot" id="slot-browser-tab"></span>
+            <span class="mock-tab-title">Browser</span>
+            <span class="mock-tab-close">✕</span>
+          </div>
+          <div class="mock-tab">
+            <span class="mock-icon-slot" id="slot-ssh-tab"></span>
+            <span class="mock-tab-title">prod-cluster</span>
+            <span class="mock-tab-close">✕</span>
+          </div>
+          <div class="mock-tab-add" id="mock-btn-add-tab">+</div>
+        </div>
+
+        <!-- Mockup Content Pane -->
+        <div class="mockup-viewport">
+          <div class="mockup-pane-split">
+            <!-- Left Pane: Active Terminal -->
+            <div class="mock-pane-view terminal-view">
+              <div class="mock-term-line"><span class="term-dim">Last login: Today on ttys004</span></div>
+              <div class="mock-term-line"><span class="term-prompt">meowtrix@host</span> <span class="term-path">~/code</span> <span class="term-git">git:(main)</span> <span class="term-sym">❯</span> <span class="term-cmd">mtx status</span></div>
+              <div class="mock-term-output">
+                <div>✔ Node server: <strong>127.0.0.1:9123</strong></div>
+                <div>✔ Active sessions: <strong>1</strong> (active)</div>
+                <div>✔ Local Metal GPU: <strong>Apple M4 Max</strong> (Active, 14% utilization)</div>
+              </div>
+              <div class="mock-term-line"><span class="term-prompt">meowtrix@host</span> <span class="term-path">~/code</span> <span class="term-sym">❯</span> <span class="term-cursor"></span></div>
+            </div>
+
+            <!-- Right Pane: New Tab Dropdown Preview -->
+            <div class="mock-pane-view dropdown-view">
+              <div class="mock-dropdown-card">
+                <div class="mock-dropdown-header">Add New Tab</div>
+                <div class="mock-dropdown-item">
+                  <span class="mock-icon-slot" id="slot-terminal-menu"></span>
+                  <div class="item-text">
+                    <span class="item-name">Terminal</span>
+                    <span class="item-desc">Interactive local shell</span>
+                  </div>
+                </div>
+                <div class="mock-dropdown-item">
+                  <span class="mock-icon-slot" id="slot-ssh-menu"></span>
+                  <div class="item-text">
+                    <span class="item-name">SSH Connection</span>
+                    <span class="item-desc">Secure remote terminal session</span>
+                  </div>
+                </div>
+                <div class="mock-dropdown-item highlight-item">
+                  <span class="mock-icon-slot" id="slot-agent-menu"></span>
+                  <div class="item-text">
+                    <span class="item-name">AI Agent</span>
+                    <span class="item-desc">Deep Agent reasoning & code cockpit</span>
+                  </div>
+                </div>
+                <div class="mock-dropdown-item">
+                  <span class="mock-icon-slot" id="slot-browser-menu"></span>
+                  <div class="item-text">
+                    <span class="item-name">Browser</span>
+                    <span class="item-desc">Embedded web frame & preview</span>
+                  </div>
+                </div>
+                <div class="mock-dropdown-item">
+                  <span class="mock-icon-slot" id="slot-editor-menu"></span>
+                  <div class="item-text">
+                    <span class="item-name">Code Editor</span>
+                    <span class="item-desc">Monaco syntax tree & Git diffs</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Inconsistent Icons Audit Table -->
+    <section class="section-card audit-section">
+      <h2 class="section-title">Inconsistent Icon Audit</h2>
+      <p class="section-desc">Comparison of the current skeuomorphic emojis versus the redesigned vector SVGs across all 10 candidates.</p>
+      
+      <div class="audit-table-wrap">
+        <table class="audit-table" id="audit-table">
+          <thead>
+            <tr>
+              <th>Target Icon</th>
+              <th>Current (Inconsistent)</th>
+              <th>UI Location</th>
+              <th>Active Redesign Preview</th>
+              <th>Style Impact</th>
+            </tr>
+          </thead>
+          <tbody id="audit-table-body">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- All 10 Candidates Side-by-Side Comparison Matrix -->
+    <section class="section-card matrix-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">10 Candidates Comparison Matrix</h2>
+          <p class="section-desc">Click any candidate card to instantly load it into the live Meowtrix UI mockup above.</p>
+        </div>
+      </div>
+
+      <div class="candidates-grid" id="candidates-grid">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- Interactive Winner Selection & Code Export Section -->
+    <section class="section-card pick-section" id="pick-winner">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Pick Your Winner & Implementation Plan</h2>
+          <p class="section-desc">Select the candidate you'd like to apply to Meowtrix, review the implementation patch, and copy code.</p>
+        </div>
+      </div>
+
+      <div class="winner-selector-card">
+        <div class="winner-selection-row">
+          <label for="winner-select">Selected System Winner:</label>
+          <select id="winner-select"></select>
+          <button class="action-btn success-action" id="btn-apply-selection">Confirm Choice</button>
+        </div>
+
+        <div class="winner-details-preview" id="winner-details-preview">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div class="export-code-box">
+          <div class="export-box-header">
+            <span>Implementation Files & Changes</span>
+            <button class="copy-btn" id="btn-copy-patch">Copy Implementation Summary</button>
+          </div>
+          <pre class="code-preview" id="code-patch-preview"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>Meowtrix Design Lab — Icon Redesign Report</span>
+      <span>Tested against Linear Slate & Retina OLED Jet Black</span>
+    </div>
+  </footer>
+
+  <script src="candidates.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

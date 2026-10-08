@@ -3,6 +3,26 @@ let tabCounter = 0;
 const paneRegistry = new Map();
 let maximizedPane = null;
 
+function getTabIconSvg(type) {
+  switch (type) {
+    case 'terminal':
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 12 4 7"/><line x1="12" y1="17" x2="20" y2="17"/></svg>`;
+    case 'agent':
+      // Micro-Badge (Framed Squircle Glyphs)
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5L12 7z"/></svg>`;
+    case 'ssh':
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/><path d="M14 7h3m-3 10h3"/></svg>`;
+    case 'editor':
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>`;
+    case 'browser':
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="6.5" cy="6.5" r="0.75" fill="currentColor"/><circle cx="9.5" cy="6.5" r="0.75" fill="currentColor"/><circle cx="12.5" cy="6.5" r="0.75" fill="currentColor"/></svg>`;
+    case 'gpu':
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2.5"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3m6-3v3m-6 14v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/></svg>`;
+    default:
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 12 4 7"/><line x1="12" y1="17" x2="20" y2="17"/></svg>`;
+  }
+}
+
 // ── Broadcast input ──────────────────────────────────────────────────────────
 // When on, keystrokes from any terminal are mirrored to every *visible* terminal
 // (the active tab of each pane), like iTerm2 broadcast / tmux synchronize-panes.
@@ -347,7 +367,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   tabEl.className = 'tab';
   const icon = document.createElement('span');
   icon.className = 'tab-icon';
-  icon.textContent = sshHost ? '🔗' : type === 'terminal' ? '⬛' : type === 'editor' ? '📝' : type === 'agent' ? '🤖' : '🌐';
+  icon.innerHTML = getTabIconSvg(sshHost ? 'ssh' : type);
   const label = document.createElement('span');
   label.textContent = sshHost ? sshHost : type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : type === 'agent' ? 'AI Agent' : 'Browser';
 
@@ -642,7 +662,7 @@ function initTerminalTab(tab, existingPtyId) {
         <div class="term-link-menu-header">Link Options</div>
         <div class="term-link-menu-url" title="${uri}">${uri}</div>
         <div class="term-link-menu-item" data-action="new-tab">
-          <span class="term-link-menu-item-icon">🌐</span>
+          <span class="term-link-menu-item-icon">${getTabIconSvg('browser')}</span>
           <span>Open in browser tab</span>
         </div>
         <div class="term-link-menu-item" data-action="app-tab">
@@ -1243,7 +1263,7 @@ function initBrowserTab(tab, viewEl, label, initialUrl) {
   startEl.className = 'browser-start';
   startEl.innerHTML = `
     <div class="browser-start-card">
-      <div class="browser-start-icon">🌐</div>
+      <div class="browser-start-icon">${getTabIconSvg('browser')}</div>
       <h2>Browser</h2>
       <p>Type a URL in the address bar above, then press <kbd>Enter</kbd>.</p>
       <ul>
@@ -2358,7 +2378,7 @@ function showTabContextMenu(e, tab) {
     },
     {
       label: 'Ask AI Agent about this Tab',
-      icon: '🤖',
+      icon: getTabIconSvg('agent'),
       onClick: () => {
         const p = paneOfTab(tab.tabEl);
         if (p) {
@@ -2391,7 +2411,11 @@ function showTabContextMenu(e, tab) {
       
       const iconSpan = document.createElement('span');
       iconSpan.className = 'tab-context-menu-item-icon';
-      iconSpan.textContent = item.icon;
+      if (item.icon && typeof item.icon === 'string' && item.icon.startsWith('<svg')) {
+        iconSpan.innerHTML = item.icon;
+      } else {
+        iconSpan.textContent = item.icon || '';
+      }
       
       const labelSpan = document.createElement('span');
       labelSpan.className = 'tab-context-menu-item-label';

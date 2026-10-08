@@ -143,7 +143,7 @@
           <div class="agent-stream-column">
             <div class="agent-stream" id="agent-stream-${tab.id}">
               <div class="agent-welcome-card">
-                <div class="agent-welcome-icon">🤖</div>
+                <div class="agent-welcome-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg('agent') : '🤖'}</div>
                 <h3>Meowtrix Autonomous AI Cockpit</h3>
                 <p>Equipped with native workspace access: file reading/writing, terminal commands, git diffs, and iterative planning.</p>
                 <div class="agent-quick-pills">
@@ -510,7 +510,7 @@
       fetch('/api/ai/agent/session/' + tab.agentId + '/reset', { method: 'POST' }).catch(() => {});
       streamEl.innerHTML = `
         <div class="agent-welcome-card">
-          <div class="agent-welcome-icon">🤖</div>
+          <div class="agent-welcome-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg('agent') : '🤖'}</div>
           <h3>Session Cleared</h3>
           <p>Ready for your next task. Type an instruction below or select a quick starter pill.</p>
         </div>
@@ -636,7 +636,7 @@
 
       const header = document.createElement('div');
       header.className = 'agent-card-header';
-      header.textContent = role === 'user' ? '👤 User' : '🤖 Meowtrix Agent';
+      header.innerHTML = role === 'user' ? '👤 User' : `<span class="agent-role-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg('agent') : '🤖'}</span> Meowtrix Agent`;
 
       const content = document.createElement('div');
       content.className = 'agent-card-content agent-markdown-body';
@@ -667,7 +667,7 @@
       const assistantCard = document.createElement('div');
       assistantCard.className = 'agent-card agent-card-assistant';
       assistantCard.innerHTML = `
-        <div class="agent-card-header">🤖 Meowtrix Agent</div>
+        <div class="agent-card-header"><span class="agent-role-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg('agent') : '🤖'}</span> Meowtrix Agent</div>
         <div class="agent-thinking-box" style="display: none;">
           <details open>
             <summary class="agent-thinking-summary">🧠 Reasoning / Chain of Thought</summary>

@@ -36,6 +36,7 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   --text4:     #334155;
   --accent:    #6366f1;
   --accent-hi: #818cf8;
+  --accent-fg: #ffffff;
   --accent2:   rgba(99, 102, 241, 0.25);
   --accent-soft: rgba(99, 102, 241, 0.12);
   --tab-bg:    #171e31;
@@ -87,6 +88,7 @@ html[data-theme="light"] {
   --text4:     #94a3b8;
   --accent:    #4f46e5;
   --accent-hi: #6366f1;
+  --accent-fg: #ffffff;
   --accent2:   rgba(79, 70, 229, 0.18);
   --accent-soft: rgba(79, 70, 229, 0.08);
   --tab-bg:    #ffffff;
@@ -130,6 +132,7 @@ html[data-theme="oled"] {
   --text4:     #52525b;
   --accent:    #ffffff;
   --accent-hi: #e4e4e7;
+  --accent-fg: #000000;
   --accent2:   rgba(255, 255, 255, 0.22);
   --accent-soft: rgba(255, 255, 255, 0.10);
   --tab-bg:    #121212;
@@ -173,6 +176,7 @@ html[data-theme="contrast-light"] {
   --text4:     #71717a;
   --accent:    #09090b;
   --accent-hi: #27272a;
+  --accent-fg: #ffffff;
   --accent2:   rgba(9, 9, 11, 0.20);
   --accent-soft: rgba(9, 9, 11, 0.08);
   --tab-bg:    #ffffff;
@@ -388,8 +392,12 @@ html.mobile-ui .toolbar-clock {
 #toolbar button.active,
 #toolbar button.active:hover {
   background: var(--accent);
-  color: #fff; border-color: var(--accent);
+  color: var(--accent-fg); border-color: var(--accent);
   box-shadow: none;
+}
+#toolbar button.active svg,
+#toolbar button.active:hover svg {
+  stroke: var(--accent-fg);
 }
 
 /* Transient status toast (file upload progress, etc.) */
@@ -419,11 +427,11 @@ html.mobile-ui .toolbar-clock {
 #update-banner-text { flex: 1; }
 #update-banner-apply, #update-banner-force {
   flex: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;
-  background: var(--accent); color: #fff; border: none;
+  background: var(--accent); color: var(--accent-fg); border: none;
   font-size: 12px; font-weight: 600; white-space: nowrap;
 }
-#update-banner-apply:hover { background: var(--accent-hi); }
-#update-banner-force { background: #dc2626; }
+#update-banner-apply:hover { background: var(--accent-hi); color: var(--accent-fg); }
+#update-banner-force { background: #dc2626; color: #fff; }
 #update-banner-force:hover { background: #b91c1c; }
 #update-banner-dismiss {
   flex: none; padding: 4px 8px; border-radius: 8px; cursor: pointer;
@@ -480,7 +488,8 @@ html.mobile-ui .toolbar-clock {
   color: var(--text); font-size: 13.5px;
 }
 .palette-item.active { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent2), var(--glow-soft); }
-.palette-ico { width: 20px; text-align: center; flex-shrink: 0; font-size: 14px; }
+.palette-ico { width: 20px; text-align: center; flex-shrink: 0; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.palette-ico svg { width: 14px; height: 14px; display: block; }
 .palette-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-hint {
   flex-shrink: 0; color: var(--text3); font-size: 12px;
@@ -626,9 +635,14 @@ html[data-theme="contrast-light"] #toolbar button.btn-danger:hover { background:
 #toolbar .toolbar-btn-group button.active:hover,
 #toolbar .toolbar-btn-group button[aria-pressed="true"] {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
   box-shadow: none;
+}
+#toolbar .toolbar-btn-group button.active svg,
+#toolbar .toolbar-btn-group button.active:hover svg,
+#toolbar .toolbar-btn-group button[aria-pressed="true"] svg {
+  stroke: var(--accent-fg);
 }
 
 #toolbar .toolbar-btn-group button.btn-danger:hover {
@@ -851,6 +865,11 @@ body.has-maximized-pane .pane.maximized {
   font-size: 12px;
   opacity: 0.8;
 }
+.tab-context-menu-item-icon svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
 .tab-context-menu-item-label {
   flex: 1;
 }
@@ -955,10 +974,8 @@ body.dragging-tab .pane-content { pointer-events: none; }
 /* ── Browser start page (shown when no site is loaded) ── */
 .browser-start { flex: 1; display: none; overflow: auto; background: var(--bg); }
 .browser-start.visible { display: flex; align-items: center; justify-content: center; padding: 32px 24px; }
-.browser-start-card {
-  max-width: 460px; color: var(--text2);
-}
 .browser-start-icon { font-size: 44px; line-height: 1; margin-bottom: 14px; }
+.browser-start-icon svg { width: 44px; height: 44px; display: block; margin-bottom: 14px; color: var(--accent); }
 .browser-start-card h2 {
   font-size: 21px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); margin-bottom: 10px;
 }
@@ -994,9 +1011,18 @@ body.dragging-tab .pane-content { pointer-events: none; }
   background: transparent; border: 1px solid transparent; color: var(--text2);
   padding: 8px 16px; border-radius: 8px; cursor: pointer;
   font-size: 13px; font-weight: 500; text-align: left; font-family: inherit;
+  display: flex; align-items: center; gap: 9px;
   transition: all 0.12s var(--ease);
 }
-.tab-type-picker button:hover { background: var(--accent); color: #fff; border-color: transparent; box-shadow: var(--glow-active); }
+.tab-type-picker button .tab-type-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+.tab-type-picker button .tab-type-icon svg {
+  width: 14px; height: 14px; display: block;
+}
+.tab-type-picker button:hover { background: var(--accent); color: var(--accent-fg); border-color: transparent; box-shadow: var(--glow-active); }
+.tab-type-picker button:hover svg { stroke: var(--accent-fg); }
 /* The SSH host submenu can get long; cap its height and let it scroll. */
 .tab-type-submenu { max-height: 60vh; overflow-y: auto; }
 .tab-type-picker button.tab-type-loading { color: var(--text3, var(--text2)); cursor: default; opacity: 0.7; }
@@ -1004,7 +1030,19 @@ body.dragging-tab .pane-content { pointer-events: none; }
 /* "Add new host…" sits below the host list, set off by a divider. */
 .tab-type-picker button.tab-type-add-host { margin-top: 4px; border-top: 1px solid var(--border3); border-radius: 0 0 8px 8px; }
 
-.tab-icon { font-size: 10px; }
+.tab-icon {
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.tab-icon svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
 
 /* ── Code editor tab ── */
 /* .pane-view.active forces flex-direction:column, so match its specificity. */
@@ -1076,6 +1114,11 @@ body.dragging-tab .pane-content { pointer-events: none; }
   width: 16px;
   font-size: 12px;
   opacity: 0.8;
+}
+.editor-context-menu-item-icon svg {
+  width: 13px;
+  height: 13px;
+  display: block;
 }
 .editor-context-menu-item-label {
   flex: 1;
@@ -1384,11 +1427,11 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 .editor-git-commitbtn {
   width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; font-weight: 600; font-family: inherit;
-  background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--accent); color: var(--accent-fg); border: none; border-radius: 8px; cursor: pointer;
   transition: background 0.1s var(--ease), opacity 0.1s var(--ease);
 }
 .editor-git-commitbtn { transition: background 0.1s var(--ease), opacity 0.1s var(--ease), box-shadow 0.15s var(--ease); }
-.editor-git-commitbtn:hover:not(:disabled) { background: var(--accent-hi); box-shadow: var(--glow-active); }
+.editor-git-commitbtn:hover:not(:disabled) { background: var(--accent-hi); color: var(--accent-fg); box-shadow: var(--glow-active); }
 .editor-git-commitbtn:disabled { opacity: 0.45; cursor: default; }
 .editor-git-aibtn {
   flex: none;
@@ -1666,7 +1709,7 @@ body.dragging-tab .pane-content { pointer-events: none; }
 }
 .folder-prompt-suggestion::before { content: '📁'; font-size: 12px; flex: none; }
 .folder-prompt-suggestion:hover { background: var(--bg5); color: var(--text); }
-.folder-prompt-suggestion.active { background: var(--accent); color: #fff; }
+.folder-prompt-suggestion.active { background: var(--accent); color: var(--accent-fg); }
 .folder-prompt-list::-webkit-scrollbar { width: 9px; }
 .folder-prompt-list::-webkit-scrollbar-thumb {
   background: var(--border3); border-radius: 6px;
@@ -1681,8 +1724,8 @@ body.dragging-tab .pane-content { pointer-events: none; }
   transition: all 0.12s var(--ease);
 }
 .folder-prompt-actions button:hover { color: var(--text); border-color: var(--text3); }
-.folder-prompt-actions button.primary { background: var(--accent); color: #fff; border-color: transparent; }
-.folder-prompt-actions button.primary:hover { background: var(--accent-hi); }
+.folder-prompt-actions button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.folder-prompt-actions button.primary:hover { background: var(--accent-hi); color: var(--accent-fg); }
 
 /* ── Settings panel ── */
 #settings-overlay {
@@ -2014,8 +2057,11 @@ details.settings-section[open] .settings-section-content {
   max-width: 170px; flex: 1; min-width: 0;
 }
 .settings-row button:hover {
-  background: var(--accent); color: #fff; border-color: transparent;
+  background: var(--accent); color: var(--accent-fg); border-color: transparent;
   box-shadow: 0 0 0 3px var(--accent-soft), var(--glow-soft);
+}
+.settings-row button:hover svg {
+  stroke: var(--accent-fg);
 }
 .settings-row button:active {
   transform: scale(0.97);
@@ -2083,7 +2129,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   margin-top: 10px;
   padding: 10px 24px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border: 1px solid var(--accent);
   border-radius: 8px;
   font-size: 14px;
@@ -2091,10 +2137,10 @@ body.session-inactive #toolbar button:not(#btn-settings) {
   cursor: pointer;
   font-family: inherit;
   box-shadow: var(--shadow);
-  transition: opacity 0.15s var(--ease);
+  transition: opacity 0.15s var(--ease), background 0.15s var(--ease);
 }
 
-#btn-takeover:hover { opacity: 0.9; }
+#btn-takeover:hover { background: var(--accent-hi); color: var(--accent-fg); opacity: 0.9; }
 #btn-takeover:active { opacity: 1; }
 
 /* ── Scheduled Enter: dialog ────────────────────────────────────────────────*/
@@ -2171,11 +2217,11 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 }
 .sched-actions button:hover { background: var(--bg5); color: var(--text); }
 .sched-actions button.primary {
-  border: 1px solid var(--accent); color: #fff;
+  border: 1px solid var(--accent); color: var(--accent-fg);
   background: var(--accent);
   box-shadow: var(--shadow);
 }
-.sched-actions button.primary:hover { opacity: 0.9; }
+.sched-actions button.primary:hover { background: var(--accent-hi); color: var(--accent-fg); opacity: 0.9; }
 .sched-actions button.primary:disabled {
   opacity: 0.5; cursor: not-allowed; box-shadow: none;
 }
@@ -2206,12 +2252,12 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 }
 .schedule-cancel {
   margin-top: 8px; padding: 9px 22px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--accent); color: var(--accent-fg); font: inherit; font-size: 13px; font-weight: 600;
   background: var(--accent);
   box-shadow: var(--shadow);
-  transition: opacity 0.15s var(--ease);
+  transition: opacity 0.15s var(--ease), background 0.15s var(--ease);
 }
-.schedule-cancel:hover { opacity: 0.9; }
+.schedule-cancel:hover { background: var(--accent-hi); color: var(--accent-fg); opacity: 0.9; }
 
 /* Pulsing dot on a tab with a pending scheduled Enter (visible when in back). */
 .tab.scheduled .tab-icon { position: relative; }
@@ -2258,7 +2304,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 }
 #mobile-autocomplete-toggle.active {
   background: var(--accent) !important;
-  color: #fff !important;
+  color: var(--accent-fg) !important;
   border-color: var(--accent) !important;
   box-shadow: none !important;
 }
@@ -2287,7 +2333,7 @@ body.session-inactive #toolbar button:not(#btn-settings) {
 .keybar-btn:active { background: var(--bg5); }
 .keybar-mod.armed {
   background: var(--accent);
-  color: #fff; border-color: var(--accent);
+  color: var(--accent-fg); border-color: var(--accent);
   box-shadow: none;
 }
 .keybar-hide {
@@ -2706,7 +2752,7 @@ html.mobile-ui {
   font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word;
 }
 .pet-msg-me {
-  align-self: flex-end; background: var(--accent); color: #fff;
+  align-self: flex-end; background: var(--accent); color: var(--accent-fg);
   border-bottom-right-radius: 4px;
 }
 .pet-msg-pet {
@@ -2729,10 +2775,10 @@ html.mobile-ui {
 #pet-chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 #pet-chat-send {
   flex-shrink: 0; width: 36px; border: none; border-radius: 10px;
-  background: var(--accent); color: #fff; cursor: pointer; font-size: 13px;
+  background: var(--accent); color: var(--accent-fg); cursor: pointer; font-size: 13px;
   transition: background 0.15s var(--ease), opacity 0.15s var(--ease);
 }
-#pet-chat-send:hover { background: var(--accent-hi); }
+#pet-chat-send:hover { background: var(--accent-hi); color: var(--accent-fg); }
 #pet-chat-send:disabled { opacity: 0.5; cursor: default; }
 
 /* ── Markdown inside pet replies ── */
@@ -2941,8 +2987,11 @@ body.resizing-console iframe {
 
 .browser-bar button.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
+}
+.browser-bar button.active svg {
+  stroke: var(--accent-fg);
 }
 
 /* ── Terminal Autocomplete Overlay ── */
@@ -3241,12 +3290,12 @@ body.resizing-console iframe {
 
 .editor-markdown-btn.active {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--accent-fg);
 }
 
 .editor-markdown-btn.active:hover {
-  background: var(--accent);
-  color: #ffffff;
+  background: var(--accent-hi);
+  color: var(--accent-fg);
 }
 
 /* Copy button for code blocks */
@@ -3281,7 +3330,7 @@ body.resizing-console iframe {
 }
 
 .editor-markdown-copy-btn.copied {
-  color: #ffffff;
+  color: var(--accent-fg);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -3393,10 +3442,10 @@ body.resizing-console iframe {
 }
 .editor-search-input:focus { border-color: var(--accent); }
 .editor-search-submit {
-  padding: 6px 12px; border-radius: 6px; background: var(--accent); color: #fff;
+  padding: 6px 12px; border-radius: 6px; background: var(--accent); color: var(--accent-fg);
   border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;
 }
-.editor-search-submit:hover { background: var(--accent2); }
+.editor-search-submit:hover { background: var(--accent-hi); color: var(--accent-fg); }
 .editor-search-results { flex: 1; overflow-y: auto; padding: 6px 0; }
 .editor-search-file-group { margin-bottom: 10px; }
 .editor-search-file-header {
@@ -3489,6 +3538,14 @@ body.resizing-console iframe {
 
 .term-link-menu-item-icon {
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.term-link-menu-item-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 /* ── Mobile Liquid Glass Scrollbar ────────────────────────────────────────── */
@@ -3636,7 +3693,7 @@ body.resizing-console iframe {
 }
 .ports-popover-item:hover .ports-popover-action {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 
@@ -4152,6 +4209,30 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
 .agent-welcome-icon {
   font-size: 38px;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.agent-welcome-icon svg {
+  width: 44px;
+  height: 44px;
+  display: block;
+  margin: 0 auto;
+  color: var(--accent);
+}
+
+.agent-role-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.agent-role-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  color: var(--accent);
 }
 
 .agent-welcome-card h3 {
@@ -4189,7 +4270,7 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
 .agent-pill:hover {
   background: var(--border);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text);
 }
 
 .agent-card {
@@ -4204,7 +4285,7 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
 .agent-card-user {
   align-self: flex-end;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
 }
 
 .agent-card-user .agent-card-header {
@@ -4480,10 +4561,14 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
 
 .agent-send-btn {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
 }
-
+.agent-send-btn svg {
+  stroke: var(--accent-fg);
+}
 .agent-send-btn:hover {
+  background: var(--accent-hi);
+  color: var(--accent-fg);
   opacity: 0.9;
 }
 

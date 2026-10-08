@@ -556,9 +556,9 @@ function showTabTypePicker(e, pane) {
   const closeSubmenu = () => { if (submenu) { submenu.remove(); submenu = null; } };
   const closeAll = () => { closeSubmenu(); picker.remove(); activePicker = null; };
 
-  [['⬛  Terminal', 'terminal'], ['🔗  SSH', 'ssh'], ['🤖  AI Agent', 'agent'], ['🌐  Browser', 'browser'], ['📝  Code editor', 'editor']].forEach(([text, type]) => {
+  [['Terminal', 'terminal'], ['SSH', 'ssh'], ['AI Agent', 'agent'], ['Browser', 'browser'], ['Code editor', 'editor']].forEach(([text, type]) => {
     const btn = document.createElement('button');
-    btn.textContent = type === 'ssh' ? text + '  ›' : text;
+    btn.innerHTML = `<span class="tab-type-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg(type) : ''}</span><span class="tab-type-label">${text}${type === 'ssh' ? '  ›' : ''}</span>`;
     if (type === 'ssh') {
       btn.addEventListener('click', (ev) => { ev.stopPropagation(); openSshSubmenu(btn); });
     } else {
@@ -606,7 +606,7 @@ function showTabTypePicker(e, pane) {
     }
     hosts.forEach(host => {
       const hb = document.createElement('button');
-      hb.textContent = '🔗  ' + host;
+      hb.innerHTML = `<span class="tab-type-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg('ssh') : ''}</span><span class="tab-type-label">${host}</span>`;
       hb.addEventListener('click', () => {
         closeAll();
         addTab(pane, 'terminal', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, host);
