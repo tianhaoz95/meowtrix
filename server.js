@@ -38,15 +38,28 @@ app.get('/meowtrix-version.js', (req, res) => {
   res.type('application/javascript').send(`window.MEOWTRIX_VERSION = ${JSON.stringify(appVersion())};`);
 });
 
-// Serve static assets. HTML, JS, and CSS revalidate with ETag so updates apply immediately on refresh;
-// other assets (fonts, images, media) use max-age of 1 day for optimal load latency.
+// Explicit route for favicon.ico with no-cache header so browsers immediately pick up icon updates
+app.get('/favicon.ico', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
+});
+
+// Serve static assets. HTML, JS, CSS, manifest, and favicons revalidate with ETag so updates apply immediately on refresh;
+// other assets (fonts, media) use max-age of 1 day for optimal load latency.
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '1d',
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'no-cache');
+    } else if (
+      filePath.endsWith('.js') ||
+      filePath.endsWith('.css') ||
+      filePath.endsWith('manifest.json') ||
+      filePath.includes('favicon') ||
+      filePath.includes('apple-touch-icon') ||
+      filePath.includes('icon-')
+    ) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     }
   }
 }));

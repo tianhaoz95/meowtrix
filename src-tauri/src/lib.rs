@@ -9,6 +9,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, RunEvent,
 };
+use tauri_plugin_updater::UpdaterExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -89,6 +90,8 @@ pub fn run() {
             let open_item = MenuItemBuilder::with_id("open", "🐾 Open Meowtrix Window").build(app)?;
             let url_item = MenuItemBuilder::with_id("url_info", format!("🌐 Web: http://127.0.0.1:{port}")).enabled(false).build(app)?;
             let copy_item = MenuItemBuilder::with_id("copy_url", "📋 Copy Web URL").build(app)?;
+            let check_update_item = MenuItemBuilder::with_id("check_update", "🔄 Check for Updates...").build(app)?;
+            let update_restart_item = MenuItemBuilder::with_id("update_restart", "🚀 Update & Restart").build(app)?;
             let quit_item = MenuItemBuilder::with_id("quit", "⏹️ Quit Meowtrix").build(app)?;
 
             let tray_menu = MenuBuilder::new(app)
@@ -96,6 +99,9 @@ pub fn run() {
                 .separator()
                 .item(&url_item)
                 .item(&copy_item)
+                .separator()
+                .item(&check_update_item)
+                .item(&update_restart_item)
                 .separator()
                 .item(&quit_item)
                 .build()?;
@@ -137,6 +143,12 @@ pub fn run() {
                                     let _ = child.wait();
                                 }
                             }
+                        }
+                        "check_update" => {
+                            check_for_updates(app.clone());
+                        }
+                        "update_restart" => {
+                            update_and_restart(app.clone());
                         }
                         "quit" => {
                             log::info!("User requested Quit from tray menu.");
@@ -183,6 +195,165 @@ pub fn run() {
                 if let Ok(mut manager) = state.lock() {
                     manager.stop();
                 }
+            }
+        }
+    });
+}
+
+fn check_for_updates(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.eval("if (typeof checkForUpdateNow === 'function') { checkForUpdateNow(); }");
+        }
+
+        match app.updater() {
+            Ok(updater) => match updater.check().await {
+                Ok(Some(update)) => {
+                    log::info!("Update available: v{}", update.version);
+                    #[cfg(target_os = "macos")]
+                    {
+                        let script = format!(
+                            "display alert \"Update Available\" message \"Meowtrix v{} is available.\\n\\nSelect 'Update & Restart' from the tray menu to install.\" as informational buttons {{\"OK\"}} default button \"OK\"",
+                            update.version.replace('"', "\\\"")
+                        );
+                        let _ = std::process::Command::new("osascript")
+                            .arg("-e")
+                            .arg(script)
+                            .spawn();
+                    }
+                }
+                Ok(None) => {
+                    log::info!("Meowtrix is up to date");
+                    #[cfg(target_os = "macos")]
+                    {
+                        let cur_ver = app.package_info().version.to_string();
+                        let script = format!(
+                            "display alert \"Meowtrix is up to date\" message \"You are running the latest version (v{}).\" as informational buttons {{\"OK\"}} default button \"OK\"",
+                            cur_ver
+                        );
+                        let _ = std::process::Command::new("osascript")
+                            .arg("-e")
+                            .arg(script)
+                            .spawn();
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to check for updates: {e}");
+                    #[cfg(target_os = "macos")]
+                    {
+                        let err_msg = e.to_string();
+                        let script = format!(
+                            "display alert \"Update Check Failed\" message \"{}\" as warning buttons {{\"OK\"}} default button \"OK\"",
+                            err_msg.replace('"', "\\\"")
+                        );
+                        let _ = std::process::Command::new("osascript")
+                            .arg("-e")
+                            .arg(script)
+                            .spawn();
+                    }
+                }
+            },
+            Err(e) => {
+                log::error!("Failed to initialize updater: {e}");
+            }
+        }
+    });
+}
+
+fn update_and_restart(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.eval("if (typeof applyUpdateNow === 'function') { applyUpdateNow(); }");
+        }
+
+        match app.updater() {
+            Ok(updater) => match updater.check().await {
+                Ok(Some(update)) => {
+                    log::info!("Downloading and applying update v{}...", update.version);
+                    #[cfg(target_os = "macos")]
+                    {
+                        let script = format!(
+                            "display notification \"Downloading Meowtrix v{}... The app will restart automatically once completed.\" with title \"Meowtrix Update\"",
+                            update.version
+                        );
+                        let _ = std::process::Command::new("osascript")
+                            .arg("-e")
+                            .arg(script)
+                            .spawn();
+                    }
+
+                    let app_clone = app.clone();
+                    match update.download_and_install(|_downloaded, _total| {}, || {}).await {
+                        Ok(()) => {
+                            log::info!("Update installed. Restarting Meowtrix...");
+                            if let Some(state) = app_clone.try_state::<ServerState>() {
+                                if let Ok(mut manager) = state.lock() {
+                                    manager.stop();
+                                }
+                            }
+                            app_clone.restart();
+                        }
+                        Err(e) => {
+                            log::error!("Failed to install update: {e}");
+                            #[cfg(target_os = "macos")]
+                            {
+                                let err_msg = e.to_string();
+                                let script = format!(
+                                    "display alert \"Update Failed\" message \"{}\" as critical buttons {{\"OK\"}} default button \"OK\"",
+                                    err_msg.replace('"', "\\\"")
+                                );
+                                let _ = std::process::Command::new("osascript")
+                                    .arg("-e")
+                                    .arg(script)
+                                    .spawn();
+                            }
+                        }
+                    }
+                }
+                Ok(None) => {
+                    log::info!("No update available. Asking if user wants to restart...");
+                    #[cfg(target_os = "macos")]
+                    {
+                        let cur_ver = app.package_info().version.to_string();
+                        let script = format!(
+                            "display alert \"No Updates Available\" message \"Meowtrix v{} is already up to date. Do you want to restart Meowtrix anyway?\" buttons {{\"Cancel\", \"Restart\"}} default button \"Cancel\"",
+                            cur_ver
+                        );
+                        if let Ok(out) = std::process::Command::new("osascript")
+                            .arg("-e")
+                            .arg(script)
+                            .output()
+                        {
+                            let stdout = String::from_utf8_lossy(&out.stdout);
+                            if stdout.contains("button returned:Restart") {
+                                if let Some(state) = app.try_state::<ServerState>() {
+                                    if let Ok(mut manager) = state.lock() {
+                                        manager.stop();
+                                    }
+                                }
+                                app.restart();
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!("Update check before install failed: {e}");
+                    #[cfg(target_os = "macos")]
+                    {
+                        let err_msg = e.to_string();
+                        let script = format!(
+                            "display alert \"Update Check Failed\" message \"{}\" as warning buttons {{\"OK\"}} default button \"OK\"",
+                            err_msg.replace('"', "\\\"")
+                        );
+                        let _ = std::process::Command::new("osascript")
+                            .arg("-e")
+                            .arg(script)
+                            .spawn();
+                    }
+                }
+            },
+            Err(e) => {
+                log::error!("Failed to initialize updater: {e}");
             }
         }
     });
