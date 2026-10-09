@@ -114,6 +114,7 @@ pub fn configure_macos_normal_window(window: &tauri::WebviewWindow) {
             ns_window.setCollectionBehavior(behavior);
             ns_window.setHidesOnDeactivate(false);
             ns_window.setHasShadow(true);
+            ns_window.invalidateShadow();
             ns_window.setAlphaValue(1.0);
             if let Some(mtm) = MainThreadMarker::new() {
                 let app_inst = NSApplication::sharedApplication(mtm);
@@ -138,7 +139,9 @@ pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
             ns_window.setCollectionBehavior(behavior);
             ns_window.setLevel(NSStatusWindowLevel);
             ns_window.setHidesOnDeactivate(false);
-            ns_window.setHasShadow(true);
+            // The window is transparent in overlay mode; a native shadow would be computed
+            // from whatever frame of the call-out animation is showing and then go stale.
+            ns_window.setHasShadow(false);
         }
     }
 }
@@ -157,7 +160,9 @@ pub fn bring_macos_overlay_to_front(window: &tauri::WebviewWindow) {
             ns_window.setCollectionBehavior(behavior);
             ns_window.setLevel(NSStatusWindowLevel);
             ns_window.setHidesOnDeactivate(false);
-            ns_window.setHasShadow(true);
+            // The window is transparent in overlay mode; a native shadow would be computed
+            // from whatever frame of the call-out animation is showing and then go stale.
+            ns_window.setHasShadow(false);
             ns_window.orderFrontRegardless();
             if let Some(mtm) = MainThreadMarker::new() {
                 let app = NSApplication::sharedApplication(mtm);
@@ -204,6 +209,20 @@ pub fn apply_macos_overlay_opacity(window: &tauri::WebviewWindow, opacity: f64) 
     }
 }
 
+/// The main window is created transparent (tauri*.conf.json) so the overlay's call-out
+/// animations can draw outside the overlay's own rectangle. The webview's transparency is
+/// fixed at creation, so switch the native window's backdrop instead: clear in overlay
+/// mode (the page drops its background too, see overlay.js), and the app's dark background
+/// in normal mode so nothing shows through while a page loads.
+pub fn set_window_backdrop(window: &tauri::WebviewWindow, transparent: bool) {
+    let color = if transparent {
+        tauri::window::Color(0, 0, 0, 0)
+    } else {
+        tauri::window::Color(9, 13, 22, 255)
+    };
+    let _ = window.as_ref().window().set_background_color(Some(color));
+}
+
 pub fn open_normal_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let saved_bounds = {
         let state = app.state::<SharedOverlayState>();
@@ -214,6 +233,9 @@ pub fn open_normal_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow)
 
     let _ = window.set_always_on_top(false);
     let _ = window.set_decorations(true);
+    set_window_backdrop(window, false);
+    // Restore the page's normal (opaque) mode before the window is ordered front below.
+    let _ = window.eval("if (typeof exitOverlayMode === 'function') { exitOverlayMode(); }");
 
     #[cfg(target_os = "macos")]
     {
@@ -256,8 +278,6 @@ pub fn open_normal_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow)
 
     #[cfg(target_os = "macos")]
     configure_macos_normal_window(window);
-
-    let _ = window.eval("if (typeof exitOverlayMode === 'function') { exitOverlayMode(); }");
 }
 
 pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
@@ -341,6 +361,11 @@ fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x: target_x, y: target_y }));
     }
 
+    // Go transparent and start the page's call-out animation (its first frame is an empty
+    // window) before showing, so the previous frame doesn't flash.
+    set_window_backdrop(window, true);
+    let _ = window.eval("if (typeof summonQuickOverlay === 'function') { summonQuickOverlay(); }");
+
     let _ = window.show();
     if window.is_minimized().unwrap_or(false) {
         let _ = window.unminimize();
@@ -350,8 +375,6 @@ fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
 
     #[cfg(target_os = "macos")]
     bring_macos_overlay_to_front(window);
-
-    let _ = window.eval("if (typeof summonQuickOverlay === 'function') { summonQuickOverlay(); }");
 }
 
 pub fn toggle_quick_overlay(app: &tauri::AppHandle) {
@@ -403,6 +426,7 @@ fn reset_macos_window_behavior(window: &tauri::WebviewWindow) {
             ns_window.setCollectionBehavior(
                 NSWindowCollectionBehavior::FullScreenPrimary | NSWindowCollectionBehavior::Managed,
             );
+            ns_window.setHasShadow(true);
             ns_window.setAlphaValue(1.0);
         }
     }

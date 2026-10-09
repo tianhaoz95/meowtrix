@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlay Call-out Animations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="title-block">
+      <h1>Overlay call-out animations</h1>
+      <p>11 candidates for the global-shortcut overlay (⌥Space): the current animation as a baseline, plus 10 new ones. Each card plays the summon and the dismiss. Open one in focus view to try it like the real shortcut.</p>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="summon-all">Summon all</button>
+      <button class="btn" id="dismiss-all">Dismiss all</button>
+      <div class="seg" id="speed" role="radiogroup" aria-label="Playback speed">
+        <button data-speed="0.25">¼×</button>
+        <button data-speed="0.5">½×</button>
+        <button data-speed="1" class="on">1×</button>
+      </div>
+      <label class="check"><input type="checkbox" id="loop"> Auto-loop</label>
+    </div>
+  </header>
+
+  <div class="shortlist" id="shortlist" hidden>
+    <span class="shortlist-label">★ Shortlist</span>
+    <span id="shortlist-items"></span>
+  </div>
+
+  <main class="grid" id="grid"></main>
+
+  <div class="focus" id="focus" hidden>
+    <div class="focus-inner">
+      <div class="focus-head">
+        <div>
+          <div class="focus-kicker" id="focus-kicker"></div>
+          <h2 id="focus-name"></h2>
+          <p id="focus-desc"></p>
+        </div>
+        <button class="btn icon" id="focus-close" aria-label="Close">✕</button>
+      </div>
+      <div class="focus-stage-wrap" id="focus-stage-wrap"></div>
+      <div class="focus-foot">
+        <div class="keys">
+          <span><kbd>⌥</kbd><kbd>Space</kbd> or <kbd>Space</kbd> toggle</span>
+          <span><kbd>←</kbd><kbd>→</kbd> previous / next</span>
+          <span><kbd>S</kbd> slow-mo</span>
+          <span><kbd>F</kbd> shortlist</span>
+          <span><kbd>Esc</kbd> close</span>
+        </div>
+        <div class="focus-actions">
+          <button class="btn" id="focus-prev">← Prev</button>
+          <button class="btn primary" id="focus-toggle">Summon</button>
+          <button class="btn" id="focus-next">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <template id="stage-tpl">
+    <div class="stage-box">
+      <div class="stage">
+        <div class="wallpaper"></div>
+        <div class="desk-window dw1"><div class="dw-bar"></div></div>
+        <div class="desk-window dw2"><div class="dw-bar"></div></div>
+        <div class="menubar">
+          <span class="mb-apple"></span><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span>History</span>
+          <span class="mb-right"><span class="mb-tray">🐾</span><span>Thu 9:41 AM</span></span>
+        </div>
+        <div class="dim"></div>
+        <div class="island"></div>
+        <div class="win">
+          <div class="content">
+            <div class="w-header chrome">
+              <div class="w-pill">
+                <span class="w-pill-l">🐾 <b>Meowtrix</b></span>
+                <span class="w-pill-r"><i class="dot"></i>Workspace 1</span>
+              </div>
+              <span class="w-x">✕</span>
+            </div>
+            <div class="w-toolbar chrome">
+              <span class="w-logo">&gt;_</span>
+              <span class="w-tab on">zsh — meowtrix</span>
+              <span class="w-tab">claude</span>
+              <span class="w-tab">server.js</span>
+              <span class="w-plus">+</span>
+            </div>
+            <div class="w-term">
+              <div class="line"><span class="p">~/meowtrix</span> <span class="b">main</span> <span class="g">❯</span> git status</div>
+              <div class="line">On branch main</div>
+              <div class="line">Your branch is up to date with 'origin/main'.</div>
+              <div class="line">&nbsp;</div>
+              <div class="line"><span class="p">~/meowtrix</span> <span class="b">main</span> <span class="g">❯</span> npm run test:e2e</div>
+              <div class="line"><span class="dim-t">Running 42 tests using 3 workers</span></div>
+              <div class="line"><span class="g">✓</span> chromium › meowtrix.spec.js › quick overlay lifecycle</div>
+              <div class="line"><span class="g">✓</span> firefox › meowtrix.spec.js › quick overlay lifecycle</div>
+              <div class="line"><span class="g">✓</span> webkit › meowtrix.spec.js › quick overlay lifecycle</div>
+              <div class="line"><span class="g">42 passed</span> <span class="dim-t">(2.6m)</span></div>
+              <div class="line">&nbsp;</div>
+              <div class="line"><span class="p">~/meowtrix</span> <span class="b">main</span> <span class="g">❯</span> <span class="cursor"></span></div>
+            </div>
+            <div class="shine"></div>
+          </div>
+        </div>
+        <div class="notch"></div>
+      </div>
+    </div>
+  </template>
+
+  <script src="candidates.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

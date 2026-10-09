@@ -550,6 +550,14 @@
               <label for="s-quick-overlay-animation">Dynamic Island expansion animation</label>
               <input type="checkbox" id="s-quick-overlay-animation">
             </div>
+            <div class="settings-row">
+              <label for="s-quick-overlay-animation-style">Animation style</label>
+              <div class="settings-row-right" style="gap: 6px;">
+                <select id="s-quick-overlay-animation-style"></select>
+                <button type="button" id="s-quick-overlay-animation-preview" style="font-size: 11px; padding: 3px 9px;">Preview</button>
+              </div>
+            </div>
+            <p class="settings-note">How the overlay appears from the notch when called out by the global shortcut (and collapses back when dismissed).</p>
 
             <div class="settings-row">
               <label for="s-quick-overlay-opacity">Overlay Opacity</label>
@@ -624,6 +632,7 @@
   <script src="layout.js"></script>
   <script src="app.js"></script>
   <script src="mobile.js"></script>
+  <script src="overlay-animations.js"></script>
   <script src="settings.js"></script>
   <script src="overlay.js"></script>
   <script src="palette.js"></script>

@@ -651,6 +651,46 @@ test.describe('Meowtrix E2E Tests', () => {
     const dismissedProp = await page.evaluate(() => document.documentElement.style.getPropertyValue('--overlay-opacity'));
     expect(dismissedProp).toBe('1');
   });
+
+  test('every quick overlay animation style summons and dismisses cleanly', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto('/');
+    await page.waitForSelector('.pane');
+
+    await page.click('#btn-settings');
+    await page.waitForSelector('#settings-panel.open');
+    const styleSelect = page.locator('#s-quick-overlay-animation-style');
+    await expect(styleSelect).toHaveValue('classic');
+    const styles = await styleSelect.locator('option').evaluateAll(opts => opts.map(o => o.value));
+    expect(styles.length).toBe(11);
+
+    for (const style of styles) {
+      await styleSelect.selectOption(style);
+      await page.locator('#settings-close').click();
+      await page.waitForSelector('#settings-panel:not(.open)');
+
+      await page.evaluate(() => window.summonQuickOverlay());
+      await expect(page.locator('body')).toHaveClass(/dynamic-island-active/);
+      await expect.poll(() => page.evaluate(() =>
+        !document.documentElement.classList.contains('overlay-animating')), { message: `${style} summon finishes` }).toBe(true);
+      expect(await page.evaluate(() => getComputedStyle(document.getElementById('app')).opacity)).toBe('1');
+      expect(await page.evaluate(() => document.getElementById('app').getAnimations().length)).toBe(0);
+
+      await page.evaluate(() => window.dismissQuickOverlay());
+      await expect(page.locator('body')).not.toHaveClass(/dynamic-island-active/, { timeout: 3000 });
+      await expect.poll(() => page.evaluate(() =>
+        !document.documentElement.classList.contains('overlay-animating')
+        && !document.documentElement.classList.contains('overlay-transparent')
+        && document.getElementById('app').getAnimations().length === 0)).toBe(true);
+
+      await page.click('#btn-settings');
+      await page.waitForSelector('#settings-panel.open');
+    }
+
+    // Choice persists to the server
+    const s = await (await page.request.get('/api/settings')).json();
+    expect(s.quickOverlayAnimationStyle).toBe(styles[styles.length - 1]);
+    expect(errors).toEqual([]);
+  });
 });
-
-

@@ -519,6 +519,14 @@ function populateControls(s) {
   if (sQuickOverlayDismissBlur) sQuickOverlayDismissBlur.checked = s.quickOverlayDismissOnBlur !== false;
   const sQuickOverlayAnimation = document.getElementById('s-quick-overlay-animation');
   if (sQuickOverlayAnimation) sQuickOverlayAnimation.checked = s.quickOverlayAnimation !== false;
+  const sQuickOverlayAnimStyle = document.getElementById('s-quick-overlay-animation-style');
+  if (sQuickOverlayAnimStyle) {
+    if (!sQuickOverlayAnimStyle.options.length) {
+      (window.OVERLAY_ANIMATION_STYLES || []).forEach(({ id, name }) => sQuickOverlayAnimStyle.add(new Option(name, id)));
+    }
+    sQuickOverlayAnimStyle.value = s.quickOverlayAnimationStyle || window.OVERLAY_ANIMATION_DEFAULT || 'classic';
+    sQuickOverlayAnimStyle.disabled = s.quickOverlayAnimation === false;
+  }
   const sQuickOverlayOpacity = document.getElementById('s-quick-overlay-opacity');
   if (sQuickOverlayOpacity) sQuickOverlayOpacity.value = s.quickOverlayOpacity !== undefined ? String(s.quickOverlayOpacity) : '1';
   const sQuickOverlayWidth = document.getElementById('s-quick-overlay-width');
@@ -961,7 +969,27 @@ function wireControls() {
   const elOverlayAnim = document.getElementById('s-quick-overlay-animation');
   if (elOverlayAnim) {
     elOverlayAnim.addEventListener('change', async (e) => {
+      const styleSel = document.getElementById('s-quick-overlay-animation-style');
+      if (styleSel) styleSel.disabled = !e.target.checked;
       await saveSetting('quickOverlayAnimation', e.target.checked);
+    });
+  }
+
+  const elOverlayAnimStyle = document.getElementById('s-quick-overlay-animation-style');
+  if (elOverlayAnimStyle) {
+    elOverlayAnimStyle.addEventListener('change', async (e) => {
+      await saveSetting('quickOverlayAnimationStyle', e.target.value);
+    });
+  }
+
+  // Preview plays the selected call-out on the current window, in place.
+  const elOverlayAnimPreview = document.getElementById('s-quick-overlay-animation-preview');
+  if (elOverlayAnimPreview) {
+    elOverlayAnimPreview.addEventListener('click', () => {
+      const styleSel = document.getElementById('s-quick-overlay-animation-style');
+      if (styleSel && typeof playOverlayAnimation === 'function') {
+        playOverlayAnimation('in', styleSel.value);
+      }
     });
   }
 

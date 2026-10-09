@@ -5130,46 +5130,52 @@ body.dynamic-island-active:not(.is-tauri-app) #app {
   color: #fff;
 }
 
-/* Dynamic Island dropdown animation */
-body.dynamic-island-animating #app {
-  animation: dynamicIslandDropIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transform-origin: top center;
+/* Overlay call-out animations (public/overlay-animations.js). */
+
+/* Desktop app, overlay mode: the native window is transparent and the page drops its
+   background, so only #app (and the call-out animation around it) is visible. */
+html.overlay-transparent,
+html.overlay-transparent body {
+  background: transparent;
 }
 
-@keyframes dynamicIslandDropIn {
-  0% {
-    opacity: 0;
-    transform: translateY(-36px) scale(0.96);
-    filter: blur(6px);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(2px) scale(1.005);
-    filter: blur(0);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+html.overlay-transparent #app {
+  background: var(--bg);
+  border-radius: 12px;
 }
 
-body.dynamic-island-collapsing #app {
-  animation: dynamicIslandCollapse 0.20s cubic-bezier(0.4, 0, 1, 1) both;
-  transform-origin: top center;
+/* Black pill under the notch that notch-style animations grow into the window. */
+#overlay-anim-island {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 190px;
+  height: 34px;
+  background: #000;
+  border-radius: 0 0 14px 14px;
+  z-index: 0;
+  pointer-events: none;
 }
 
-@keyframes dynamicIslandCollapse {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-36px) scale(0.95);
-    filter: blur(6px);
-  }
+/* Light sweep across #app (Glass Materialize). */
+#overlay-anim-shine {
+  display: none;
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), rgba(165, 180, 252, 0.16), rgba(255, 255, 255, 0.08), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+html.overlay-animating.overlay-anim-uses-island #overlay-anim-island,
+html.overlay-animating #overlay-anim-shine {
+  display: block;
 }
 
 body.dynamic-island-active #toolbar {

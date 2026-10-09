@@ -3,10 +3,22 @@
 // session takeover, and keyboard/blur dismissal.
 
 let isOverlayActive = false;
-let isOverlayAnimating = false;
-// Pending end-of-collapse step (hide the native window). A re-summon inside the collapse
-// animation must cancel it, or it hides the overlay that was just called out.
-let overlayCollapseTimer = null;
+// Bumped on every summon/dismiss/exit, so a dismiss animation that finishes after the
+// overlay was re-summoned doesn't go on to hide the window.
+let overlayGeneration = 0;
+
+const isDesktopApp = () => !!(window.__TAURI__ || window.__TAURI_INTERNALS__);
+
+function overlayAnimationStyle(settings) {
+  if (settings.quickOverlayAnimation === false) return null;
+  return settings.quickOverlayAnimationStyle || window.OVERLAY_ANIMATION_DEFAULT || 'classic';
+}
+
+// In the desktop app the native window is transparent; in overlay mode the page drops its
+// background so only #app (and the call-out animation around it) is visible.
+function setOverlayTransparent(on) {
+  document.documentElement.classList.toggle('overlay-transparent', on && isDesktopApp());
+}
 
 function tauriInvoke(cmd, args = {}) {
   if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
@@ -27,22 +39,20 @@ function applyOverlayOpacity(opacity) {
 
 // Summon the quick overlay with Dynamic Island animation and automatic session claim
 function summonQuickOverlay() {
-  clearTimeout(overlayCollapseTimer);
-  overlayCollapseTimer = null;
+  overlayGeneration++;
   isOverlayActive = true;
+  setOverlayTransparent(true);
   document.body.classList.add('dynamic-island-active');
 
   const settings = typeof getSettings === 'function' ? getSettings() : {};
-  const animate = settings.quickOverlayAnimation !== false;
   const opacity = settings.quickOverlayOpacity !== undefined ? settings.quickOverlayOpacity : 1.0;
   applyOverlayOpacity(opacity);
 
-  if (animate) {
-    document.body.classList.remove('dynamic-island-collapsing');
-    document.body.classList.add('dynamic-island-animating');
-    setTimeout(() => {
-      document.body.classList.remove('dynamic-island-animating');
-    }, 400);
+  const style = overlayAnimationStyle(settings);
+  if (style && typeof playOverlayAnimation === 'function') {
+    playOverlayAnimation('in', style);
+  } else if (typeof cancelOverlayAnimation === 'function') {
+    cancelOverlayAnimation();
   }
 
   // Auto-claim active session immediately if enabled
@@ -80,32 +90,38 @@ function dismissQuickOverlay() {
   }
 
   const settings = typeof getSettings === 'function' ? getSettings() : {};
-  const animate = settings.quickOverlayAnimation !== false;
+  const style = overlayAnimationStyle(settings);
+  const gen = ++overlayGeneration;
 
-  if (animate) {
-    document.body.classList.remove('dynamic-island-animating');
-    document.body.classList.add('dynamic-island-collapsing');
-
-    clearTimeout(overlayCollapseTimer);
-    overlayCollapseTimer = setTimeout(() => {
-      overlayCollapseTimer = null;
-      document.body.classList.remove('dynamic-island-collapsing');
-      document.body.classList.remove('dynamic-island-active');
-      isOverlayActive = false;
-      applyOverlayOpacity(1.0);
-      notifyNativeOverlayHide();
-    }, 200);
-  } else {
+  const finish = () => {
+    if (gen !== overlayGeneration) return; // re-summoned (or exited) meanwhile
     document.body.classList.remove('dynamic-island-active');
     isOverlayActive = false;
     applyOverlayOpacity(1.0);
     notifyNativeOverlayHide();
+    // In the desktop app the window stays transparent and the dismiss animation holds its
+    // empty end state until the window is next shown (summon or exitOverlayMode), so
+    // nothing flashes while the native hide is in flight. In a browser there's no window
+    // to hide: restore the page right away.
+    if (!isDesktopApp()) {
+      if (typeof cancelOverlayAnimation === 'function') cancelOverlayAnimation();
+      setOverlayTransparent(false);
+    }
+  };
+
+  if (style && typeof playOverlayAnimation === 'function') {
+    playOverlayAnimation('out', style).then(done => { if (done) finish(); });
+  } else {
+    finish();
   }
 }
 
 // Exit overlay mode without hiding window (switches to normal app window mode)
 function exitOverlayMode() {
-  document.body.classList.remove('dynamic-island-active', 'dynamic-island-animating', 'dynamic-island-collapsing');
+  overlayGeneration++;
+  if (typeof cancelOverlayAnimation === 'function') cancelOverlayAnimation();
+  setOverlayTransparent(false);
+  document.body.classList.remove('dynamic-island-active');
   isOverlayActive = false;
   applyOverlayOpacity(1.0);
 }

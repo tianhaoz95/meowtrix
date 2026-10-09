@@ -111,6 +111,7 @@ const DEFAULT_SETTINGS = {
   quickOverlayAutoClaim: true, // automatically claim active session on summon
   quickOverlayDismissOnBlur: true, // automatically dismiss overlay when focus is lost
   quickOverlayAnimation: true, // animate expansion from Dynamic Island / notch
+  quickOverlayAnimationStyle: 'classic', // call-out animation (ids in public/overlay-animations.js)
   quickOverlayOpacity: 1.0, // overlay window opacity (1.0 = solid, 0.95, 0.9, 0.85, 0.8, etc.)
   quickOverlayWidth: 1120, // overlay window width in logical px (min 800, capped to the screen)
   quickOverlayHeight: 700, // overlay window height in logical px (min 500, capped to the screen)
