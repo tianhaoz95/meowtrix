@@ -191,50 +191,33 @@ pub fn bring_macos_overlay_to_front(window: &tauri::WebviewWindow) {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn get_active_monitor_on_macos(window: &tauri::WebviewWindow) -> Option<tauri::Monitor> {
-    use objc2::MainThreadMarker;
-    use objc2_app_kit::NSScreen;
-    if let Some(mtm) = MainThreadMarker::new() {
-        if let Some(screen) = NSScreen::mainScreen(mtm) {
-            let frame = screen.frame();
-            let width = frame.size.width;
-            let height = frame.size.height;
-            if let Ok(monitors) = window.available_monitors() {
-                for m in monitors {
-                    let s = m.scale_factor();
-                    let m_w = m.size().width as f64 / s;
-                    let m_h = m.size().height as f64 / s;
-                    if (m_w - width).abs() < 2.0 && (m_h - height).abs() < 2.0 {
-                        return Some(m);
-                    }
-                }
-            }
-        }
-    }
-    None
+/// Where the overlay window was placed: its size, the menu-bar/notch strip at its top that
+/// the page keeps empty, and the notch size (0 on displays without one). Points.
+pub struct OverlayPlacement {
+    pub width: f64,
+    pub height: f64,
+    pub top_inset: f64,
+    pub notch_w: f64,
+    pub notch_h: f64,
 }
 
-/// Geometry of the top of the screen with the given logical size (the overlay's monitor):
-/// (menu-bar/notch strip height, notch width, notch height), in points. The notch values
-/// are 0 on displays without one.
+/// Size and place the overlay window at the very top of the screen the user is on, over the
+/// menu bar and notch, so the notch-style call-out animations grow out of the real notch.
+/// Done synchronously through AppKit, before the window is ordered in: tao's set_size /
+/// set_position are dispatched asynchronously, so the window would first appear at its old
+/// frame and only move afterwards (mid-animation).
 #[cfg(target_os = "macos")]
-fn macos_screen_top_geometry(width: f64, height: f64) -> (f64, f64, f64) {
+fn place_macos_overlay_window(window: &tauri::WebviewWindow, cfg: &QuickOverlayConfig) -> Option<OverlayPlacement> {
     use objc2::runtime::NSObjectProtocol;
     use objc2::{sel, MainThreadMarker};
-    use objc2_app_kit::NSScreen;
-    let Some(mtm) = MainThreadMarker::new() else { return (0.0, 0.0, 0.0) };
-    let matches = |s: &NSScreen| {
-        let f = s.frame();
-        (f.size.width - width).abs() < 2.0 && (f.size.height - height).abs() < 2.0
-    };
-    let screen = NSScreen::mainScreen(mtm)
-        .filter(|s| matches(s))
-        .or_else(|| NSScreen::screens(mtm).iter().find(|s| matches(s)));
-    let Some(screen) = screen else { return (0.0, 0.0, 0.0) };
+    use objc2_app_kit::{NSScreen, NSWindow};
+    use objc2_foundation::{NSPoint, NSRect, NSSize};
+    let mtm = MainThreadMarker::new()?;
+    let screen = NSScreen::mainScreen(mtm).or_else(|| NSScreen::screens(mtm).firstObject())?;
     let frame = screen.frame();
     let visible = screen.visibleFrame();
-    let menu_bar = ((frame.origin.y + frame.size.height) - (visible.origin.y + visible.size.height)).max(0.0);
+    let screen_top = frame.origin.y + frame.size.height;
+    let menu_bar = (screen_top - (visible.origin.y + visible.size.height)).max(0.0);
     // safeAreaInsets / auxiliaryTop*Area are macOS 12+.
     let (notch_w, notch_h) = if screen.respondsToSelector(sel!(safeAreaInsets)) {
         let top = screen.safeAreaInsets().top;
@@ -248,7 +231,23 @@ fn macos_screen_top_geometry(width: f64, height: f64) -> (f64, f64, f64) {
     } else {
         (0.0, 0.0)
     };
-    (menu_bar.max(notch_h), notch_w, notch_h)
+    let top_inset = menu_bar.max(notch_h);
+
+    // User-configured size (Settings → Quick Overlay), capped to the screen it opens on.
+    let width = cfg.width.min(frame.size.width).max(MIN_OVERLAY_WIDTH);
+    let height = (cfg.height.max(MIN_OVERLAY_HEIGHT) + top_inset).min(frame.size.height);
+    let rect = NSRect::new(
+        NSPoint::new(frame.origin.x + (frame.size.width - width) / 2.0, screen_top - height),
+        NSSize::new(width, height),
+    );
+    let ptr = window.ns_window().ok()?;
+    unsafe {
+        let ns_window = &*(ptr as *mut NSWindow);
+        // Borderless first: AppKit keeps a titled window below the menu bar.
+        set_macos_window_titled(ns_window, false);
+        ns_window.setFrame_display(rect, true);
+    }
+    Some(OverlayPlacement { width, height, top_inset, notch_w, notch_h })
 }
 
 #[cfg(target_os = "macos")]
@@ -380,50 +379,22 @@ fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "macos")]
     apply_macos_overlay_opacity(window, cfg.opacity);
 
+    // Level and Space behavior now; the window is ordered in once placed (below).
     #[cfg(target_os = "macos")]
-    bring_macos_overlay_to_front(window);
+    configure_macos_overlay_window(window);
 
-    let monitor = {
-        #[cfg(target_os = "macos")]
-        {
-            get_active_monitor_on_macos(window)
-                .or_else(|| window.current_monitor().ok().flatten())
-                .or_else(|| window.primary_monitor().ok().flatten())
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
-            window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten())
-        }
-    };
+    #[cfg(target_os = "macos")]
+    let placement = place_macos_overlay_window(window, &cfg);
+    #[cfg(not(target_os = "macos"))]
+    let placement = place_overlay_window(window, &cfg);
 
-    if let Some(m) = monitor {
-        let scale = m.scale_factor();
-        let m_size = m.size();
-        let m_pos = m.position();
-
-        let screen_w = m_size.width as f64 / scale;
-        let screen_h = m_size.height as f64 / scale;
-
-        // User-configured size (Settings → Quick Overlay), capped to the screen it opens on.
-        let target_w = cfg.width.min(screen_w).max(MIN_OVERLAY_WIDTH);
-        let target_h = cfg.height.min(screen_h).max(MIN_OVERLAY_HEIGHT);
-        let target_x = (m_pos.x as f64 / scale) + ((screen_w - target_w) / 2.0);
-        let target_y = m_pos.y as f64 / scale;
-
-        // The window starts at the very top of the screen, over the menu bar and notch, so
-        // the notch-style call-out animations can grow out of the real notch. The page keeps
-        // that strip empty (--overlay-top-inset), so the overlay itself still rests below
-        // the menu bar.
-        #[cfg(target_os = "macos")]
-        let (top_inset, notch_w, notch_h) = macos_screen_top_geometry(screen_w, screen_h);
-        #[cfg(not(target_os = "macos"))]
-        let (top_inset, notch_w, notch_h) = (0.0f64, 0.0f64, 0.0f64);
+    // The page keeps the strip above the overlay empty and waits for its viewport to reach
+    // the placed size before animating, so the first frames don't use a stale layout.
+    if let Some(p) = placement {
         let _ = window.eval(&format!(
-            "if (typeof setOverlayScreenGeometry === 'function') {{ setOverlayScreenGeometry({top_inset}, {notch_w}, {notch_h}); }}"
+            "if (typeof setOverlayScreenGeometry === 'function') {{ setOverlayScreenGeometry({}, {}, {}, {}, {}); }}",
+            p.top_inset, p.notch_w, p.notch_h, p.width, p.height
         ));
-
-        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: target_w, height: (target_h + top_inset).min(screen_h) }));
-        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x: target_x, y: target_y }));
     }
 
     // Go transparent and start the page's call-out animation (its first frame is an empty
@@ -435,11 +406,31 @@ fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
     if window.is_minimized().unwrap_or(false) {
         let _ = window.unminimize();
     }
+    // On macOS the window is already at the status level (above the menu bar, which the
+    // overlay's top strip covers); set_always_on_top would asynchronously drop it to the
+    // floating level, below the menu bar.
+    #[cfg(not(target_os = "macos"))]
     let _ = window.set_always_on_top(true);
     let _ = window.set_focus();
 
     #[cfg(target_os = "macos")]
     bring_macos_overlay_to_front(window);
+}
+
+#[cfg(not(target_os = "macos"))]
+fn place_overlay_window(window: &tauri::WebviewWindow, cfg: &QuickOverlayConfig) -> Option<OverlayPlacement> {
+    let m = window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten())?;
+    let scale = m.scale_factor();
+    let screen_w = m.size().width as f64 / scale;
+    let screen_h = m.size().height as f64 / scale;
+    // User-configured size (Settings → Quick Overlay), capped to the screen it opens on.
+    let width = cfg.width.min(screen_w).max(MIN_OVERLAY_WIDTH);
+    let height = cfg.height.min(screen_h).max(MIN_OVERLAY_HEIGHT);
+    let x = (m.position().x as f64 / scale) + ((screen_w - width) / 2.0);
+    let y = m.position().y as f64 / scale;
+    let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+    let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
+    Some(OverlayPlacement { width, height, top_inset: 0.0, notch_w: 0.0, notch_h: 0.0 })
 }
 
 pub fn toggle_quick_overlay(app: &tauri::AppHandle) {

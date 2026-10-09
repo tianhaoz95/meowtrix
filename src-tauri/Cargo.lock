@@ -3565,13 +3565,14 @@ dependencies = [
 
 [[package]]
 name = "meowtrix"
-version = "1.29.1"
+version = "1.29.2"
 dependencies = [
  "anyhow",
  "log",
  "mistralrs",
  "objc2",
  "objc2-app-kit",
+ "objc2-foundation",
  "serde",
  "serde_json",
  "tauri",

@@ -23,10 +23,29 @@ function setOverlayTransparent(on) {
 // Called by the desktop app before a summon: the overlay window starts at the very top of
 // the screen (over the menu bar and notch) so notch-style call-out animations can grow out
 // of the real notch. `topInset` is the menu-bar/notch strip the page keeps empty, so the
-// overlay itself rests below it; the notch size is 0 on displays without one.
-function setOverlayScreenGeometry(topInset, notchW, notchH) {
-  window.__overlayScreenGeometry = { topInset: +topInset || 0, notchW: +notchW || 0, notchH: +notchH || 0 };
+// overlay itself rests below it; the notch size is 0 on displays without one; winW/winH is
+// the window size it was placed at.
+function setOverlayScreenGeometry(topInset, notchW, notchH, winW, winH) {
+  window.__overlayScreenGeometry = {
+    topInset: +topInset || 0, notchW: +notchW || 0, notchH: +notchH || 0,
+    winW: +winW || 0, winH: +winH || 0,
+  };
   document.documentElement.style.setProperty('--overlay-top-inset', `${window.__overlayScreenGeometry.topInset}px`);
+}
+
+// Run `cb` once the viewport has caught up with the size the desktop app placed the window
+// at (WKWebView resizes asynchronously; animating against the old layout would draw the
+// notch effects in the wrong place, then jump). Gives up after ~500ms.
+function whenOverlayViewportReady(cb) {
+  const geo = window.__overlayScreenGeometry;
+  if (!isDesktopApp() || !geo || !geo.winW || !geo.winH) { cb(); return; }
+  const start = performance.now();
+  const check = () => {
+    const ready = Math.abs(window.innerWidth - geo.winW) <= 1 && Math.abs(window.innerHeight - geo.winH) <= 1;
+    if (ready || performance.now() - start > 500) cb();
+    else requestAnimationFrame(check);
+  };
+  check();
 }
 
 function tauriInvoke(cmd, args = {}) {
@@ -57,12 +76,20 @@ function summonQuickOverlay() {
   const opacity = settings.quickOverlayOpacity !== undefined ? settings.quickOverlayOpacity : 1.0;
   applyOverlayOpacity(opacity);
 
+  // Hold the window empty until the viewport matches the placed window, then animate in.
+  const gen = overlayGeneration;
   const style = overlayAnimationStyle(settings);
-  if (style && typeof playOverlayAnimation === 'function') {
-    playOverlayAnimation('in', style);
-  } else if (typeof cancelOverlayAnimation === 'function') {
-    cancelOverlayAnimation();
-  }
+  document.documentElement.classList.add('overlay-pending');
+  whenOverlayViewportReady(() => {
+    if (gen !== overlayGeneration) return; // dismissed (or re-summoned) meanwhile
+    if (style && typeof playOverlayAnimation === 'function') {
+      playOverlayAnimation('in', style);
+    } else if (typeof cancelOverlayAnimation === 'function') {
+      cancelOverlayAnimation();
+    }
+    document.documentElement.classList.remove('overlay-pending');
+    if (typeof fitAllTerminals === 'function') fitAllTerminals();
+  });
 
   // Auto-claim active session immediately if enabled
   if (settings.quickOverlayAutoClaim !== false) {
@@ -101,6 +128,7 @@ function dismissQuickOverlay() {
   const settings = typeof getSettings === 'function' ? getSettings() : {};
   const style = overlayAnimationStyle(settings);
   const gen = ++overlayGeneration;
+  document.documentElement.classList.remove('overlay-pending');
 
   const finish = () => {
     if (gen !== overlayGeneration) return; // re-summoned (or exited) meanwhile
@@ -128,6 +156,7 @@ function dismissQuickOverlay() {
 // Exit overlay mode without hiding window (switches to normal app window mode)
 function exitOverlayMode() {
   overlayGeneration++;
+  document.documentElement.classList.remove('overlay-pending');
   if (typeof cancelOverlayAnimation === 'function') cancelOverlayAnimation();
   setOverlayTransparent(false);
   document.body.classList.remove('dynamic-island-active');

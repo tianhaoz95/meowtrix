@@ -12,7 +12,8 @@
 //   #overlay-anim-shine        a light sweep across #app
 //   OVERLAY_CONTENT / panes    #app's main regions, for content fades and cascades
 //
-// A style is a list of tracks { t: selector, k: keyframes, d: ms, delay?, stagger?, e: easing }
+// A style is a list of tracks { t: selector, k: keyframes, d: ms, delay?, stagger?, e: easing,
+// notchOnly? (skipped on screens known to have no notch) }
 // (k may be a function of { bg, top, notchW, notchH } for theme/screen-dependent values:
 // `top` is the menu-bar/notch strip above #app, in px; notchW/notchH the notch size). `out` defaults to the mirror
 // of `in`: reversed keyframes and schedule, faster, accelerating. The first `in` keyframe
@@ -57,8 +58,8 @@
   // Fallback notch footprint (pt) when the screen's isn't known; on displays without a
   // notch the pill just grows from top-center.
   const NOTCH_W = 190, NOTCH_H = 34;
-  const notchFrame = ({ notchW, notchH }, extra = {}) =>
-    ({ width: `${notchW}px`, height: `${notchH}px`, borderRadius: '0 0 14px 14px', background: '#000', ...extra });
+  const notchFrame = ({ notchW, notchH, island }, extra = {}) =>
+    ({ width: `${notchW}px`, height: `${notchH}px`, borderRadius: '0 0 14px 14px', background: island, ...extra });
   // The notch-style islands end covering #app exactly, not the menu-bar strip above it.
   const unclipped = { clipPath: 'inset(0px 0px 0px 0px round 0px)' };
   const clipToApp = top => ({ clipPath: `inset(${top}px 0px 0px 0px round 12px)` });
@@ -92,7 +93,7 @@
       in: [
         { t: ISLAND, d: springSoft.d, e: springSoft.e, k: ctx => [
           notchFrame(ctx, unclipped),
-          { width: '46vw', height: `${ctx.top + 18}px`, borderRadius: '0 0 26px 26px', background: '#000', ...unclipped, offset: 0.3 },
+          { width: '46vw', height: `${ctx.top + 18}px`, borderRadius: '0 0 26px 26px', background: ctx.island, ...unclipped, offset: 0.3 },
           { width: '100vw', height: '100vh', borderRadius: '0 0 12px 12px', background: ctx.bg, ...clipToApp(ctx.top) },
         ] },
         { t: APP, d: 220, delay: 230, e: EASE_OUT, k: [
@@ -188,8 +189,8 @@
       in: [
         { t: ISLAND, d: 620, e: 'linear', k: ctx => [
           notchFrame(ctx, { easing: springSnappy.e, ...unclipped }),
-          { width: `${ctx.notchW + 20}px`, height: `${ctx.top + 16}px`, borderRadius: '0 0 25px 25px', background: '#000', ...unclipped, offset: 0.22, easing: springSnappy.e },
-          { width: '100vw', height: `${ctx.top + 16}px`, borderRadius: '0 0 25px 25px', background: '#000', ...unclipped, offset: 0.5, easing: springBouncy.e },
+          { width: `${ctx.notchW + 20}px`, height: `${ctx.top + 16}px`, borderRadius: '0 0 25px 25px', background: ctx.island, ...unclipped, offset: 0.22, easing: springSnappy.e },
+          { width: '100vw', height: `${ctx.top + 16}px`, borderRadius: '0 0 25px 25px', background: ctx.island, ...unclipped, offset: 0.5, easing: springBouncy.e },
           { width: '100vw', height: '100vh', borderRadius: '0 0 12px 12px', background: ctx.bg, ...clipToApp(ctx.top) },
         ] },
         { t: APP, d: 200, delay: 470, e: EASE_OUT, k: [{ opacity: 0 }, { opacity: 1 }] },
@@ -237,9 +238,10 @@
       id: 'notch-pulse',
       name: 'Notch Pulse',
       in: [
-        { t: ISLAND, d: 300, e: EASE_OUT, k: ctx => [
+        // Pulses the notch itself, so only on screens that have one.
+        { t: ISLAND, notchOnly: true, d: 300, e: EASE_OUT, k: ctx => [
           notchFrame(ctx, { boxShadow: '0 0 0 0 rgba(129,140,248,0)' }),
-          { width: `${ctx.notchW + 32}px`, height: `${ctx.notchH + 8}px`, borderRadius: '0 0 20px 20px', background: '#000', boxShadow: '0 0 24px 6px rgba(129,140,248,0.85)', offset: 0.3 },
+          { width: `${ctx.notchW + 32}px`, height: `${ctx.notchH + 8}px`, borderRadius: '0 0 20px 20px', background: ctx.island, boxShadow: '0 0 24px 6px rgba(129,140,248,0.85)', offset: 0.3 },
           notchFrame(ctx, { boxShadow: '0 0 0 0 rgba(129,140,248,0)' }),
         ] },
         // Springs out of the notch: starts inside the strip above #app.
@@ -296,8 +298,10 @@
     }
   }
 
+  const activeTracks = (tracks, ctx) => tracks.filter(tr => !(tr.notchOnly && ctx.noNotch));
+
   function plan(style, dir, ctx) {
-    const expand = tracks => tracks.flatMap(tr => {
+    const expand = tracks => activeTracks(tracks, ctx).flatMap(tr => {
       const k = typeof tr.k === 'function' ? tr.k(ctx) : tr.k;
       return [...document.querySelectorAll(tr.t)].map((el, i) => ({
         el, k, d: tr.d, delay: (tr.delay || 0) + i * (tr.stagger || 0), e: tr.e || 'linear',
@@ -334,17 +338,22 @@
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#090d16';
     // Screen geometry from the desktop app (overlay.js setOverlayScreenGeometry); it only
     // applies while the window is in its transparent overlay mode (not e.g. a Settings preview).
-    const geo = document.documentElement.classList.contains('overlay-transparent') && window.__overlayScreenGeometry || {};
+    const geo = document.documentElement.classList.contains('overlay-transparent') && window.__overlayScreenGeometry || null;
+    // A screen known to have no notch (e.g. an external display): grow from a point at
+    // top-center in the window's own color rather than drawing a fake black notch.
+    const noNotch = !!geo && !geo.notchW;
     const ctx = {
       bg,
-      top: geo.topInset || 0,
-      notchW: geo.notchW || NOTCH_W,
-      notchH: geo.notchH || NOTCH_H,
+      top: geo ? geo.topInset : 0,
+      notchW: noNotch ? 0 : (geo && geo.notchW) || NOTCH_W,
+      notchH: noNotch ? 0 : (geo && geo.notchH) || NOTCH_H,
+      island: noNotch ? bg : '#000',
+      noNotch,
     };
     document.documentElement.classList.add('overlay-animating');
-    // The island sits under the notch; only show it for styles that animate it, or it
-    // would be a stray black pill on displays without a notch.
-    const tracks = dir === 'in' || !style.out ? style.in : style.out;
+    // The island sits over the notch; only show it for styles that animate it, or it
+    // would be a stray black pill.
+    const tracks = activeTracks(dir === 'in' || !style.out ? style.in : style.out, ctx);
     document.documentElement.classList.toggle('overlay-anim-uses-island', tracks.some(t => t.t === ISLAND));
     const anims = plan(style, dir, ctx).map(s =>
       s.el.animate(s.k, { duration: s.d, delay: s.delay, easing: s.e, fill: 'both' }));

@@ -5147,6 +5147,41 @@ html.overlay-transparent #app {
   height: calc(100vh - var(--overlay-top-inset, 0px));
 }
 
+/* Window-filling layers (settings, palette, dialogs, …) stay inside the overlay too. */
+html.overlay-transparent #settings-overlay,
+html.overlay-transparent #palette-overlay,
+html.overlay-transparent #shortcuts-overlay,
+html.overlay-transparent .folder-prompt-overlay,
+html.overlay-transparent #inactive-overlay,
+html.overlay-transparent #schedule-modal-overlay {
+  top: var(--overlay-top-inset, 0px);
+  border-radius: 12px;
+}
+
+html.overlay-transparent #settings-panel {
+  top: var(--overlay-top-inset, 0px);
+  border-radius: 0 12px 12px 0;
+}
+
+html.overlay-transparent .pane.maximized {
+  top: var(--overlay-top-inset, 0px) !important;
+}
+
+/* macOS draws backdrop-filter as a separate system layer that ignores the window's
+   opacity, so glass surfaces (e.g. the settings panel) stayed opaque while the rest of a
+   translucent overlay faded. Their backgrounds are near-opaque on their own. */
+html.overlay-transparent *,
+html.overlay-transparent *::before,
+html.overlay-transparent *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Summoning: hold the window empty until its viewport has the placed size (overlay.js). */
+html.overlay-pending body {
+  opacity: 0;
+}
+
 /* Black pill over the notch (top of the screen) that notch-style animations grow into the window. */
 #overlay-anim-island {
   display: none;
