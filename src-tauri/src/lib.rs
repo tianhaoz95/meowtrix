@@ -1,5 +1,6 @@
 pub mod ai;
 mod server;
+mod update_hud;
 
 use ai::{AiEngine, SharedAiEngine};
 use server::{ServerManager, ServerState};
@@ -9,6 +10,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, RunEvent,
 };
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_updater::UpdaterExt;
 
@@ -503,9 +505,12 @@ pub fn run() {
             start_window_drag,
             close_window,
             minimize_window,
-            maximize_window
+            maximize_window,
+            update_hud::update_hud_state,
+            update_hud::dismiss_update_hud
         ])
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -789,6 +794,35 @@ pub fn run() {
     });
 }
 
+/// Bring the app forward so a native dialog opened from the tray isn't left behind other
+/// apps' windows, then return a message-dialog builder (shown with the app's icon).
+fn app_dialog(
+    app: &tauri::AppHandle,
+    title: &str,
+    message: impl Into<String>,
+    kind: MessageDialogKind,
+) -> tauri_plugin_dialog::MessageDialogBuilder<tauri::Wry> {
+    #[cfg(target_os = "macos")]
+    let _ = app.run_on_main_thread(|| {
+        use objc2::MainThreadMarker;
+        use objc2_app_kit::NSApplication;
+        if let Some(mtm) = MainThreadMarker::new() {
+            #[allow(deprecated)]
+            NSApplication::sharedApplication(mtm).activateIgnoringOtherApps(true);
+        }
+    });
+    app.dialog().message(message).title(title).kind(kind)
+}
+
+fn stop_server_and_restart(app: &tauri::AppHandle) -> ! {
+    if let Some(state) = app.try_state::<ServerState>() {
+        if let Ok(mut manager) = state.lock() {
+            manager.stop();
+        }
+    }
+    app.restart()
+}
+
 fn check_for_updates(app: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Some(w) = app.get_webview_window("main") {
@@ -799,57 +833,43 @@ fn check_for_updates(app: tauri::AppHandle) {
             Ok(updater) => match updater.check().await {
                 Ok(Some(update)) => {
                     log::info!("Update available: v{}", update.version);
-                    #[cfg(target_os = "macos")]
-                    {
-                        let app_for_install = app.clone();
-                        let version_str = update.version.clone();
-                        let script = format!(
-                            "button returned of (display alert \"Update Available\" message \"Meowtrix v{} is available.\\n\\nWould you like to update and restart now?\" as informational buttons {{\"Later\", \"Update & Restart\"}} default button \"Update & Restart\" cancel button \"Later\")",
-                            version_str.replace('"', "\\\"")
-                        );
-                        std::thread::spawn(move || {
-                            if let Ok(output) = std::process::Command::new("osascript")
-                                .arg("-e")
-                                .arg(script)
-                                .output()
-                            {
-                                let result = String::from_utf8_lossy(&output.stdout);
-                                if result.trim() == "Update & Restart" {
-                                    update_and_restart(app_for_install);
-                                }
-                            }
-                        });
-                    }
+                    let app_for_install = app.clone();
+                    app_dialog(
+                        &app,
+                        "Update Available",
+                        format!(
+                            "Meowtrix v{} is available.\n\nWould you like to update and restart now?",
+                            update.version
+                        ),
+                        MessageDialogKind::Info,
+                    )
+                    .buttons(MessageDialogButtons::OkCancelCustom(
+                        "Update & Restart".into(),
+                        "Later".into(),
+                    ))
+                    .show(move |update_now| {
+                        if update_now {
+                            update_and_restart(app_for_install);
+                        }
+                    });
                 }
                 Ok(None) => {
                     log::info!("Meowtrix is up to date");
-                    #[cfg(target_os = "macos")]
-                    {
-                        let cur_ver = app.package_info().version.to_string();
-                        let script = format!(
-                            "display alert \"Meowtrix is up to date\" message \"You are running the latest version (v{}).\" as informational buttons {{\"OK\"}} default button \"OK\"",
-                            cur_ver
-                        );
-                        let _ = std::process::Command::new("osascript")
-                            .arg("-e")
-                            .arg(script)
-                            .spawn();
-                    }
+                    app_dialog(
+                        &app,
+                        "Meowtrix is up to date",
+                        format!(
+                            "You are running the latest version (v{}).",
+                            app.package_info().version
+                        ),
+                        MessageDialogKind::Info,
+                    )
+                    .show(|_| {});
                 }
                 Err(e) => {
                     log::error!("Failed to check for updates: {e}");
-                    #[cfg(target_os = "macos")]
-                    {
-                        let err_msg = e.to_string();
-                        let script = format!(
-                            "display alert \"Update Check Failed\" message \"{}\" as warning buttons {{\"OK\"}} default button \"OK\"",
-                            err_msg.replace('"', "\\\"")
-                        );
-                        let _ = std::process::Command::new("osascript")
-                            .arg("-e")
-                            .arg(script)
-                            .spawn();
-                    }
+                    app_dialog(&app, "Update Check Failed", e.to_string(), MessageDialogKind::Warning)
+                        .show(|_| {});
                 }
             },
             Err(e) => {
@@ -869,86 +889,67 @@ fn update_and_restart(app: tauri::AppHandle) {
             Ok(updater) => match updater.check().await {
                 Ok(Some(update)) => {
                     log::info!("Downloading and applying update v{}...", update.version);
-                    #[cfg(target_os = "macos")]
-                    {
-                        let script = format!(
-                            "display notification \"Downloading Meowtrix v{}... The app will restart automatically once completed.\" with title \"Meowtrix Update\"",
-                            update.version
-                        );
-                        let _ = std::process::Command::new("osascript")
-                            .arg("-e")
-                            .arg(script)
-                            .spawn();
-                    }
+                    update_hud::show(&app, &update.version);
 
-                    let app_clone = app.clone();
-                    match update.download_and_install(|_downloaded, _total| {}, || {}).await {
+                    // Throttle progress pushes to the card (each one is an eval round-trip).
+                    let mut downloaded: u64 = 0;
+                    let mut last_push = std::time::Instant::now();
+                    let app_progress = app.clone();
+                    let app_installing = app.clone();
+                    let result = update
+                        .download_and_install(
+                            move |chunk, total| {
+                                downloaded += chunk as u64;
+                                if last_push.elapsed() >= std::time::Duration::from_millis(80)
+                                    || total == Some(downloaded)
+                                {
+                                    last_push = std::time::Instant::now();
+                                    update_hud::progress(&app_progress, downloaded, total);
+                                }
+                            },
+                            move || update_hud::set_phase(&app_installing, "installing"),
+                        )
+                        .await;
+
+                    match result {
                         Ok(()) => {
                             log::info!("Update installed. Restarting Meowtrix...");
-                            if let Some(state) = app_clone.try_state::<ServerState>() {
-                                if let Ok(mut manager) = state.lock() {
-                                    manager.stop();
-                                }
-                            }
-                            app_clone.restart();
+                            update_hud::set_phase(&app, "restarting");
+                            // Let the "Restarting…" state register before the app goes away.
+                            tokio::time::sleep(std::time::Duration::from_millis(900)).await;
+                            stop_server_and_restart(&app);
                         }
                         Err(e) => {
                             log::error!("Failed to install update: {e}");
-                            #[cfg(target_os = "macos")]
-                            {
-                                let err_msg = e.to_string();
-                                let script = format!(
-                                    "display alert \"Update Failed\" message \"{}\" as critical buttons {{\"OK\"}} default button \"OK\"",
-                                    err_msg.replace('"', "\\\"")
-                                );
-                                let _ = std::process::Command::new("osascript")
-                                    .arg("-e")
-                                    .arg(script)
-                                    .spawn();
-                            }
+                            update_hud::close(&app);
+                            app_dialog(&app, "Update Failed", e.to_string(), MessageDialogKind::Error)
+                                .show(|_| {});
                         }
                     }
                 }
                 Ok(None) => {
                     log::info!("No update available. Asking if user wants to restart...");
-                    #[cfg(target_os = "macos")]
-                    {
-                        let cur_ver = app.package_info().version.to_string();
-                        let script = format!(
-                            "display alert \"No Updates Available\" message \"Meowtrix v{} is already up to date. Do you want to restart Meowtrix anyway?\" buttons {{\"Cancel\", \"Restart\"}} default button \"Cancel\"",
-                            cur_ver
-                        );
-                        if let Ok(out) = std::process::Command::new("osascript")
-                            .arg("-e")
-                            .arg(script)
-                            .output()
-                        {
-                            let stdout = String::from_utf8_lossy(&out.stdout);
-                            if stdout.contains("button returned:Restart") {
-                                if let Some(state) = app.try_state::<ServerState>() {
-                                    if let Ok(mut manager) = state.lock() {
-                                        manager.stop();
-                                    }
-                                }
-                                app.restart();
-                            }
+                    let app_for_restart = app.clone();
+                    app_dialog(
+                        &app,
+                        "No Updates Available",
+                        format!(
+                            "Meowtrix v{} is already up to date. Do you want to restart Meowtrix anyway?",
+                            app.package_info().version
+                        ),
+                        MessageDialogKind::Info,
+                    )
+                    .buttons(MessageDialogButtons::OkCancelCustom("Restart".into(), "Cancel".into()))
+                    .show(move |restart| {
+                        if restart {
+                            stop_server_and_restart(&app_for_restart);
                         }
-                    }
+                    });
                 }
                 Err(e) => {
                     log::error!("Update check before install failed: {e}");
-                    #[cfg(target_os = "macos")]
-                    {
-                        let err_msg = e.to_string();
-                        let script = format!(
-                            "display alert \"Update Check Failed\" message \"{}\" as warning buttons {{\"OK\"}} default button \"OK\"",
-                            err_msg.replace('"', "\\\"")
-                        );
-                        let _ = std::process::Command::new("osascript")
-                            .arg("-e")
-                            .arg(script)
-                            .spawn();
-                    }
+                    app_dialog(&app, "Update Check Failed", e.to_string(), MessageDialogKind::Warning)
+                        .show(|_| {});
                 }
             },
             Err(e) => {
