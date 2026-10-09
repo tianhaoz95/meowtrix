@@ -26,7 +26,11 @@
   </form>
   <div id="app">
     <header id="window-header" class="window-header" data-tauri-drag-region>
-      <div class="window-header-traffic-spacer" data-tauri-drag-region></div>
+      <div class="window-header-traffic-spacer">
+        <button id="traffic-btn-close" class="traffic-btn traffic-btn-close" title="Close (Cmd+W)" aria-label="Close"></button>
+        <button id="traffic-btn-minimize" class="traffic-btn traffic-btn-minimize" title="Minimize (Cmd+M)" aria-label="Minimize"></button>
+        <button id="traffic-btn-maximize" class="traffic-btn traffic-btn-maximize" title="Zoom / Maximize" aria-label="Maximize"></button>
+      </div>
       <div id="dynamic-island-notch" class="dynamic-island-notch" data-tauri-drag-region>
         <span class="normal-window-title" data-tauri-drag-region>Meowtrix</span>
         <div class="dynamic-island-pill" title="Click to collapse overlay">

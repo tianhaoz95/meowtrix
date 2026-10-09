@@ -5,16 +5,21 @@
 let isOverlayActive = false;
 let isOverlayAnimating = false;
 
+function tauriInvoke(cmd, args = {}) {
+  if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+    return window.__TAURI__.core.invoke(cmd, args);
+  } else if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
+    return window.__TAURI_INTERNALS__.invoke(cmd, args);
+  }
+  return Promise.resolve();
+}
+
 // Apply overlay opacity both to CSS variable and native window if in desktop app
 function applyOverlayOpacity(opacity) {
   const raw = Number(opacity);
   const op = (!isNaN(raw) && raw >= 0.1 && raw <= 1.0) ? raw : 1.0;
   document.documentElement.style.setProperty('--overlay-opacity', String(op));
-  if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
-    window.__TAURI__.core.invoke('set_overlay_opacity', { opacity: op }).catch(() => {});
-  } else if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
-    window.__TAURI_INTERNALS__.invoke('set_overlay_opacity', { opacity: op }).catch(() => {});
-  }
+  tauriInvoke('set_overlay_opacity', { opacity: op }).catch(() => {});
 }
 
 // Summon the quick overlay with Dynamic Island animation and automatic session claim
@@ -130,17 +135,57 @@ function focusOverlayActiveInput() {
 // Tell native desktop layer to hide the window
 function notifyNativeOverlayHide() {
   fetch('/api/overlay/hide', { method: 'POST' }).catch(() => {});
-  if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
-    window.__TAURI__.core.invoke('hide_overlay').catch(() => {});
-  } else if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
-    window.__TAURI_INTERNALS__.invoke('hide_overlay').catch(() => {});
-  }
+  tauriInvoke('hide_overlay').catch(() => {});
 }
 
-// Initialize Dynamic Island UI and keyboard hooks
+// Initialize Dynamic Island UI, window dragging, and keyboard hooks
 function initQuickOverlay() {
   if (window.__TAURI__ || window.__TAURI_INTERNALS__) {
     document.body.classList.add('is-tauri-app');
+  }
+
+  // Traffic light button controls in normal window mode
+  const trafficCloseBtn = document.getElementById('traffic-btn-close');
+  if (trafficCloseBtn) {
+    trafficCloseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tauriInvoke('close_window').catch(() => {});
+    });
+  }
+
+  const trafficMinBtn = document.getElementById('traffic-btn-minimize');
+  if (trafficMinBtn) {
+    trafficMinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tauriInvoke('minimize_window').catch(() => {});
+    });
+  }
+
+  const trafficMaxBtn = document.getElementById('traffic-btn-maximize');
+  if (trafficMaxBtn) {
+    trafficMaxBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tauriInvoke('maximize_window').catch(() => {});
+    });
+  }
+
+  // Window header dragging and double-click to maximize/zoom
+  const windowHeader = document.getElementById('window-header');
+  if (windowHeader) {
+    windowHeader.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .traffic-btn')) {
+        return;
+      }
+      if (e.button === 0) {
+        tauriInvoke('start_window_drag').catch(() => {});
+      }
+    });
+    windowHeader.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .traffic-btn')) {
+        return;
+      }
+      tauriInvoke('maximize_window').catch(() => {});
+    });
   }
 
   // Click on the header collapse button

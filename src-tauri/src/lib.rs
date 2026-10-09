@@ -79,7 +79,9 @@ pub fn configure_macos_normal_window(window: &tauri::WebviewWindow) {
         unsafe {
             let ns_window = &*(ptr as *mut NSWindow);
             ns_window.setLevel(NSNormalWindowLevel);
-            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::empty());
+            let behavior = NSWindowCollectionBehavior::FullScreenPrimary
+                | NSWindowCollectionBehavior::Managed;
+            ns_window.setCollectionBehavior(behavior);
             ns_window.setHidesOnDeactivate(false);
             ns_window.setHasShadow(true);
             ns_window.setAlphaValue(1.0);
@@ -181,6 +183,7 @@ pub fn open_normal_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow)
     };
 
     let _ = window.set_always_on_top(false);
+    let _ = window.set_decorations(true);
 
     #[cfg(target_os = "macos")]
     {
@@ -336,6 +339,41 @@ fn show_normal_window(window: tauri::WebviewWindow) {
 }
 
 #[tauri::command]
+fn start_window_drag(window: tauri::WebviewWindow) {
+    let _ = window.start_dragging();
+}
+
+#[tauri::command]
+fn close_window(window: tauri::WebviewWindow) {
+    let _ = window.hide();
+}
+
+#[tauri::command]
+fn minimize_window(window: tauri::WebviewWindow) {
+    let _ = window.minimize();
+}
+
+#[tauri::command]
+fn maximize_window(window: tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(ptr) = window.ns_window() {
+            use objc2_app_kit::NSWindow;
+            unsafe {
+                let ns_window = &*(ptr as *mut NSWindow);
+                ns_window.zoom(None);
+                return;
+            }
+        }
+    }
+    if window.is_maximized().unwrap_or(false) {
+        let _ = window.unmaximize();
+    } else {
+        let _ = window.maximize();
+    }
+}
+
+#[tauri::command]
 fn set_overlay_opacity(window: tauri::WebviewWindow, opacity: f64) {
     #[cfg(target_os = "macos")]
     apply_macos_overlay_opacity(&window, opacity.clamp(0.1, 1.0));
@@ -373,7 +411,16 @@ pub fn run() {
     let overlay_state_clone = Arc::clone(&overlay_state);
 
     let app = tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![hide_overlay, show_overlay, show_normal_window, set_overlay_opacity])
+        .invoke_handler(tauri::generate_handler![
+            hide_overlay,
+            show_overlay,
+            show_normal_window,
+            set_overlay_opacity,
+            start_window_drag,
+            close_window,
+            minimize_window,
+            maximize_window
+        ])
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(

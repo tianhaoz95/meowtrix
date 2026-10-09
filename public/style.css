@@ -4940,7 +4940,81 @@ body.dynamic-island-active #window-header {
   width: 78px;
   height: 100%;
   flex-shrink: 0;
-  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  -webkit-app-region: no-drag;
+}
+
+body.dynamic-island-active .window-header-traffic-spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.traffic-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  outline: none;
+  transition: transform 0.1s ease, filter 0.1s ease;
+  -webkit-app-region: no-drag;
+}
+
+.traffic-btn:active {
+  transform: scale(0.92);
+}
+
+.traffic-btn-close {
+  background: #ff5f56;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+}
+
+.traffic-btn-minimize {
+  background: #ffbd2e;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+}
+
+.traffic-btn-maximize {
+  background: #27c93f;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+}
+
+.window-header-traffic-spacer:hover .traffic-btn-close::after {
+  content: '×';
+  font-size: 11px;
+  font-weight: 700;
+  color: #4c0000;
+  line-height: 1;
+  position: absolute;
+  top: -1px;
+}
+
+.window-header-traffic-spacer:hover .traffic-btn-minimize::after {
+  content: '–';
+  font-size: 11px;
+  font-weight: 700;
+  color: #5c3b00;
+  line-height: 1;
+  position: absolute;
+  top: -2px;
+}
+
+.window-header-traffic-spacer:hover .traffic-btn-maximize::after {
+  content: '+';
+  font-size: 10px;
+  font-weight: 700;
+  color: #004c00;
+  line-height: 1;
+  position: absolute;
+  top: 0;
 }
 
 .window-header-right {
