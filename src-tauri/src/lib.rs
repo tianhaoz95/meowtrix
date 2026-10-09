@@ -19,6 +19,18 @@ pub struct QuickOverlayConfig {
     pub auto_claim: bool,
     pub dismiss_on_blur: bool,
     pub opacity: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+pub const DEFAULT_OVERLAY_WIDTH: f64 = 1120.0;
+pub const DEFAULT_OVERLAY_HEIGHT: f64 = 700.0;
+// Matches the window's minWidth/minHeight in tauri*.conf.json; set_size can't go below it.
+pub const MIN_OVERLAY_WIDTH: f64 = 800.0;
+pub const MIN_OVERLAY_HEIGHT: f64 = 500.0;
+
+fn json_f64(v: &serde_json::Value, key: &str) -> Option<f64> {
+    v.get(key).and_then(|x| x.as_f64().or_else(|| x.as_str().and_then(|s| s.parse::<f64>().ok())))
 }
 
 impl Default for QuickOverlayConfig {
@@ -29,6 +41,8 @@ impl Default for QuickOverlayConfig {
             auto_claim: true,
             dismiss_on_blur: true,
             opacity: 1.0,
+            width: DEFAULT_OVERLAY_WIDTH,
+            height: DEFAULT_OVERLAY_HEIGHT,
         }
     }
 }
@@ -53,16 +67,23 @@ pub fn read_quick_overlay_config() -> QuickOverlayConfig {
     let settings_path = data_dir.join("settings.json");
     if let Ok(content) = std::fs::read_to_string(settings_path) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
-            let opacity = v.get("quickOverlayOpacity")
-                .and_then(|x| x.as_f64().or_else(|| x.as_str().and_then(|s| s.parse::<f64>().ok())))
-                .unwrap_or(1.0)
-                .clamp(0.1, 1.0);
+            let opacity = json_f64(&v, "quickOverlayOpacity").unwrap_or(1.0).clamp(0.1, 1.0);
+            let width = json_f64(&v, "quickOverlayWidth")
+                .filter(|w| w.is_finite())
+                .unwrap_or(DEFAULT_OVERLAY_WIDTH)
+                .max(MIN_OVERLAY_WIDTH);
+            let height = json_f64(&v, "quickOverlayHeight")
+                .filter(|h| h.is_finite())
+                .unwrap_or(DEFAULT_OVERLAY_HEIGHT)
+                .max(MIN_OVERLAY_HEIGHT);
             return QuickOverlayConfig {
                 enabled: v.get("quickOverlayEnabled").and_then(|x| x.as_bool()).unwrap_or(true),
                 shortcut: v.get("quickOverlayShortcut").and_then(|x| x.as_str()).unwrap_or("Option+Space").to_string(),
                 auto_claim: v.get("quickOverlayAutoClaim").and_then(|x| x.as_bool()).unwrap_or(true),
                 dismiss_on_blur: v.get("quickOverlayDismissOnBlur").and_then(|x| x.as_bool()).unwrap_or(true),
                 opacity,
+                width,
+                height,
             };
         }
     }
@@ -276,8 +297,9 @@ pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
         let screen_w = m_size.width as f64 / scale;
         let screen_h = m_size.height as f64 / scale;
 
-        let target_w = 1120.0f64.min(screen_w * 0.90).max(840.0f64);
-        let target_h = 700.0f64.min(screen_h * 0.78).max(500.0f64);
+        // User-configured size (Settings → Quick Overlay), capped to the screen it opens on.
+        let target_w = cfg.width.min(screen_w).max(MIN_OVERLAY_WIDTH);
+        let target_h = cfg.height.min(screen_h).max(MIN_OVERLAY_HEIGHT);
         let target_x = (m_pos.x as f64 / scale) + ((screen_w - target_w) / 2.0);
         let target_y = m_pos.y as f64 / scale;
 

@@ -565,6 +565,24 @@
               </select>
             </div>
             <p class="settings-note">Window opacity when called out by global shortcut as an overlay. Default is solid (100%).</p>
+
+            <div class="settings-row">
+              <label for="s-quick-overlay-width">Overlay Size</label>
+              <div class="settings-row-right" style="gap: 4px;">
+                <input type="number" id="s-quick-overlay-width" min="800" max="8000" step="10" placeholder="1120" aria-label="Overlay width" style="width: 72px; text-align: center; font-size: 12px; padding: 4px 6px;">
+                <span style="color: var(--text3);">×</span>
+                <input type="number" id="s-quick-overlay-height" min="500" max="8000" step="10" placeholder="700" aria-label="Overlay height" style="width: 72px; text-align: center; font-size: 12px; padding: 4px 6px;">
+              </div>
+            </div>
+            <div class="settings-row" style="margin-top: -4px;">
+              <label style="font-size: 11px; color: var(--text3);">Presets</label>
+              <div class="settings-row-right" style="gap: 4px; flex-wrap: wrap;">
+                <button type="button" class="btn-preset-overlay-size" data-w="960" data-h="600" style="font-size: 11px; padding: 2px 7px;">Compact</button>
+                <button type="button" class="btn-preset-overlay-size" data-w="1120" data-h="700" style="font-size: 11px; padding: 2px 7px;">Default</button>
+                <button type="button" class="btn-preset-overlay-size" data-w="1440" data-h="900" style="font-size: 11px; padding: 2px 7px;">Large</button>
+              </div>
+            </div>
+            <p class="settings-note">Default window size (width × height, in points) when called out by global shortcut. Minimum 800 × 500; capped to the screen it opens on. Applies on the next summon.</p>
           </div>
         </details>
         <details class="settings-section">

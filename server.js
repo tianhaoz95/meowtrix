@@ -112,6 +112,8 @@ const DEFAULT_SETTINGS = {
   quickOverlayDismissOnBlur: true, // automatically dismiss overlay when focus is lost
   quickOverlayAnimation: true, // animate expansion from Dynamic Island / notch
   quickOverlayOpacity: 1.0, // overlay window opacity (1.0 = solid, 0.95, 0.9, 0.85, 0.8, etc.)
+  quickOverlayWidth: 1120, // overlay window width in logical px (min 800, capped to the screen)
+  quickOverlayHeight: 700, // overlay window height in logical px (min 500, capped to the screen)
   gpuMonitor: false, // background-poll `nvidia-smi` for GPU stats and show a toolbar widget (NVIDIA hosts only)
   comboFx: false, // keystroke-streak visual effects, opt-in (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
@@ -2333,7 +2335,9 @@ app.get('/api/overlay/status', async (req, res) => {
     shortcut: settings.quickOverlayShortcut || 'Option+Space',
     autoClaim: settings.quickOverlayAutoClaim !== false,
     dismissOnBlur: settings.quickOverlayDismissOnBlur !== false,
-    opacity
+    opacity,
+    width: Math.max(800, Number(settings.quickOverlayWidth) || 1120),
+    height: Math.max(500, Number(settings.quickOverlayHeight) || 700)
   });
 });
 

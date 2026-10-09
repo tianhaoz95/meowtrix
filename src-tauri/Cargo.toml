@@ -1,6 +1,6 @@
 [package]
 name = "meowtrix"
-version = "1.26.9"
+version = "1.27.0"
 description = "Meowtrix Desktop — browser-based remote workspace"
 authors = ["Tianhao Zhou"]
 license = "MIT"

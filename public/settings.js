@@ -521,6 +521,10 @@ function populateControls(s) {
   if (sQuickOverlayAnimation) sQuickOverlayAnimation.checked = s.quickOverlayAnimation !== false;
   const sQuickOverlayOpacity = document.getElementById('s-quick-overlay-opacity');
   if (sQuickOverlayOpacity) sQuickOverlayOpacity.value = s.quickOverlayOpacity !== undefined ? String(s.quickOverlayOpacity) : '1';
+  const sQuickOverlayWidth = document.getElementById('s-quick-overlay-width');
+  if (sQuickOverlayWidth) sQuickOverlayWidth.value = String(s.quickOverlayWidth || 1120);
+  const sQuickOverlayHeight = document.getElementById('s-quick-overlay-height');
+  if (sQuickOverlayHeight) sQuickOverlayHeight.value = String(s.quickOverlayHeight || 700);
 
 
   const aiEngineSel = document.getElementById('s-ai-engine');
@@ -971,6 +975,32 @@ function wireControls() {
       }
     });
   }
+
+  // Overlay size: clamp to the window's minimum (800×500) and save on commit.
+  const overlaySizeFields = [
+    { id: 's-quick-overlay-width', key: 'quickOverlayWidth', min: 800, fallback: 1120 },
+    { id: 's-quick-overlay-height', key: 'quickOverlayHeight', min: 500, fallback: 700 },
+  ];
+  overlaySizeFields.forEach(({ id, key, min, fallback }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', async (e) => {
+      const raw = Math.round(Number(e.target.value));
+      const val = Number.isFinite(raw) && raw > 0 ? Math.min(8000, Math.max(min, raw)) : fallback;
+      e.target.value = String(val);
+      await saveSetting(key, val);
+    });
+  });
+  document.querySelectorAll('.btn-preset-overlay-size').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const w = Number(btn.dataset.w);
+      const h = Number(btn.dataset.h);
+      document.getElementById('s-quick-overlay-width').value = String(w);
+      document.getElementById('s-quick-overlay-height').value = String(h);
+      await saveSetting('quickOverlayWidth', w);
+      await saveSetting('quickOverlayHeight', h);
+    });
+  });
 
 
   const chkNetworkServingEl = document.getElementById('s-network-serving');

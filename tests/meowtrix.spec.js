@@ -590,6 +590,22 @@ test.describe('Meowtrix E2E Tests', () => {
     await opacitySelect.selectOption('0.85');
     await expect(opacitySelect).toHaveValue('0.85');
 
+    // Overlay size: defaults, clamping to the minimum, and presets
+    const widthInput = page.locator('#s-quick-overlay-width');
+    const heightInput = page.locator('#s-quick-overlay-height');
+    await expect(widthInput).toHaveValue('1120');
+    await expect(heightInput).toHaveValue('700');
+    await widthInput.fill('300');
+    await widthInput.blur();
+    await expect(widthInput).toHaveValue('800');
+    await page.locator('.btn-preset-overlay-size[data-w="1440"]').click();
+    await expect(widthInput).toHaveValue('1440');
+    await expect(heightInput).toHaveValue('900');
+    await expect.poll(async () => {
+      const s = await (await page.request.get('/api/settings')).json();
+      return [s.quickOverlayWidth, s.quickOverlayHeight];
+    }).toEqual([1440, 900]);
+
     // Click a preset button (e.g. ⌘⇧ Space)
     const presetBtn = page.locator('.btn-preset-shortcut[data-sc="CommandOrControl+Shift+Space"]');
     await presetBtn.click();
