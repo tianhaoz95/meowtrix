@@ -55,7 +55,14 @@ pub struct OverlayState {
     pub is_overlay_active: bool,
     pub normal_size: Option<(f64, f64)>,
     pub normal_position: Option<(f64, f64)>,
+    /// When the overlay was last summoned; blur events just after this are ignored.
+    pub summoned_at: Option<std::time::Instant>,
 }
+
+/// Summoning reshuffles focus (hide, activation-policy switch, re-order, activate), so
+/// AppKit can queue a resign-key for the window that's delivered right after it appears.
+/// Ignore blurs within this window so dismiss-on-blur doesn't close a fresh overlay.
+pub const OVERLAY_BLUR_GRACE: std::time::Duration = std::time::Duration::from_millis(600);
 
 pub type SharedOverlayState = Arc<Mutex<OverlayState>>;
 
@@ -266,6 +273,7 @@ fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
         let mut st = state.lock().unwrap();
         let was = st.is_overlay_active;
         st.is_overlay_active = true;
+        st.summoned_at = Some(std::time::Instant::now());
         // Remember the normal window's bounds once; open_normal_window takes them back.
         // (A hide/re-summon cycle must not overwrite them with the overlay's own bounds.)
         if !was && st.normal_size.is_none() {
@@ -480,6 +488,7 @@ pub fn run() {
         is_overlay_active: false,
         normal_size: None,
         normal_position: None,
+        summoned_at: None,
     }));
 
     let ai_engine_clone = Arc::clone(&ai_engine);
@@ -629,9 +638,17 @@ pub fn run() {
                             tauri::WindowEvent::Focused(false) => {
                                 let dismiss = {
                                     let st = overlay_state_for_blur.lock().unwrap();
-                                    st.is_overlay_active && st.enabled && st.dismiss_on_blur
+                                    let settling = st
+                                        .summoned_at
+                                        .is_some_and(|t| t.elapsed() < OVERLAY_BLUR_GRACE);
+                                    st.is_overlay_active && st.enabled && st.dismiss_on_blur && !settling
                                 };
-                                if dismiss && window_for_blur.is_visible().unwrap_or(false) {
+                                // The event is queued, so re-check: a stale blur can arrive after
+                                // the window has already become key again.
+                                if dismiss
+                                    && window_for_blur.is_visible().unwrap_or(false)
+                                    && !window_for_blur.is_focused().unwrap_or(false)
+                                {
                                     let _ = window_for_blur.eval("if (typeof dismissQuickOverlay === 'function') { dismissQuickOverlay(); }");
                                 }
                             }

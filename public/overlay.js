@@ -4,6 +4,9 @@
 
 let isOverlayActive = false;
 let isOverlayAnimating = false;
+// Pending end-of-collapse step (hide the native window). A re-summon inside the collapse
+// animation must cancel it, or it hides the overlay that was just called out.
+let overlayCollapseTimer = null;
 
 function tauriInvoke(cmd, args = {}) {
   if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
@@ -24,6 +27,8 @@ function applyOverlayOpacity(opacity) {
 
 // Summon the quick overlay with Dynamic Island animation and automatic session claim
 function summonQuickOverlay() {
+  clearTimeout(overlayCollapseTimer);
+  overlayCollapseTimer = null;
   isOverlayActive = true;
   document.body.classList.add('dynamic-island-active');
 
@@ -81,7 +86,9 @@ function dismissQuickOverlay() {
     document.body.classList.remove('dynamic-island-animating');
     document.body.classList.add('dynamic-island-collapsing');
 
-    setTimeout(() => {
+    clearTimeout(overlayCollapseTimer);
+    overlayCollapseTimer = setTimeout(() => {
+      overlayCollapseTimer = null;
       document.body.classList.remove('dynamic-island-collapsing');
       document.body.classList.remove('dynamic-island-active');
       isOverlayActive = false;
