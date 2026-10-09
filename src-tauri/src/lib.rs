@@ -59,8 +59,89 @@ pub fn read_quick_overlay_config() -> QuickOverlayConfig {
     QuickOverlayConfig::default()
 }
 
+#[cfg(target_os = "macos")]
+pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
+    if let Ok(ptr) = window.ns_window() {
+        use objc2_app_kit::{
+            NSFloatingWindowLevel, NSWindow, NSWindowCollectionBehavior,
+        };
+        unsafe {
+            let ns_window = &*(ptr as *mut NSWindow);
+            let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
+                | NSWindowCollectionBehavior::FullScreenAuxiliary;
+            ns_window.setCollectionBehavior(behavior);
+            ns_window.setLevel(NSFloatingWindowLevel);
+            ns_window.setHidesOnDeactivate(false);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn bring_macos_overlay_to_front(window: &tauri::WebviewWindow) {
+    if let Ok(ptr) = window.ns_window() {
+        use objc2_app_kit::{
+            NSApplication, NSFloatingWindowLevel, NSWindow, NSWindowCollectionBehavior,
+        };
+        use objc2::MainThreadMarker;
+        unsafe {
+            let ns_window = &*(ptr as *mut NSWindow);
+            let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
+                | NSWindowCollectionBehavior::FullScreenAuxiliary;
+            ns_window.setCollectionBehavior(behavior);
+            ns_window.setLevel(NSFloatingWindowLevel);
+            ns_window.setHidesOnDeactivate(false);
+            ns_window.orderFrontRegardless();
+            if let Some(mtm) = MainThreadMarker::new() {
+                let app = NSApplication::sharedApplication(mtm);
+                #[allow(deprecated)]
+                app.activateIgnoringOtherApps(true);
+            }
+            ns_window.makeKeyAndOrderFront(None);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn get_active_monitor_on_macos(window: &tauri::WebviewWindow) -> Option<tauri::Monitor> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::NSScreen;
+    if let Some(mtm) = MainThreadMarker::new() {
+        if let Some(screen) = NSScreen::mainScreen(mtm) {
+            let frame = screen.frame();
+            let width = frame.size.width;
+            let height = frame.size.height;
+            if let Ok(monitors) = window.available_monitors() {
+                for m in monitors {
+                    let s = m.scale_factor();
+                    let m_w = m.size().width as f64 / s;
+                    let m_h = m.size().height as f64 / s;
+                    if (m_w - width).abs() < 2.0 && (m_h - height).abs() < 2.0 {
+                        return Some(m);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
-    let monitor = window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten());
+    #[cfg(target_os = "macos")]
+    bring_macos_overlay_to_front(window);
+
+    let monitor = {
+        #[cfg(target_os = "macos")]
+        {
+            get_active_monitor_on_macos(window)
+                .or_else(|| window.current_monitor().ok().flatten())
+                .or_else(|| window.primary_monitor().ok().flatten())
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten())
+        }
+    };
+
     if let Some(m) = monitor {
         let scale = m.scale_factor();
         let m_size = m.size();
@@ -79,8 +160,15 @@ pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
     }
 
     let _ = window.show();
-    let _ = window.unminimize();
+    if window.is_minimized().unwrap_or(false) {
+        let _ = window.unminimize();
+    }
+    let _ = window.set_always_on_top(true);
     let _ = window.set_focus();
+
+    #[cfg(target_os = "macos")]
+    bring_macos_overlay_to_front(window);
+
     let _ = window.eval("if (typeof summonQuickOverlay === 'function') { summonQuickOverlay(); }");
 }
 
@@ -94,6 +182,16 @@ pub fn toggle_quick_overlay(app: &tauri::AppHandle) {
             summon_overlay_window(&window);
         }
     }
+}
+
+#[tauri::command]
+fn hide_overlay(window: tauri::WebviewWindow) {
+    let _ = window.hide();
+}
+
+#[tauri::command]
+fn show_overlay(window: tauri::WebviewWindow) {
+    summon_overlay_window(&window);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -125,6 +223,7 @@ pub fn run() {
     let overlay_state_clone = Arc::clone(&overlay_state);
 
     let app = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![hide_overlay, show_overlay])
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
@@ -225,6 +324,9 @@ pub fn run() {
 
             // Setup main window
             if let Some(window) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                configure_macos_overlay_window(&window);
+
                 if is_headless {
                     let _ = window.hide();
                     println!("🐾 Meowtrix running in headless daemon mode");
@@ -301,8 +403,12 @@ pub fn run() {
                     match event.id().as_ref() {
                         "open" => {
                             if let Some(w) = app.get_webview_window("main") {
+                                #[cfg(target_os = "macos")]
+                                configure_macos_overlay_window(&w);
                                 let _ = w.show();
-                                let _ = w.unminimize();
+                                if w.is_minimized().unwrap_or(false) {
+                                    let _ = w.unminimize();
+                                }
                                 let _ = w.set_focus();
                             }
                         }
@@ -351,8 +457,12 @@ pub fn run() {
                             if w.is_visible().unwrap_or(false) {
                                 let _ = w.hide();
                             } else {
+                                #[cfg(target_os = "macos")]
+                                configure_macos_overlay_window(&w);
                                 let _ = w.show();
-                                let _ = w.unminimize();
+                                if w.is_minimized().unwrap_or(false) {
+                                    let _ = w.unminimize();
+                                }
                                 let _ = w.set_focus();
                             }
                         }
@@ -367,13 +477,27 @@ pub fn run() {
         .expect("error while running tauri application");
 
     app.run(|app_handle, event| {
-        if let RunEvent::Exit = event {
-            log::info!("Tauri app exiting, stopping background server...");
-            if let Some(state) = app_handle.try_state::<ServerState>() {
-                if let Ok(mut manager) = state.lock() {
-                    manager.stop();
+        match event {
+            RunEvent::Exit => {
+                log::info!("Tauri app exiting, stopping background server...");
+                if let Some(state) = app_handle.try_state::<ServerState>() {
+                    if let Ok(mut manager) = state.lock() {
+                        manager.stop();
+                    }
                 }
             }
+            #[cfg(target_os = "macos")]
+            RunEvent::Reopen { .. } => {
+                if let Some(w) = app_handle.get_webview_window("main") {
+                    configure_macos_overlay_window(&w);
+                    let _ = w.show();
+                    if w.is_minimized().unwrap_or(false) {
+                        let _ = w.unminimize();
+                    }
+                    let _ = w.set_focus();
+                }
+            }
+            _ => {}
         }
     });
 }

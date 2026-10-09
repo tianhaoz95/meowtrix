@@ -107,7 +107,9 @@ function focusOverlayActiveInput() {
 // Tell native desktop layer to hide the window
 function notifyNativeOverlayHide() {
   fetch('/api/overlay/hide', { method: 'POST' }).catch(() => {});
-  if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+  if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+    window.__TAURI__.core.invoke('hide_overlay').catch(() => {});
+  } else if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
     window.__TAURI_INTERNALS__.invoke('hide_overlay').catch(() => {});
   }
 }
