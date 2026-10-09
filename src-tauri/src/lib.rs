@@ -502,14 +502,24 @@ fn check_for_updates(app: tauri::AppHandle) {
                     log::info!("Update available: v{}", update.version);
                     #[cfg(target_os = "macos")]
                     {
+                        let app_for_install = app.clone();
+                        let version_str = update.version.clone();
                         let script = format!(
-                            "display alert \"Update Available\" message \"Meowtrix v{} is available.\\n\\nSelect 'Update & Restart' from the tray menu to install.\" as informational buttons {{\"OK\"}} default button \"OK\"",
-                            update.version.replace('"', "\\\"")
+                            "button returned of (display alert \"Update Available\" message \"Meowtrix v{} is available.\\n\\nWould you like to update and restart now?\" as informational buttons {{\"Later\", \"Update & Restart\"}} default button \"Update & Restart\" cancel button \"Later\")",
+                            version_str.replace('"', "\\\"")
                         );
-                        let _ = std::process::Command::new("osascript")
-                            .arg("-e")
-                            .arg(script)
-                            .spawn();
+                        std::thread::spawn(move || {
+                            if let Ok(output) = std::process::Command::new("osascript")
+                                .arg("-e")
+                                .arg(script)
+                                .output()
+                            {
+                                let result = String::from_utf8_lossy(&output.stdout);
+                                if result.trim() == "Update & Restart" {
+                                    update_and_restart(app_for_install);
+                                }
+                            }
+                        });
                     }
                 }
                 Ok(None) => {
