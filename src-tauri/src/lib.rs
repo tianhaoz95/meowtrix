@@ -63,15 +63,16 @@ pub fn read_quick_overlay_config() -> QuickOverlayConfig {
 pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
     if let Ok(ptr) = window.ns_window() {
         use objc2_app_kit::{
-            NSFloatingWindowLevel, NSWindow, NSWindowCollectionBehavior,
+            NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior,
         };
         unsafe {
             let ns_window = &*(ptr as *mut NSWindow);
             let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary;
             ns_window.setCollectionBehavior(behavior);
-            ns_window.setLevel(NSFloatingWindowLevel);
+            ns_window.setLevel(NSStatusWindowLevel);
             ns_window.setHidesOnDeactivate(false);
+            ns_window.setHasShadow(true);
         }
     }
 }
@@ -80,7 +81,7 @@ pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
 pub fn bring_macos_overlay_to_front(window: &tauri::WebviewWindow) {
     if let Ok(ptr) = window.ns_window() {
         use objc2_app_kit::{
-            NSApplication, NSFloatingWindowLevel, NSWindow, NSWindowCollectionBehavior,
+            NSApplication, NSStatusWindowLevel, NSWindow, NSWindowCollectionBehavior,
         };
         use objc2::MainThreadMarker;
         unsafe {
@@ -88,8 +89,9 @@ pub fn bring_macos_overlay_to_front(window: &tauri::WebviewWindow) {
             let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary;
             ns_window.setCollectionBehavior(behavior);
-            ns_window.setLevel(NSFloatingWindowLevel);
+            ns_window.setLevel(NSStatusWindowLevel);
             ns_window.setHidesOnDeactivate(false);
+            ns_window.setHasShadow(true);
             ns_window.orderFrontRegardless();
             if let Some(mtm) = MainThreadMarker::new() {
                 let app = NSApplication::sharedApplication(mtm);
@@ -239,6 +241,9 @@ pub fn run() {
         .manage(ai_engine)
         .manage(overlay_state)
         .setup(move |app| {
+            #[cfg(target_os = "macos")]
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -403,13 +408,7 @@ pub fn run() {
                     match event.id().as_ref() {
                         "open" => {
                             if let Some(w) = app.get_webview_window("main") {
-                                #[cfg(target_os = "macos")]
-                                configure_macos_overlay_window(&w);
-                                let _ = w.show();
-                                if w.is_minimized().unwrap_or(false) {
-                                    let _ = w.unminimize();
-                                }
-                                let _ = w.set_focus();
+                                summon_overlay_window(&w);
                             }
                         }
                         "copy_url" => {
@@ -454,16 +453,10 @@ pub fn run() {
                     {
                         let app = tray.app_handle();
                         if let Some(w) = app.get_webview_window("main") {
-                            if w.is_visible().unwrap_or(false) {
+                            if w.is_visible().unwrap_or(false) && w.is_focused().unwrap_or(false) {
                                 let _ = w.hide();
                             } else {
-                                #[cfg(target_os = "macos")]
-                                configure_macos_overlay_window(&w);
-                                let _ = w.show();
-                                if w.is_minimized().unwrap_or(false) {
-                                    let _ = w.unminimize();
-                                }
-                                let _ = w.set_focus();
+                                summon_overlay_window(&w);
                             }
                         }
                     }
@@ -489,12 +482,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             RunEvent::Reopen { .. } => {
                 if let Some(w) = app_handle.get_webview_window("main") {
-                    configure_macos_overlay_window(&w);
-                    let _ = w.show();
-                    if w.is_minimized().unwrap_or(false) {
-                        let _ = w.unminimize();
-                    }
-                    let _ = w.set_focus();
+                    summon_overlay_window(&w);
                 }
             }
             _ => {}

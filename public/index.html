@@ -25,22 +25,30 @@
     <input type="password" name="password" autocomplete="current-password" tabindex="-1">
   </form>
   <div id="app">
-    <div id="dynamic-island-notch" class="dynamic-island-notch" title="Click to collapse overlay">
-      <div class="dynamic-island-pill">
-        <div class="di-left">
-          <span class="di-icon">🐾</span>
-          <span class="di-label">Meowtrix</span>
-        </div>
-        <div class="di-center">
-          <span class="di-status"><span class="di-indicator"></span><span id="di-workspace-name">Overlay</span></span>
-        </div>
-        <div class="di-right">
-          <button id="di-btn-dismiss" class="di-dismiss-btn" title="Collapse overlay (Esc)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-          </button>
+    <header id="window-header" class="window-header" data-tauri-drag-region>
+      <div class="window-header-traffic-spacer" data-tauri-drag-region></div>
+      <div id="dynamic-island-notch" class="dynamic-island-notch" title="Click to collapse overlay">
+        <div class="dynamic-island-pill">
+          <div class="di-left">
+            <span class="di-icon">🐾</span>
+            <span class="di-label">Meowtrix</span>
+          </div>
+          <div class="di-center">
+            <span class="di-status"><span class="di-indicator"></span><span id="di-workspace-name">Overlay</span></span>
+          </div>
+          <div class="di-right">
+            <button id="di-btn-dismiss" class="di-dismiss-btn" title="Collapse overlay (Esc)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <div class="window-header-right" data-tauri-drag-region>
+        <button id="header-btn-collapse" class="header-action-btn" title="Dismiss overlay (Esc)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </header>
     <div id="toolbar">
       <span id="logo">
         <span id="logo-icon">

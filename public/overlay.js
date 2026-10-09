@@ -116,6 +116,19 @@ function notifyNativeOverlayHide() {
 
 // Initialize Dynamic Island UI and keyboard hooks
 function initQuickOverlay() {
+  if (window.__TAURI__ || window.__TAURI_INTERNALS__) {
+    document.body.classList.add('is-tauri-app');
+  }
+
+  // Click on the header collapse button
+  const headerCollapseBtn = document.getElementById('header-btn-collapse');
+  if (headerCollapseBtn) {
+    headerCollapseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dismissQuickOverlay();
+    });
+  }
+
   // Click on the Dynamic Island dismiss button
   const dismissBtn = document.getElementById('di-btn-dismiss');
   if (dismissBtn) {
@@ -129,7 +142,7 @@ function initQuickOverlay() {
   const notchPill = document.getElementById('dynamic-island-notch');
   if (notchPill) {
     notchPill.addEventListener('click', (e) => {
-      if (e.target.closest('#di-btn-dismiss')) return;
+      if (e.target.closest('#di-btn-dismiss') || e.target.closest('#header-btn-collapse')) return;
       dismissQuickOverlay();
     });
   }
