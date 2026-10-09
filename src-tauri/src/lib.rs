@@ -252,14 +252,23 @@ pub fn open_normal_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow)
 }
 
 pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
+    // AppKit calls below (activation policy, collection behavior, ordering) must run on
+    // the main thread; /api/overlay/show reaches us from the AI daemon's tokio thread.
+    let w = window.clone();
+    let _ = window.run_on_main_thread(move || summon_overlay_window_on_main(&w));
+}
+
+fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
     let cfg = read_quick_overlay_config();
 
-    let _ = {
+    let was_overlay = {
         let state = window.app_handle().state::<SharedOverlayState>();
         let mut st = state.lock().unwrap();
         let was = st.is_overlay_active;
         st.is_overlay_active = true;
-        if !was {
+        // Remember the normal window's bounds once; open_normal_window takes them back.
+        // (A hide/re-summon cycle must not overwrite them with the overlay's own bounds.)
+        if !was && st.normal_size.is_none() {
             if let (Ok(size), Ok(pos)) = (window.inner_size(), window.outer_position()) {
                 if let Ok(scale) = window.scale_factor() {
                     st.normal_size = Some((size.width as f64 / scale, size.height as f64 / scale));
@@ -269,6 +278,21 @@ pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
         }
         was
     };
+
+    // macOS won't let a Regular (Dock) app's window appear over another app's full-screen
+    // Space: activating it switches Spaces instead. Run as an Accessory app while the
+    // overlay is up (open_normal_window / hide_overlay_window switch back to Regular), and
+    // order the window out first so its new CanJoinAllSpaces | FullScreenAuxiliary
+    // behavior applies when it's ordered back in on the current (full-screen) Space.
+    #[cfg(target_os = "macos")]
+    {
+        if !was_overlay && window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        }
+        let _ = window
+            .app_handle()
+            .set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
 
     #[cfg(target_os = "macos")]
     apply_macos_overlay_opacity(window, cfg.opacity);
@@ -338,8 +362,9 @@ pub fn toggle_quick_overlay(app: &tauri::AppHandle) {
     }
 }
 
-#[tauri::command]
-fn hide_overlay(window: tauri::WebviewWindow) {
+/// Hide the overlay and restore the window to its normal (Regular, Dock) state, without
+/// re-showing it. Shared by the `hide_overlay` command and `/api/overlay/hide`.
+pub fn hide_overlay_window(window: &tauri::WebviewWindow) {
     {
         let state = window.app_handle().state::<SharedOverlayState>();
         state.lock().unwrap().is_overlay_active = false;
@@ -347,7 +372,35 @@ fn hide_overlay(window: tauri::WebviewWindow) {
     let _ = window.set_always_on_top(false);
     let _ = window.hide();
     #[cfg(target_os = "macos")]
-    configure_macos_normal_window(&window);
+    {
+        let _ = window
+            .app_handle()
+            .set_activation_policy(tauri::ActivationPolicy::Regular);
+        let w = window.clone();
+        let _ = window.run_on_main_thread(move || reset_macos_window_behavior(&w));
+    }
+}
+
+/// Normal-window level/collection behavior, applied while the window is hidden (unlike
+/// configure_macos_normal_window, this doesn't activate or order the window front).
+#[cfg(target_os = "macos")]
+fn reset_macos_window_behavior(window: &tauri::WebviewWindow) {
+    if let Ok(ptr) = window.ns_window() {
+        use objc2_app_kit::{NSNormalWindowLevel, NSWindow, NSWindowCollectionBehavior};
+        unsafe {
+            let ns_window = &*(ptr as *mut NSWindow);
+            ns_window.setLevel(NSNormalWindowLevel);
+            ns_window.setCollectionBehavior(
+                NSWindowCollectionBehavior::FullScreenPrimary | NSWindowCollectionBehavior::Managed,
+            );
+            ns_window.setAlphaValue(1.0);
+        }
+    }
+}
+
+#[tauri::command]
+fn hide_overlay(window: tauri::WebviewWindow) {
+    hide_overlay_window(&window);
 }
 
 #[tauri::command]

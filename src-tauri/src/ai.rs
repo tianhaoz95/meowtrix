@@ -426,7 +426,7 @@ pub async fn handle_http_connection(
     if path == "/api/overlay/hide" || path == "/overlay/hide" {
         if let Some(ref handle) = app_handle {
             if let Some(w) = handle.get_webview_window("main") {
-                let _ = w.hide();
+                crate::hide_overlay_window(&w);
             }
         }
         let body = serde_json::to_vec(&serde_json::json!({
