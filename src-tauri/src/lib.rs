@@ -38,6 +38,9 @@ pub struct OverlayState {
     pub enabled: bool,
     pub dismiss_on_blur: bool,
     pub auto_claim: bool,
+    pub is_overlay_active: bool,
+    pub normal_size: Option<(f64, f64)>,
+    pub normal_position: Option<(f64, f64)>,
 }
 
 pub type SharedOverlayState = Arc<Mutex<OverlayState>>;
@@ -67,6 +70,30 @@ pub fn read_quick_overlay_config() -> QuickOverlayConfig {
 }
 
 #[cfg(target_os = "macos")]
+pub fn configure_macos_normal_window(window: &tauri::WebviewWindow) {
+    if let Ok(ptr) = window.ns_window() {
+        use objc2_app_kit::{
+            NSApplication, NSNormalWindowLevel, NSWindow, NSWindowCollectionBehavior,
+        };
+        use objc2::MainThreadMarker;
+        unsafe {
+            let ns_window = &*(ptr as *mut NSWindow);
+            ns_window.setLevel(NSNormalWindowLevel);
+            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::empty());
+            ns_window.setHidesOnDeactivate(false);
+            ns_window.setHasShadow(true);
+            ns_window.setAlphaValue(1.0);
+            if let Some(mtm) = MainThreadMarker::new() {
+                let app_inst = NSApplication::sharedApplication(mtm);
+                #[allow(deprecated)]
+                app_inst.activateIgnoringOtherApps(true);
+            }
+            ns_window.makeKeyAndOrderFront(None);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
 pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
     if let Ok(ptr) = window.ns_window() {
         use objc2_app_kit::{
@@ -80,7 +107,6 @@ pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
             ns_window.setLevel(NSStatusWindowLevel);
             ns_window.setHidesOnDeactivate(false);
             ns_window.setHasShadow(true);
-            ns_window.setAlphaValue(1.0);
         }
     }
 }
@@ -146,8 +172,79 @@ pub fn apply_macos_overlay_opacity(window: &tauri::WebviewWindow, opacity: f64) 
     }
 }
 
+pub fn open_normal_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let saved_bounds = {
+        let state = app.state::<SharedOverlayState>();
+        let mut st = state.lock().unwrap();
+        st.is_overlay_active = false;
+        (st.normal_size.take(), st.normal_position.take())
+    };
+
+    let _ = window.set_always_on_top(false);
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        configure_macos_normal_window(window);
+    }
+
+    if let (Some((w, h)), Some((x, y))) = saved_bounds {
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }));
+        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
+    } else {
+        if let Ok(pos) = window.outer_position() {
+            if let Ok(scale) = window.scale_factor() {
+                let y = pos.y as f64 / scale;
+                if y <= 5.0 {
+                    let monitor = window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten());
+                    if let Some(m) = monitor {
+                        let s = m.scale_factor();
+                        let m_sz = m.size();
+                        let m_p = m.position();
+                        let scr_w = m_sz.width as f64 / s;
+                        let scr_h = m_sz.height as f64 / s;
+                        let nw = 1440.0f64.min(scr_w * 0.90).max(960.0f64);
+                        let nh = 900.0f64.min(scr_h * 0.85).max(600.0f64);
+                        let nx = (m_p.x as f64 / s) + (scr_w - nw) / 2.0;
+                        let ny = (m_p.y as f64 / s) + (scr_h - nh) / 2.0;
+                        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: nw, height: nh }));
+                        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x: nx, y: ny }));
+                    }
+                }
+            }
+        }
+    }
+
+    let _ = window.show();
+    if window.is_minimized().unwrap_or(false) {
+        let _ = window.unminimize();
+    }
+    let _ = window.set_focus();
+
+    #[cfg(target_os = "macos")]
+    configure_macos_normal_window(window);
+
+    let _ = window.eval("if (typeof exitOverlayMode === 'function') { exitOverlayMode(); }");
+}
+
 pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
     let cfg = read_quick_overlay_config();
+
+    let _ = {
+        let state = window.app_handle().state::<SharedOverlayState>();
+        let mut st = state.lock().unwrap();
+        let was = st.is_overlay_active;
+        st.is_overlay_active = true;
+        if !was {
+            if let (Ok(size), Ok(pos)) = (window.inner_size(), window.outer_position()) {
+                if let Ok(scale) = window.scale_factor() {
+                    st.normal_size = Some((size.width as f64 / scale, size.height as f64 / scale));
+                    st.normal_position = Some((pos.x as f64 / scale, pos.y as f64 / scale));
+                }
+            }
+        }
+        was
+    };
 
     #[cfg(target_os = "macos")]
     apply_macos_overlay_opacity(window, cfg.opacity);
@@ -202,7 +299,13 @@ pub fn toggle_quick_overlay(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let is_visible = window.is_visible().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
-        if is_visible && is_focused {
+        let is_overlay = {
+            let state = app.state::<SharedOverlayState>();
+            let act = state.lock().unwrap().is_overlay_active;
+            act
+        };
+
+        if is_visible && is_focused && is_overlay {
             let _ = window.eval("if (typeof dismissQuickOverlay === 'function') { dismissQuickOverlay(); } else { window.__meowtrixHide(); }");
         } else {
             summon_overlay_window(&window);
@@ -212,14 +315,24 @@ pub fn toggle_quick_overlay(app: &tauri::AppHandle) {
 
 #[tauri::command]
 fn hide_overlay(window: tauri::WebviewWindow) {
+    {
+        let state = window.app_handle().state::<SharedOverlayState>();
+        state.lock().unwrap().is_overlay_active = false;
+    }
+    let _ = window.set_always_on_top(false);
     let _ = window.hide();
     #[cfg(target_os = "macos")]
-    apply_macos_overlay_opacity(&window, 1.0);
+    configure_macos_normal_window(&window);
 }
 
 #[tauri::command]
 fn show_overlay(window: tauri::WebviewWindow) {
     summon_overlay_window(&window);
+}
+
+#[tauri::command]
+fn show_normal_window(window: tauri::WebviewWindow) {
+    open_normal_window(window.app_handle(), &window);
 }
 
 #[tauri::command]
@@ -251,13 +364,16 @@ pub fn run() {
         enabled: true,
         dismiss_on_blur: true,
         auto_claim: true,
+        is_overlay_active: false,
+        normal_size: None,
+        normal_position: None,
     }));
 
     let ai_engine_clone = Arc::clone(&ai_engine);
     let overlay_state_clone = Arc::clone(&overlay_state);
 
     let app = tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![hide_overlay, show_overlay, set_overlay_opacity])
+        .invoke_handler(tauri::generate_handler![hide_overlay, show_overlay, show_normal_window, set_overlay_opacity])
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
@@ -274,7 +390,7 @@ pub fn run() {
         .manage(overlay_state)
         .setup(move |app| {
             #[cfg(target_os = "macos")]
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -362,7 +478,7 @@ pub fn run() {
             // Setup main window
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
-                configure_macos_overlay_window(&window);
+                configure_macos_normal_window(&window);
 
                 if is_headless {
                     let _ = window.hide();
@@ -374,8 +490,9 @@ pub fn run() {
                     if let Ok(url) = target_url.parse() {
                         let _ = window.navigate(url);
                     }
+                    open_normal_window(app.handle(), &window);
 
-                    // Window events: hide on close, dismiss on blur if configured
+                    // Window events: hide on close, dismiss on blur if in overlay mode
                     let window_clone = window.clone();
                     let window_for_blur = window.clone();
                     let overlay_state_for_blur = Arc::clone(&overlay_state_clone);
@@ -390,7 +507,7 @@ pub fn run() {
                             tauri::WindowEvent::Focused(false) => {
                                 let dismiss = {
                                     let st = overlay_state_for_blur.lock().unwrap();
-                                    st.enabled && st.dismiss_on_blur
+                                    st.is_overlay_active && st.enabled && st.dismiss_on_blur
                                 };
                                 if dismiss && window_for_blur.is_visible().unwrap_or(false) {
                                     let _ = window_for_blur.eval("if (typeof dismissQuickOverlay === 'function') { dismissQuickOverlay(); }");
@@ -440,7 +557,7 @@ pub fn run() {
                     match event.id().as_ref() {
                         "open" => {
                             if let Some(w) = app.get_webview_window("main") {
-                                summon_overlay_window(&w);
+                                open_normal_window(app, &w);
                             }
                         }
                         "copy_url" => {
@@ -485,10 +602,17 @@ pub fn run() {
                     {
                         let app = tray.app_handle();
                         if let Some(w) = app.get_webview_window("main") {
-                            if w.is_visible().unwrap_or(false) && w.is_focused().unwrap_or(false) {
+                            let is_visible = w.is_visible().unwrap_or(false);
+                            let is_focused = w.is_focused().unwrap_or(false);
+                            let is_overlay = {
+                                let state = app.state::<SharedOverlayState>();
+                                let act = state.lock().unwrap().is_overlay_active;
+                                act
+                            };
+                            if is_visible && is_focused && !is_overlay {
                                 let _ = w.hide();
                             } else {
-                                summon_overlay_window(&w);
+                                open_normal_window(app, &w);
                             }
                         }
                     }
@@ -514,7 +638,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             RunEvent::Reopen { .. } => {
                 if let Some(w) = app_handle.get_webview_window("main") {
-                    summon_overlay_window(&w);
+                    open_normal_window(app_handle, &w);
                 }
             }
             _ => {}

@@ -4982,6 +4982,38 @@ body.dynamic-island-active #window-header {
   -webkit-app-region: drag;
 }
 
+.normal-window-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: -0.01em;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+#dynamic-island-notch .dynamic-island-pill {
+  display: none;
+}
+
+#header-btn-collapse {
+  display: none;
+}
+
+body.dynamic-island-active .normal-window-title {
+  display: none;
+}
+
+body.dynamic-island-active #dynamic-island-notch .dynamic-island-pill {
+  display: flex;
+}
+
+body.dynamic-island-active #header-btn-collapse {
+  display: flex;
+}
+
 body.is-tauri-app #app,
 body.dynamic-island-active #app {
   border-radius: 12px;

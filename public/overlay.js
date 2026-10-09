@@ -91,6 +91,13 @@ function dismissQuickOverlay() {
   }
 }
 
+// Exit overlay mode without hiding window (switches to normal app window mode)
+function exitOverlayMode() {
+  document.body.classList.remove('dynamic-island-active', 'dynamic-island-animating', 'dynamic-island-collapsing');
+  isOverlayActive = false;
+  applyOverlayOpacity(1.0);
+}
+
 // Toggle summon/dismiss
 function toggleQuickOverlay() {
   if (isOverlayActive) {
@@ -180,6 +187,7 @@ function initQuickOverlay() {
   // Expose globally for Tauri eval calls
   window.summonQuickOverlay = summonQuickOverlay;
   window.dismissQuickOverlay = dismissQuickOverlay;
+  window.exitOverlayMode = exitOverlayMode;
   window.toggleQuickOverlay = toggleQuickOverlay;
   window.applyOverlayOpacity = applyOverlayOpacity;
   window.__meowtrixHide = notifyNativeOverlayHide;

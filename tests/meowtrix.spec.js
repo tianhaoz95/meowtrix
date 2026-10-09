@@ -599,10 +599,15 @@ test.describe('Meowtrix E2E Tests', () => {
     await page.click('#settings-close');
     await page.waitForSelector('#settings-panel:not(.open)');
 
-    // 2. Test overlay summon
+    // 2. In normal mode, verify overlay pill is hidden and normal title is present
+    await expect(page.locator('.dynamic-island-pill')).toBeHidden();
+    await expect(page.locator('#header-btn-collapse')).toBeHidden();
+
+    // Test overlay summon
     await page.evaluate(() => window.summonQuickOverlay());
     await expect(page.locator('body')).toHaveClass(/dynamic-island-active/);
-    await expect(page.locator('#dynamic-island-notch')).toBeVisible();
+    await expect(page.locator('.dynamic-island-pill')).toBeVisible();
+    await expect(page.locator('#header-btn-collapse')).toBeVisible();
 
     // Verify opacity is applied to CSS variable and #app
     const customProp = await page.evaluate(() => document.documentElement.style.getPropertyValue('--overlay-opacity'));
@@ -611,7 +616,15 @@ test.describe('Meowtrix E2E Tests', () => {
     // Verify session inactive overlay is suppressed
     await expect(page.locator('#inactive-overlay')).toBeHidden();
 
-    // 3. Test overlay dismiss via dismiss button or Esc
+    // 3. Test overlay exit back to normal window mode
+    await page.evaluate(() => window.exitOverlayMode());
+    await expect(page.locator('body')).not.toHaveClass(/dynamic-island-active/);
+    await expect(page.locator('.dynamic-island-pill')).toBeHidden();
+    await expect(page.locator('#header-btn-collapse')).toBeHidden();
+
+    // 4. Test overlay dismiss via Esc
+    await page.evaluate(() => window.summonQuickOverlay());
+    await expect(page.locator('body')).toHaveClass(/dynamic-island-active/);
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
     await expect(page.locator('body')).not.toHaveClass(/dynamic-island-active/);
