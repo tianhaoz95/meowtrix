@@ -194,7 +194,7 @@ function captureWorkspaceState(index = activeWorkspaceIndex) {
           ptyId: t.ptyId || null,
           browserUrl: t.type === 'browser' ? t.currentUrl : null,
           browserConsoleOpen: t.type === 'browser' ? !!t.consoleOpen : null,
-          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'agent' ? (t.agentDir || t.workingDir) : (t.type === 'terminal' ? t.terminalDir : null)),
+          editorDir: t.type === 'editor' ? t.editorDir : (t.type === 'agent' ? (t.agentDir || t.workingDir) : (t.type === 'codesign' ? t.codesignDir : (t.type === 'terminal' ? t.terminalDir : null))),
           sshHost: t.type === 'terminal' ? (t.sshHost || null) : null,
           editorSidebarWidth: t.type === 'editor' ? t.editorSidebarWidth : null,
           editorSidebarCollapsed: t.type === 'editor' ? !!t.editorSidebarCollapsed : null,
@@ -416,6 +416,7 @@ function onWsConnected() {
   if (typeof rewatchAllEditors === 'function') {
     rewatchAllEditors();
   }
+  if (typeof refreshAllCodesignTabs === 'function') refreshAllCodesignTabs();
   if (!hasClaimed) { claimActiveSession(); return; }
   if (isActiveSession) {
     // We reconnected and still believe we're active: the server dropped our PTY
@@ -559,7 +560,7 @@ function showTabTypePicker(e, pane) {
   const closeSubmenu = () => { if (submenu) { submenu.remove(); submenu = null; } };
   const closeAll = () => { closeSubmenu(); picker.remove(); activePicker = null; };
 
-  [['Terminal', 'terminal'], ['SSH', 'ssh'], ['AI Agent', 'agent'], ['Browser', 'browser'], ['Code editor', 'editor']].forEach(([text, type]) => {
+  [['Terminal', 'terminal'], ['SSH', 'ssh'], ['AI Agent', 'agent'], ['Browser', 'browser'], ['Code editor', 'editor'], ['CoDesign', 'codesign']].forEach(([text, type]) => {
     const btn = document.createElement('button');
     btn.innerHTML = `<span class="tab-type-icon">${typeof getTabIconSvg === 'function' ? getTabIconSvg(type) : ''}</span><span class="tab-type-label">${text}${type === 'ssh' ? '  ›' : ''}</span>`;
     if (type === 'ssh') {
@@ -568,10 +569,10 @@ function showTabTypePicker(e, pane) {
       btn.addEventListener('mouseenter', closeSubmenu);
       btn.addEventListener('click', async () => {
         closeAll();
-        if (type === 'editor') {
+        if (type === 'editor' || type === 'codesign') {
           const dir = await promptForFolder();
           if (!dir) return;
-          addTab(pane, 'editor', undefined, undefined, undefined, dir);
+          addTab(pane, type, undefined, undefined, undefined, dir);
         } else {
           addTab(pane, type);
         }

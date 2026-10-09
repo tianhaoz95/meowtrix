@@ -78,6 +78,7 @@ function buildCommands() {
     { icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('agent') : '›', title: 'New AI agent tab', keywords: 'agent llm ai mistral assistant autonomous add', run: () => { if (activePane) { addTab(activePane, 'agent'); saveSessionState(); } } },
     { icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('browser') : '›', title: 'New browser tab', keywords: 'web add', run: () => { if (activePane) { addTab(activePane, 'browser'); saveSessionState(); } } },
     { icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('editor') : '›', title: 'New code editor tab', keywords: 'edit code vscode monaco add', run: async () => { if (!activePane) return; const dir = await promptForFolder(); if (dir) { addTab(activePane, 'editor', undefined, undefined, undefined, dir); saveSessionState(); } } },
+    { icon: typeof getTabIconSvg === 'function' ? getTabIconSvg('codesign') : '›', title: 'New CoDesign tab (review a design spec)', keywords: 'codesign design spec review mockup annotate comment sign off approve add', run: async () => { if (!activePane) return; const dir = await promptForFolder(); if (dir) triggerOpenCodesign(dir); } },
     { icon: '✕', title: 'Close current tab', hint: '⌘W', run: () => { if (activePane?.activeTab) closeTab(activePane, activePane.activeTab.id); } },
     { icon: '✏️', title: 'Rename current tab', keywords: 'title name label retitle rename', keepOpen: true, run: () => {
       if (!activePane?.activeTab) return;

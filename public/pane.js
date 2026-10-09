@@ -16,6 +16,9 @@ function getTabIconSvg(type) {
       return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>`;
     case 'browser':
       return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="6.5" cy="6.5" r="0.75" fill="currentColor"/><circle cx="9.5" cy="6.5" r="0.75" fill="currentColor"/><circle cx="12.5" cy="6.5" r="0.75" fill="currentColor"/></svg>`;
+    case 'codesign':
+      // Pen nib over a frame: a design you review and mark up.
+      return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2.5"/><path d="M7 21h10"/><path d="M12 17v4"/><path d="M14.5 6.5l3 3-5 5H9.5v-3z"/></svg>`;
     case 'gpu':
       return `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2.5"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3m6-3v3m-6 14v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/></svg>`;
     default:
@@ -303,7 +306,7 @@ function toggleMaximizePane(pane) {
       if (tab && tab.type === 'terminal' && tab.fitAddon && tab.viewEl && tab.viewEl.classList.contains('active')) {
         try { tab.fitAddon.fit(); } catch {}
       }
-      if (tab?.type === 'editor' && typeof tab.onActivate === 'function') {
+      if ((tab?.type === 'editor' || tab?.type === 'codesign') && typeof tab.onActivate === 'function') {
         tab.onActivate();
       }
     });
@@ -369,7 +372,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   icon.className = 'tab-icon';
   icon.innerHTML = getTabIconSvg(sshHost ? 'ssh' : type);
   const label = document.createElement('span');
-  label.textContent = sshHost ? sshHost : type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : type === 'agent' ? 'AI Agent' : 'Browser';
+  label.textContent = sshHost ? sshHost : type === 'terminal' ? 'Terminal' : type === 'editor' ? 'Editor' : type === 'agent' ? 'AI Agent' : type === 'codesign' ? 'CoDesign' : 'Browser';
 
   const isMaximized = pane.el.classList.contains('maximized');
   const maxBtn = document.createElement('span');
@@ -419,6 +422,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
     editorDir: type === 'editor' ? existingDir : null,
     terminalDir: type === 'terminal' ? existingDir : null,
     agentDir: type === 'agent' ? existingDir : null,
+    codesignDir: type === 'codesign' ? existingDir : null,
     sshHost,
     editorSidebarWidth: existingEditorWidth || null,
     editorSidebarCollapsed: !!existingEditorCollapsed,
@@ -451,6 +455,7 @@ function addTab(pane, type, existingId, existingPtyId, existingUrl, existingDir,
   else if (type === 'agent') {
     if (typeof initAgentTab === 'function') initAgentTab(tab, viewEl, existingDir);
   }
+  else if (type === 'codesign') initCodesignTab(tab, viewEl, existingDir);
   else initBrowserTab(tab, viewEl, label, existingUrl);
 
   createZoomControls(tab);
@@ -506,6 +511,7 @@ function closeTab(pane, id) {
   }
   if (tab.disposeTerminal) tab.disposeTerminal();
   if (tab.disposeEditor) tab.disposeEditor();
+  if (tab.disposeCodesign) tab.disposeCodesign();
   tab.viewEl.remove();
   tab.tabEl.remove();
   pane.tabs.splice(idx, 1);
@@ -2310,6 +2316,8 @@ function renameTabInline(tab) {
           tab.label.textContent = baseName;
         } else if (tab.type === 'agent') {
           tab.label.textContent = 'AI Agent';
+        } else if (tab.type === 'codesign') {
+          tab.label.textContent = `Spec: ${(tab.codesignDir || '').split('/').filter(Boolean).pop() || 'CoDesign'}`;
         } else if (tab.type === 'browser') {
           if (tab.currentUrl) {
             try { tab.label.textContent = new URL(tab.currentUrl).hostname.replace('www.', ''); }

@@ -7,7 +7,9 @@ function equalizeChildren(container) {
 }
 
 // dir: 'vertical' = side-by-side, 'horizontal' = top/bottom
-function splitPane(pane, dir) {
+// `opts.empty` leaves the new pane without its default terminal tab, for callers
+// that fill it themselves (e.g. opening a CoDesign tab beside the agent).
+function splitPane(pane, dir, opts = {}) {
   if (typeof maximizedPane !== 'undefined' && maximizedPane) {
     toggleMaximizePane(maximizedPane);
   }
@@ -38,7 +40,7 @@ function splitPane(pane, dir) {
     makeDraggable(divider, container, dir);
   }
 
-  addTab(newPane, 'terminal');
+  if (!opts.empty) addTab(newPane, 'terminal');
   setActivePane(newPane);
   saveSessionState();
   return newPane;

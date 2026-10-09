@@ -56,6 +56,7 @@
         <a href="#terminals">Terminals</a>
         <a href="#browser">Browser panes</a>
         <a href="#editor">Code editor &amp; Git</a>
+        <a href="#codesign">CoDesign review</a>
         <a href="#broadcast">Broadcast input</a>
         <a href="#schedules">Scheduled Enter (⏰)</a>
         <a href="#palette">Command palette</a>
@@ -271,6 +272,24 @@ HOST=0.0.0.0 npm start</code></pre>
         <h2>Browser panes</h2>
         <p>A browser tab is an embedded mini-browser with an address bar, back/forward, reload, and an "open in a new window" (<strong>↗</strong>) button. Pages are fetched through a built-in server-side proxy that strips frame-blocking headers, so many sites that normally refuse to be embedded will render right in the pane.</p>
         <p>Some sites — Google, sign-in flows, heavily bot-protected pages — still won't embed. Use <strong>↗</strong> to open those in a real browser window. You can set a default homepage for new browser tabs in <a href="#settings">Settings</a>.</p>
+      </section>
+
+      <section id="codesign">
+        <h2>CoDesign review</h2>
+        <p>CoDesign is a review loop between you and a coding agent over a <em>living HTML design spec</em>. Before the agent builds a UI, it writes a mockup to <code>.codesign/spec.html</code> in the project. You review and annotate it in a CoDesign tab, and the agent waits for your verdict.</p>
+        <ol>
+          <li>Ask your agent (Claude Code, Codex, Gemini CLI, … running in a Meowtrix terminal) to design the screen as a self-contained HTML file at <code>.codesign/spec.html</code> and then run <code>mtx review</code>. An empty CoDesign tab (<strong>+ → CoDesign</strong>) has a ready-made prompt you can copy.</li>
+          <li><code>mtx review</code> opens a CoDesign tab beside the agent's terminal and blocks until you decide.</li>
+          <li>In the tab, switch between <strong>Responsive / Desktop / Tablet / Mobile</strong> frames and zoom in or out (<kbd>⌘</kbd>/<kbd>Ctrl</kbd> + scroll). <strong>Inspect</strong> mode shows each element's size, typography, colors and spacing. In <strong>Comment</strong> mode, click any element to pin a comment to it.</li>
+          <li>Press <strong>Send feedback</strong>: the agent's <code>mtx review</code> returns your comments with each element's CSS selector and text. It edits the spec (the tab reloads live as a new revision), marks comments done with <code>mtx resolve c1 c2</code>, and runs <code>mtx review</code> again.</li>
+          <li>Press <strong>Approve &amp; sign off</strong> when it's right; <code>mtx review</code> prints <code>APPROVED</code>.</li>
+        </ol>
+        <ul>
+          <li><strong>Commands:</strong> <code>mtx spec [dir]</code> opens the tab; <code>mtx review [dir] [--timeout SECS]</code> waits for a decision (default 540s, exit code 2 if none yet, so run it again); <code>mtx feedback [dir] [--all]</code> lists comments without waiting; <code>mtx resolve &lt;id&gt;... [-m note]</code> resolves them. Give agents a ~10 minute tool timeout for <code>mtx review</code>.</li>
+          <li><strong>Outside Meowtrix terminals:</strong> set <code>MEOWTRIX_URL</code> (e.g. <code>http://127.0.0.1:9123</code>) and call <code>~/.meowtrix/app/bin/mtx</code>.</li>
+          <li><strong>State on disk:</strong> the revision counter, comments and the latest decision live in <code>.codesign/review.json</code>. Restarts lose nothing, and you can commit the folder.</li>
+          <li><strong>Sandboxed:</strong> the spec runs in an opaque-origin sandbox, so agent-written HTML and CDN scripts can't call Meowtrix's file or terminal APIs. One side effect: <code>localStorage</code> isn't available to the spec.</li>
+        </ul>
       </section>
 
       <section id="editor">

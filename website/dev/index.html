@@ -108,6 +108,8 @@
 │   ├── ws.js              # the single WebSocket + PTY callback map
 │   ├── pane.js            # pane/tab model, DnD, broadcast
 │   ├── editor.js          # Monaco text editor, file tree & Git client
+│   ├── codesign.js        # CoDesign tab: spec frame, comment pins, sign-off
+│   ├── codesign-inspector.js # injected into specs: inspect/annotate over postMessage
 │   ├── layout.js          # splitting & draggable dividers
 │   ├── app.js             # session bootstrap, serialize/restore, shortcuts
 │   ├── mobile.js          # on-screen key bar, sticky modifiers
@@ -240,6 +242,17 @@ docker compose -f docker-compose.test.yml down -v</code></pre>
         </ul>
       </section>
 
+      <section id="codesign">
+        <h2>CoDesign review loop</h2>
+        <p><code>codesign-service.js</code> (mounted from <code>server.js</code>) serves a living HTML spec at <code>&lt;project&gt;/.codesign/spec.html</code> and records the human's review. The agent side is just the shell CLI <code>bin/mtx</code>, with no MCP server.</p>
+        <ul>
+          <li><strong>State on disk:</strong> <code>.codesign/review.json</code> holds the revision counter, a hash of the spec, the comments and the latest decision. <code>syncRevision()</code> runs on every access and from an <code>fs.watchFile</code> poll: a content change bumps the revision, clears the decision, and broadcasts <code>codesign:update {dir}</code> over the WebSocket.</li>
+          <li><strong>Agent API:</strong> <code>mtx review</code> long-polls <code>GET /api/codesign/wait</code> (≤50s per request, looped up to <code>--timeout</code>). The server replies right away if a decision exists for the current revision (an approval every time; a change request only until it has been delivered once). The <code>X-Codesign-Event</code> header carries <code>approved|changes|timeout|missing</code>, and <code>format=text</code> gives an agent-readable summary. <code>mtx spec</code>/<code>review</code> call <code>POST /api/codesign/open</code>, which broadcasts <code>codesign:open</code>; the active session opens a tab next to the focused pane. Agents run <code>mtx</code> in tool subprocesses whose output never reaches xterm, so an OSC sequence wouldn't work here.</li>
+          <li><strong>Sandbox:</strong> the spec is served from <code>/codesign-spec/&lt;base64url dir&gt;/…</code> with <code>Content-Security-Policy: sandbox</code> (no <code>allow-same-origin</code>), and the tab's iframe carries the same flags. The WebSocket rejects <code>Origin: null</code>. The tab never reads the iframe DOM: <code>public/codesign-inspector.js</code> is inlined into the HTML and exchanges <code>mode / pins / scale / focus / scrollTo</code> commands and <code>ready / pick / pinClick / scroll</code> events with <code>public/codesign.js</code> via <code>postMessage</code>.</li>
+          <li><strong>Pins</strong> are anchored to a CSS selector plus a fractional offset inside the element, so they follow reflow across device frames. Raw document coordinates are the fallback.</li>
+        </ul>
+      </section>
+
       <section id="schedules-timer">
         <h2>Schedules Timer</h2>
         <p>The scheduled Enter key press mechanism runs entirely server-side in <code>server.js</code> (the <code>schedules</code> Map, keyed by PTY ID). Living on the server allows timers to survive temporary browser disconnects or client reloads.</p>
@@ -262,7 +275,7 @@ docker compose -f docker-compose.test.yml down -v</code></pre>
 
       <section id="modules">
         <h2>Frontend module map</h2>
-        <p>All files are global-scope and <strong>load order matters</strong>. In <code>index.html</code>: <code>demo.js</code> → <code>ws.js</code> → <code>pane.js</code> → <code>editor.js</code> → <code>layout.js</code> → <code>app.js</code> → <code>mobile.js</code> → <code>settings.js</code> → <code>palette.js</code> → <code>schedule.js</code> → <code>update.js</code> → <code>combo.js</code> → <code>pet.js</code>. Cross-file calls are plain function references (e.g. <code>wsSend</code>, <code>getAllPanes</code>, <code>applyStickyMods</code>), not imports.</p>
+        <p>All files are global-scope and <strong>load order matters</strong>. In <code>index.html</code>: <code>demo.js</code> → <code>ws.js</code> → <code>pane.js</code> → <code>editor.js</code> → <code>codesign.js</code> → <code>layout.js</code> → <code>app.js</code> → <code>mobile.js</code> → <code>settings.js</code> → <code>palette.js</code> → <code>schedule.js</code> → <code>update.js</code> → <code>combo.js</code> → <code>pet.js</code>. Cross-file calls are plain function references (e.g. <code>wsSend</code>, <code>getAllPanes</code>, <code>applyStickyMods</code>), not imports.</p>
         <table>
           <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
           <tbody>

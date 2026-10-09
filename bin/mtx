@@ -5,9 +5,17 @@
 # Usage:
 #   mtx download <file>   download a host file to your browser
 #   mtx code <dir>        open a code-editor tab rooted at <dir>
+#   mtx spec [dir]        open a CoDesign tab for <dir>/.codesign/spec.html
+#   mtx review [dir]      wait for the human to approve the spec or send comments
+#   mtx feedback [dir]    print the open review comments (non-blocking)
+#   mtx resolve <id>...   mark review comments as addressed
 #
 # `download` emits ESC ] 5379 ; <abs-path> BEL  → client GETs /api/download.
 # `code`     emits ESC ] 5380 ; <abs-path> BEL  → client opens an editor tab.
+# The CoDesign commands (spec/review/feedback/resolve) talk to the server over
+# HTTP instead, at $MEOWTRIX_URL (set for every spawned shell) — they are
+# usually run by an agent in a tool subprocess whose output never reaches the
+# terminal, so OSC sequences wouldn't work. See codesign-service.js.
 # This script is placed on PATH for every spawned shell, which also gives
 # `mtx <cmd> ` filename/dir tab-completion for free.
 
@@ -15,7 +23,62 @@ usage() {
   printf 'usage:\n'                                              >&2
   printf '  mtx download <file>   download a host file to your browser\n' >&2
   printf '  mtx code <dir>        open a code-editor tab rooted at <dir>\n' >&2
+  printf '  mtx spec [dir]        open a CoDesign tab for <dir>/.codesign/spec.html\n' >&2
+  printf '  mtx review [dir] [--timeout SECS]\n' >&2
+  printf '                        wait until the spec is approved or comments are sent\n' >&2
+  printf '  mtx feedback [dir] [--all]\n' >&2
+  printf '                        print open review comments without waiting\n' >&2
+  printf '  mtx resolve <id>... [-m note] [--dir dir]\n' >&2
+  printf '                        mark review comments as addressed\n' >&2
   exit 1
+}
+
+review_help() {
+  cat >&2 <<'EOT'
+mtx review [dir] [--timeout SECS]
+
+CoDesign review loop. Write a self-contained HTML design to
+<dir>/.codesign/spec.html (assets beside it in .codesign/), then run
+`mtx review`. It opens the spec in a Meowtrix CoDesign tab and blocks until
+the human decides:
+
+  APPROVED           exit 0 — done.
+  CHANGES REQUESTED  exit 0 — the comments are printed (id, element selector,
+                     text, comment). Edit the spec, `mtx resolve <id>...`,
+                     then `mtx review` again.
+  no decision yet    exit 2 after --timeout (default 540s, or
+                     $MTX_REVIEW_TIMEOUT) — just run `mtx review` again.
+
+Agents: give this command a ~10 minute tool timeout. [dir] defaults to the
+nearest ancestor of $PWD containing .codesign/spec.html, else $PWD.
+EOT
+  exit 1
+}
+
+mtx_url() { printf '%s' "${MEOWTRIX_URL:-http://127.0.0.1:${MEOWTRIX_PORT:-9123}}"; }
+
+need_curl() {
+  command -v curl >/dev/null 2>&1 || { printf 'mtx: curl is required for this command\n' >&2; exit 1; }
+}
+
+# The CoDesign project: an explicit dir, else the nearest ancestor holding
+# .codesign/spec.html, else $PWD.
+find_project() {
+  if [ -n "$1" ]; then
+    (cd "$1" 2>/dev/null && pwd) || { printf 'mtx: %s: no such directory\n' "$1" >&2; exit 1; }
+    return
+  fi
+  d=$PWD
+  while [ "$d" != "/" ] && [ -n "$d" ]; do
+    if [ -f "$d/.codesign/spec.html" ]; then printf '%s' "$d"; return; fi
+    d=$(dirname "$d")
+  done
+  printf '%s' "$PWD"
+}
+
+# Ask the browser to show the CoDesign tab for $1. Fails if the server is down.
+open_spec_tab() {
+  curl -fsS -o /dev/null -X POST --data-urlencode "dir=$1" "$(mtx_url)/api/codesign/open" 2>/dev/null
 }
 
 # Resolve $1 to an absolute path, collapsing ./ and ../ when the directory
@@ -67,6 +130,100 @@ case "$cmd" in
     # Private OSC sequence picked up by the client (pane.js OSC handler 5380).
     printf '\033]5380;%s\007' "$abs"
     printf '\342\206\227 opening %s in editor \342\200\246\n' "$abs"
+    ;;
+  spec)
+    need_curl
+    proj=$(find_project "${1:-}") || exit 1
+    if ! open_spec_tab "$proj"; then
+      printf 'mtx: cannot reach Meowtrix at %s (set MEOWTRIX_URL)\n' "$(mtx_url)" >&2
+      exit 1
+    fi
+    if [ -f "$proj/.codesign/spec.html" ]; then
+      printf 'opened CoDesign for %s/.codesign/spec.html\n' "$proj"
+    else
+      printf 'opened CoDesign for %s (waiting for .codesign/spec.html)\n' "$proj"
+    fi
+    ;;
+  review)
+    need_curl
+    timeout=${MTX_REVIEW_TIMEOUT:-540}
+    dir_arg=
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -h|--help) review_help ;;
+        --timeout) timeout=${2:-}; shift 2 || review_help ;;
+        --timeout=*) timeout=${1#--timeout=}; shift ;;
+        *) dir_arg=$1; shift ;;
+      esac
+    done
+    case "$timeout" in ''|*[!0-9]*) printf 'mtx: --timeout must be a number of seconds\n' >&2; exit 1 ;; esac
+    proj=$(find_project "$dir_arg") || exit 1
+    if [ ! -f "$proj/.codesign/spec.html" ]; then
+      printf 'mtx: no spec at %s/.codesign/spec.html — write the design there first (see mtx review --help)\n' "$proj" >&2
+      exit 1
+    fi
+    url=$(mtx_url)
+    if ! open_spec_tab "$proj"; then
+      printf 'mtx: cannot reach Meowtrix at %s (set MEOWTRIX_URL)\n' "$url" >&2
+      exit 1
+    fi
+    printf 'Waiting for review of %s/.codesign/spec.html in Meowtrix…\n' "$proj" >&2
+    hdr=$(mktemp "${TMPDIR:-/tmp}/mtx-review.XXXXXX")
+    trap 'rm -f "$hdr"' EXIT INT TERM
+    start=$(date +%s)
+    fails=0
+    while :; do
+      left=$(( timeout - ($(date +%s) - start) ))
+      if [ "$left" -le 0 ]; then
+        printf 'NO DECISION YET — the reviewer has not approved or sent comments. Run `mtx review` again to keep waiting.\n'
+        exit 2
+      fi
+      chunk=$left; [ "$chunk" -gt 50 ] && chunk=50
+      if body=$(curl -sS -f -G -D "$hdr" --max-time $((chunk + 15)) \
+          --data-urlencode "dir=$proj" --data-urlencode "timeout=$chunk" --data-urlencode "format=text" \
+          "$url/api/codesign/wait" 2>/dev/null); then
+        fails=0
+        event=$(tr -d '\r' < "$hdr" | awk -F': *' 'tolower($1)=="x-codesign-event"{print $2}' | tail -n 1)
+        case "$event" in
+          approved|changes) printf '%s\n' "$body"; exit 0 ;;
+          missing) printf '%s\n' "$body" >&2; exit 1 ;;
+          *) ;; # timeout: poll again
+        esac
+      else
+        # Server restarting (self-update) or a network blip: retry a few times.
+        fails=$((fails + 1))
+        if [ "$fails" -ge 10 ]; then
+          printf 'mtx: lost contact with Meowtrix at %s\n' "$url" >&2
+          exit 1
+        fi
+        sleep 3
+      fi
+    done
+    ;;
+  feedback)
+    need_curl
+    all=0; dir_arg=
+    for a in "$@"; do
+      case "$a" in --all) all=1 ;; *) dir_arg=$a ;; esac
+    done
+    proj=$(find_project "$dir_arg") || exit 1
+    curl -sS -f -G --data-urlencode "dir=$proj" --data-urlencode "format=text" --data-urlencode "all=$all" \
+      "$(mtx_url)/api/codesign/feedback" || { printf 'mtx: cannot reach Meowtrix at %s\n' "$(mtx_url)" >&2; exit 1; }
+    ;;
+  resolve)
+    need_curl
+    ids=; note=; dir_arg=
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -m|--note) note=${2:-}; shift 2 || usage ;;
+        --dir) dir_arg=${2:-}; shift 2 || usage ;;
+        *) ids="$ids $1"; shift ;;
+      esac
+    done
+    [ -z "$ids" ] && usage
+    proj=$(find_project "$dir_arg") || exit 1
+    curl -sS -f -X POST --data-urlencode "dir=$proj" --data-urlencode "ids=$ids" --data-urlencode "note=$note" \
+      --data-urlencode "format=text" "$(mtx_url)/api/codesign/resolve" || { printf 'mtx: cannot reach Meowtrix at %s\n' "$(mtx_url)" >&2; exit 1; }
     ;;
   *)
     printf 'mtx: unknown command: %s\n' "$cmd" >&2

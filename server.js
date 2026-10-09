@@ -20,7 +20,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({
   server,
-  perMessageDeflate: true
+  perMessageDeflate: true,
+  // Opaque-origin documents (sandboxed iframes such as CoDesign specs, see
+  // codesign-service.js) send `Origin: null`; they must never reach the PTYs.
+  verifyClient: (info) => info.origin !== 'null'
 });
 
 app.use(compression());
@@ -235,6 +238,15 @@ app.post('/api/network/toggle', (req, res) => {
 // ── AI Engine & Agent Harness ────────────────────────────────────────────────
 const { mountAiRoutes } = require('./ai-service');
 mountAiRoutes(app);
+
+// ── CoDesign living-spec review (see codesign-service.js) ────────────────────
+const { mountCodesignRoutes } = require('./codesign-service');
+mountCodesignRoutes(app, {
+  broadcast: (msg) => {
+    const payload = JSON.stringify(msg);
+    for (const c of sessionClients) if (c.readyState === c.OPEN) c.send(payload);
+  },
+});
 
 
 // ── Session state persistence ────────────────────────────────────────────────
@@ -1651,6 +1663,8 @@ wss.on('connection', (ws) => {
         delete ptyEnv.HOSTNAME;
         // Expose the bundled `mtx` download command on PATH for every shell.
         ptyEnv.PATH = path.join(__dirname, 'bin') + path.delimiter + (ptyEnv.PATH || '');
+        // …and tell it how to reach this server (`mtx review` etc. use HTTP).
+        ptyEnv.MEOWTRIX_URL = `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST.includes(':') ? `[${HOST}]` : HOST}:${PORT}`;
 
         let initialCwd = msg.cwd;
         if (!initialCwd && msg.inheritFromPtyId) {

@@ -5221,3 +5221,133 @@ body.dynamic-island-active #toolbar {
 }
 
 
+
+/* ── CoDesign tab (public/codesign.js) ─────────────────────────────────────── */
+.pane-view.codesign-view { background: var(--bg); overflow: hidden; --cd-amber: #f59e0b; --cd-green: #10b981; --cd-red: #ef4444; }
+.codesign-toolbar, .codesign-footer {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; flex: none;
+  background: var(--bg2); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2);
+  overflow-x: auto; scrollbar-width: none;
+}
+.codesign-footer { border-bottom: none; border-top: 1px solid var(--border); }
+.codesign-toolbar button, .codesign-footer button { font: inherit; cursor: pointer; }
+.cd-spacer { flex: 1; }
+.cd-seg, .cd-zoom { display: inline-flex; flex: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 2px; gap: 2px; }
+.cd-seg button, .cd-zoom button {
+  border: none; background: transparent; color: var(--text2); padding: 3px 9px; border-radius: 5px; white-space: nowrap;
+}
+.cd-seg button:hover, .cd-zoom button:hover { color: var(--text); background: var(--bg4); }
+.cd-seg button.active { background: var(--accent); color: var(--accent-fg); }
+.cd-zoom.disabled { opacity: 0.45; pointer-events: none; }
+.cd-zoom-label { min-width: 64px; font-variant-numeric: tabular-nums; }
+.cd-icon-btn { flex: none; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); border-radius: 7px; padding: 3px 9px; white-space: nowrap; }
+.cd-icon-btn:hover { color: var(--text); border-color: var(--border3); }
+.cd-count:empty { display: none; }
+
+.codesign-body { flex: 1; min-height: 0; display: flex; }
+.codesign-stage {
+  position: relative; flex: 1; min-width: 0; overflow: auto; display: flex;
+  padding: 16px; background:
+    radial-gradient(circle, var(--border3) 1px, transparent 1.2px) 0 0 / 18px 18px, var(--bg);
+}
+.codesign-stage.responsive { padding: 0; background: var(--bg); }
+.codesign-frame-wrap { margin: auto; flex: none; position: relative; }
+.codesign-frame-wrap[hidden] { display: none; }
+.codesign-frame {
+  transform-origin: 0 0; background: #fff; border-radius: 10px; overflow: hidden;
+  box-shadow: 0 0 0 1px var(--border3), var(--shadow-lg);
+}
+.codesign-stage.responsive .codesign-frame { border-radius: 0; box-shadow: none; }
+.codesign-iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+
+.codesign-empty { margin: auto; padding: 24px; color: var(--text2); text-align: center; max-width: 620px; }
+.codesign-empty[hidden] { display: none; }
+.cd-empty-card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cd-empty-card h2 { margin: 4px 0 0; color: var(--text); font-size: 17px; }
+.cd-empty-card p { margin: 0; line-height: 1.5; font-size: 13px; }
+.cd-empty-card code { background: var(--bg3); padding: 1px 5px; border-radius: 4px; font-size: 12px; word-break: break-all; }
+.cd-empty-icon svg { width: 34px; height: 34px; color: var(--accent-hi); }
+.cd-empty-sub { margin-top: 8px !important; color: var(--text3); }
+.cd-prompt {
+  text-align: left; white-space: pre-wrap; margin: 0; padding: 12px 14px; border-radius: 9px; max-height: 40vh; overflow: auto;
+  background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-size: 12px; line-height: 1.55; user-select: text;
+}
+
+.cd-btn {
+  flex: none; border: 1px solid var(--border3); background: var(--bg3); color: var(--text); border-radius: 7px;
+  padding: 5px 12px; font-weight: 600; white-space: nowrap;
+}
+.cd-btn:hover:not(:disabled) { border-color: var(--accent); }
+.cd-btn:disabled { opacity: 0.45; cursor: default !important; }
+.cd-btn.cd-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.cd-btn.cd-primary:hover:not(:disabled) { background: var(--accent-hi); }
+
+.codesign-composer {
+  position: absolute; z-index: 5; width: 300px; padding: 10px; border-radius: 10px;
+  background: var(--glass-strong); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border3); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 8px;
+}
+.codesign-composer[hidden] { display: none; }
+.cd-composer-target { font-size: 11px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-composer-target code { color: var(--cd-amber); }
+.codesign-composer textarea {
+  resize: vertical; min-height: 60px; font: 13px/1.45 inherit; font-family: inherit; color: var(--text);
+  background: var(--bg2); border: 1px solid var(--border3); border-radius: 7px; padding: 7px 9px; outline: none;
+}
+.codesign-composer textarea:focus { border-color: var(--accent); }
+.cd-composer-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+.codesign-drawer {
+  width: 280px; flex: none; overflow-y: auto; background: var(--bg2); border-left: 1px solid var(--border);
+  font-size: 12px; color: var(--text2);
+}
+.cd-drawer-hidden .codesign-drawer { display: none; }
+.cd-drawer-head { padding: 9px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.cd-drawer-empty { padding: 16px 12px; line-height: 1.5; color: var(--text3); }
+.cd-section { padding: 6px 0; border-bottom: 1px solid var(--border2); }
+.cd-section-title { padding: 4px 12px; font-weight: 700; color: var(--text2); }
+.cd-section-title span { color: var(--text3); font-weight: 500; margin-left: 4px; }
+.cd-section-hint { padding: 0 12px 4px; color: var(--text3); font-size: 11px; }
+.cd-comment { margin: 4px 8px; padding: 7px 9px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; }
+.cd-comment:hover { background: var(--bg3); }
+.cd-comment.active { border-color: var(--accent); background: var(--accent-soft); }
+.cd-comment.resolved .cd-comment-body { color: var(--text3); text-decoration: line-through; text-decoration-color: var(--text4); }
+.cd-comment-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cd-pin-badge {
+  flex: none; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px 9px 9px 3px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; background: var(--accent);
+}
+.cd-pin-badge.draft { background: var(--cd-amber); }
+.cd-pin-badge.resolved { background: var(--cd-green); }
+.cd-comment-sel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text3); font-size: 11px; }
+.cd-comment-actions { flex: none; display: none; gap: 4px; }
+.cd-comment:hover .cd-comment-actions, .cd-comment.active .cd-comment-actions { display: inline-flex; }
+.cd-comment-actions button { border: 1px solid var(--border3); background: var(--bg2); color: var(--text2); border-radius: 5px; padding: 1px 7px; font: inherit; font-size: 11px; cursor: pointer; }
+.cd-comment-actions button:hover { color: var(--text); border-color: var(--accent); }
+.cd-comment-body { margin-top: 4px; color: var(--text); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.cd-comment-resolution { margin-top: 4px; color: var(--cd-green); font-size: 11px; }
+.cd-toggle-resolved { display: block; margin: 8px 12px; border: none; background: none; color: var(--accent-hi); font: inherit; cursor: pointer; padding: 0; }
+
+.cd-status { flex: none; padding: 2px 9px; border-radius: 999px; font-weight: 700; font-size: 11px; background: var(--bg4); color: var(--text2); white-space: nowrap; }
+.cd-status.review { background: var(--accent-soft); color: var(--accent-hi); }
+.cd-status.changes { background: rgba(245, 158, 11, 0.14); color: var(--cd-amber); }
+.cd-status.approved { background: rgba(16, 185, 129, 0.14); color: var(--cd-green); }
+.cd-rev { flex: none; color: var(--text3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cd-agent { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--accent-hi); font-weight: 600; white-space: nowrap; }
+.cd-agent[hidden] { display: none; }
+.cd-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-hi); animation: cd-pulse 1.4s var(--ease) infinite; }
+@keyframes cd-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent2); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.cd-note {
+  flex: 0 1 220px; min-width: 120px; font: inherit; color: var(--text); background: var(--bg3);
+  border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; outline: none;
+}
+.cd-note:focus { border-color: var(--accent); }
+
+@media (max-width: 700px) {
+  .codesign-drawer { position: absolute; right: 0; top: 0; bottom: 0; z-index: 4; width: min(280px, 85%); box-shadow: var(--shadow-lg); }
+  .codesign-body { position: relative; }
+  .cd-note { display: none; }
+}
+/* CoDesign has its own device zoom; the generic per-tab zoom pill would sit on the footer. */
+.codesign-view .zoom-controls { display: none; }
+.cd-no-spec .codesign-drawer, .cd-no-spec .cd-drawer-toggle, .cd-no-spec .cd-note { display: none; }

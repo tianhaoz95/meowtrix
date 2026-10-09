@@ -28,6 +28,8 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
   
   ![Code editor](website/assets/features/code-editor-dark.gif)
 
+- **CoDesign review tabs** — review a living HTML design spec with your agent. The agent writes `.codesign/spec.html` and runs `mtx review`; a CoDesign tab opens beside its terminal, where you preview the design in desktop/tablet/mobile frames, inspect sizes, type and colors, and drop comment pins on elements. Then press **Send feedback** (the agent gets your comments with element selectors) or **Approve & sign off**. Works with any CLI agent (Claude Code, Codex, Gemini, …) and needs no MCP setup. The spec runs in a sandboxed iframe, and review state lives in `.codesign/review.json`, so it survives restarts and can be committed.
+
 - **Scheduled Enter presses (⏰)** — queue an `Enter` key press for later (delay or clock time) to run commands automatically, e.g. when an agent usage quota resets. Timers live server-side next to the PTY to survive page reloads and disconnects.
   
   ![Scheduled Enter](website/assets/features/scheduled-enter-dark.gif)
@@ -35,7 +37,7 @@ Remote vibe engineering tool — a browser-based workspace with tiling split pan
 - **On-device AI Chat Pet (🐾)** — chat with Mochi, a customizable wandering desktop companion (choose from 12 animal faces) powered locally via Chrome's on-device LLM (Gemini Nano via Prompt API).
 - **Keystroke Combo FX** — level up your typing with streak rewards: particle bursts, screen shake, edge glow, and heat-tinted combo readouts.
 - **Self-updates** — background git check notifies you of updates via an in-app banner; trigger a pull and clean server restart directly from the UI.
-- **`mtx` host helper** — `mtx download <file>` pushes a host file to your browser as a download; `mtx code <dir>` opens that directory in a code-editor tab
+- **`mtx` host helper** — `mtx download <file>` pushes a host file to your browser as a download; `mtx code <dir>` opens that directory in a code-editor tab; `mtx spec` / `mtx review` / `mtx feedback` / `mtx resolve` drive the CoDesign review loop
 - **Cross-device sessions** — server-coordinated single active session; move the whole workspace between browsers and devices and your layout follows
 - **Command palette** — `⌘K` (or `Ctrl/⌘+Shift+P`) fuzzy launcher for every action: split, new tab, switch tabs/panes, broadcast, themes, settings, schedules, self-update
   

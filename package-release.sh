@@ -69,6 +69,7 @@ rm -rf "$TARGET_DIR/bin-helpers"
 
 cp server.js "$TARGET_DIR/server.js"
 cp ai-service.js "$TARGET_DIR/ai-service.js"
+cp codesign-service.js "$TARGET_DIR/codesign-service.js"
 cp package.json "$TARGET_DIR/package.json"
 cp package-lock.json "$TARGET_DIR/package-lock.json"
 cp README.md "$TARGET_DIR/README.md"
