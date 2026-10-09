@@ -567,6 +567,7 @@ test.describe('Meowtrix E2E Tests', () => {
     const statusJson = await statusRes.json();
     expect(statusJson.enabled).toBe(true);
     expect(statusJson.shortcut).toBeDefined();
+    expect(statusJson.opacity).toBe(1);
 
     await page.goto('/');
     await page.waitForSelector('.pane');
@@ -580,6 +581,14 @@ test.describe('Meowtrix E2E Tests', () => {
 
     const shortcutInput = page.locator('#s-quick-overlay-shortcut');
     await expect(shortcutInput).toBeVisible();
+
+    const opacitySelect = page.locator('#s-quick-overlay-opacity');
+    await expect(opacitySelect).toBeVisible();
+    await expect(opacitySelect).toHaveValue('1');
+
+    // Change opacity setting to 0.85
+    await opacitySelect.selectOption('0.85');
+    await expect(opacitySelect).toHaveValue('0.85');
 
     // Click a preset button (e.g. ⌘⇧ Space)
     const presetBtn = page.locator('.btn-preset-shortcut[data-sc="CommandOrControl+Shift+Space"]');
@@ -595,6 +604,10 @@ test.describe('Meowtrix E2E Tests', () => {
     await expect(page.locator('body')).toHaveClass(/dynamic-island-active/);
     await expect(page.locator('#dynamic-island-notch')).toBeVisible();
 
+    // Verify opacity is applied to CSS variable and #app
+    const customProp = await page.evaluate(() => document.documentElement.style.getPropertyValue('--overlay-opacity'));
+    expect(customProp).toBe('0.85');
+
     // Verify session inactive overlay is suppressed
     await expect(page.locator('#inactive-overlay')).toBeHidden();
 
@@ -602,6 +615,10 @@ test.describe('Meowtrix E2E Tests', () => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
     await expect(page.locator('body')).not.toHaveClass(/dynamic-island-active/);
+
+    // Verify opacity reset after dismiss
+    const dismissedProp = await page.evaluate(() => document.documentElement.style.getPropertyValue('--overlay-opacity'));
+    expect(dismissedProp).toBe('1');
   });
 });
 

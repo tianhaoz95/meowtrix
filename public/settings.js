@@ -519,6 +519,8 @@ function populateControls(s) {
   if (sQuickOverlayDismissBlur) sQuickOverlayDismissBlur.checked = s.quickOverlayDismissOnBlur !== false;
   const sQuickOverlayAnimation = document.getElementById('s-quick-overlay-animation');
   if (sQuickOverlayAnimation) sQuickOverlayAnimation.checked = s.quickOverlayAnimation !== false;
+  const sQuickOverlayOpacity = document.getElementById('s-quick-overlay-opacity');
+  if (sQuickOverlayOpacity) sQuickOverlayOpacity.value = s.quickOverlayOpacity !== undefined ? String(s.quickOverlayOpacity) : '1';
 
 
   const aiEngineSel = document.getElementById('s-ai-engine');
@@ -956,6 +958,17 @@ function wireControls() {
   if (elOverlayAnim) {
     elOverlayAnim.addEventListener('change', async (e) => {
       await saveSetting('quickOverlayAnimation', e.target.checked);
+    });
+  }
+
+  const elOverlayOpacity = document.getElementById('s-quick-overlay-opacity');
+  if (elOverlayOpacity) {
+    elOverlayOpacity.addEventListener('change', async (e) => {
+      const val = parseFloat(e.target.value) || 1.0;
+      await saveSetting('quickOverlayOpacity', val);
+      if (typeof applyOverlayOpacity === 'function') {
+        applyOverlayOpacity(val);
+      }
     });
   }
 

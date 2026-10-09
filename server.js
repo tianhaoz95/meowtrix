@@ -111,6 +111,7 @@ const DEFAULT_SETTINGS = {
   quickOverlayAutoClaim: true, // automatically claim active session on summon
   quickOverlayDismissOnBlur: true, // automatically dismiss overlay when focus is lost
   quickOverlayAnimation: true, // animate expansion from Dynamic Island / notch
+  quickOverlayOpacity: 1.0, // overlay window opacity (1.0 = solid, 0.95, 0.9, 0.85, 0.8, etc.)
   gpuMonitor: false, // background-poll `nvidia-smi` for GPU stats and show a toolbar widget (NVIDIA hosts only)
   comboFx: false, // keystroke-streak visual effects, opt-in (see public/combo.js)
   petEnabled: false, // on-device-LLM chat pet that walks around (see public/pet.js)
@@ -2323,13 +2324,16 @@ app.get('/api/overlay/status', async (req, res) => {
     } catch {}
   }
   const settings = readSettings();
+  const rawOpacity = Number(settings.quickOverlayOpacity);
+  const opacity = (!isNaN(rawOpacity) && rawOpacity >= 0.1 && rawOpacity <= 1.0) ? rawOpacity : 1.0;
   res.json({
     isDesktop: false,
     platform: process.platform,
     enabled: settings.quickOverlayEnabled !== false,
     shortcut: settings.quickOverlayShortcut || 'Option+Space',
     autoClaim: settings.quickOverlayAutoClaim !== false,
-    dismissOnBlur: settings.quickOverlayDismissOnBlur !== false
+    dismissOnBlur: settings.quickOverlayDismissOnBlur !== false,
+    opacity
   });
 });
 

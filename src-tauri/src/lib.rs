@@ -18,6 +18,7 @@ pub struct QuickOverlayConfig {
     pub shortcut: String,
     pub auto_claim: bool,
     pub dismiss_on_blur: bool,
+    pub opacity: f64,
 }
 
 impl Default for QuickOverlayConfig {
@@ -27,6 +28,7 @@ impl Default for QuickOverlayConfig {
             shortcut: "Option+Space".to_string(),
             auto_claim: true,
             dismiss_on_blur: true,
+            opacity: 1.0,
         }
     }
 }
@@ -48,11 +50,16 @@ pub fn read_quick_overlay_config() -> QuickOverlayConfig {
     let settings_path = data_dir.join("settings.json");
     if let Ok(content) = std::fs::read_to_string(settings_path) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
+            let opacity = v.get("quickOverlayOpacity")
+                .and_then(|x| x.as_f64().or_else(|| x.as_str().and_then(|s| s.parse::<f64>().ok())))
+                .unwrap_or(1.0)
+                .clamp(0.1, 1.0);
             return QuickOverlayConfig {
                 enabled: v.get("quickOverlayEnabled").and_then(|x| x.as_bool()).unwrap_or(true),
                 shortcut: v.get("quickOverlayShortcut").and_then(|x| x.as_str()).unwrap_or("Option+Space").to_string(),
                 auto_claim: v.get("quickOverlayAutoClaim").and_then(|x| x.as_bool()).unwrap_or(true),
                 dismiss_on_blur: v.get("quickOverlayDismissOnBlur").and_then(|x| x.as_bool()).unwrap_or(true),
+                opacity,
             };
         }
     }
@@ -73,6 +80,7 @@ pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
             ns_window.setLevel(NSStatusWindowLevel);
             ns_window.setHidesOnDeactivate(false);
             ns_window.setHasShadow(true);
+            ns_window.setAlphaValue(1.0);
         }
     }
 }
@@ -127,7 +135,23 @@ fn get_active_monitor_on_macos(window: &tauri::WebviewWindow) -> Option<tauri::M
     None
 }
 
+#[cfg(target_os = "macos")]
+pub fn apply_macos_overlay_opacity(window: &tauri::WebviewWindow, opacity: f64) {
+    if let Ok(ptr) = window.ns_window() {
+        use objc2_app_kit::NSWindow;
+        unsafe {
+            let ns_window = &*(ptr as *mut NSWindow);
+            ns_window.setAlphaValue(opacity);
+        }
+    }
+}
+
 pub fn summon_overlay_window(window: &tauri::WebviewWindow) {
+    let cfg = read_quick_overlay_config();
+
+    #[cfg(target_os = "macos")]
+    apply_macos_overlay_opacity(window, cfg.opacity);
+
     #[cfg(target_os = "macos")]
     bring_macos_overlay_to_front(window);
 
@@ -189,11 +213,19 @@ pub fn toggle_quick_overlay(app: &tauri::AppHandle) {
 #[tauri::command]
 fn hide_overlay(window: tauri::WebviewWindow) {
     let _ = window.hide();
+    #[cfg(target_os = "macos")]
+    apply_macos_overlay_opacity(&window, 1.0);
 }
 
 #[tauri::command]
 fn show_overlay(window: tauri::WebviewWindow) {
     summon_overlay_window(&window);
+}
+
+#[tauri::command]
+fn set_overlay_opacity(window: tauri::WebviewWindow, opacity: f64) {
+    #[cfg(target_os = "macos")]
+    apply_macos_overlay_opacity(&window, opacity.clamp(0.1, 1.0));
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -225,7 +257,7 @@ pub fn run() {
     let overlay_state_clone = Arc::clone(&overlay_state);
 
     let app = tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![hide_overlay, show_overlay])
+        .invoke_handler(tauri::generate_handler![hide_overlay, show_overlay, set_overlay_opacity])
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(

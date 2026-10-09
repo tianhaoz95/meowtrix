@@ -4989,6 +4989,11 @@ body.dynamic-island-active #app {
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
 }
 
+body.dynamic-island-active:not(.is-tauri-app) #app {
+  opacity: var(--overlay-opacity, 1);
+  transition: opacity 0.2s ease;
+}
+
 .dynamic-island-pill {
   pointer-events: auto;
   display: flex;

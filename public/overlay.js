@@ -5,6 +5,18 @@
 let isOverlayActive = false;
 let isOverlayAnimating = false;
 
+// Apply overlay opacity both to CSS variable and native window if in desktop app
+function applyOverlayOpacity(opacity) {
+  const raw = Number(opacity);
+  const op = (!isNaN(raw) && raw >= 0.1 && raw <= 1.0) ? raw : 1.0;
+  document.documentElement.style.setProperty('--overlay-opacity', String(op));
+  if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+    window.__TAURI__.core.invoke('set_overlay_opacity', { opacity: op }).catch(() => {});
+  } else if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
+    window.__TAURI_INTERNALS__.invoke('set_overlay_opacity', { opacity: op }).catch(() => {});
+  }
+}
+
 // Summon the quick overlay with Dynamic Island animation and automatic session claim
 function summonQuickOverlay() {
   isOverlayActive = true;
@@ -12,6 +24,8 @@ function summonQuickOverlay() {
 
   const settings = typeof getSettings === 'function' ? getSettings() : {};
   const animate = settings.quickOverlayAnimation !== false;
+  const opacity = settings.quickOverlayOpacity !== undefined ? settings.quickOverlayOpacity : 1.0;
+  applyOverlayOpacity(opacity);
 
   if (animate) {
     document.body.classList.remove('dynamic-island-collapsing');
@@ -66,11 +80,13 @@ function dismissQuickOverlay() {
       document.body.classList.remove('dynamic-island-collapsing');
       document.body.classList.remove('dynamic-island-active');
       isOverlayActive = false;
+      applyOverlayOpacity(1.0);
       notifyNativeOverlayHide();
     }, 200);
   } else {
     document.body.classList.remove('dynamic-island-active');
     isOverlayActive = false;
+    applyOverlayOpacity(1.0);
     notifyNativeOverlayHide();
   }
 }
@@ -165,6 +181,7 @@ function initQuickOverlay() {
   window.summonQuickOverlay = summonQuickOverlay;
   window.dismissQuickOverlay = dismissQuickOverlay;
   window.toggleQuickOverlay = toggleQuickOverlay;
+  window.applyOverlayOpacity = applyOverlayOpacity;
   window.__meowtrixHide = notifyNativeOverlayHide;
 }
 
