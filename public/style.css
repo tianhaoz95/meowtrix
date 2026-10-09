@@ -4924,12 +4924,13 @@ html.mobile-ui body[data-menu-button-mode] #toolbar #toolbar-group-extra button 
 body.dynamic-island-active #dynamic-island-notch {
   display: flex;
   justify-content: center;
-  position: fixed;
-  top: 4px;
-  left: 0;
-  right: 0;
-  z-index: 99999;
-  pointer-events: none;
+  align-items: center;
+  height: 36px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 100;
+  padding: 3px 0;
 }
 
 .dynamic-island-pill {
@@ -5072,14 +5073,8 @@ body.dynamic-island-collapsing #app {
   }
 }
 
-body.dynamic-island-active #app {
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border);
-}
-
 body.dynamic-island-active #toolbar {
-  padding-top: 2px;
+  padding-top: 0;
 }
 
 

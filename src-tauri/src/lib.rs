@@ -301,7 +301,9 @@ pub fn run() {
                     match event.id().as_ref() {
                         "open" => {
                             if let Some(w) = app.get_webview_window("main") {
-                                summon_overlay_window(&w);
+                                let _ = w.show();
+                                let _ = w.unminimize();
+                                let _ = w.set_focus();
                             }
                         }
                         "copy_url" => {
@@ -349,7 +351,9 @@ pub fn run() {
                             if w.is_visible().unwrap_or(false) {
                                 let _ = w.hide();
                             } else {
-                                summon_overlay_window(&w);
+                                let _ = w.show();
+                                let _ = w.unminimize();
+                                let _ = w.set_focus();
                             }
                         }
                     }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Meowtrix Lite",
-  "version": "1.26.0",
+  "version": "1.26.1",
   "identifier": "sh.meowtrix.lite",
   "build": {
     "frontendDist": "../public",
@@ -17,9 +17,7 @@
         "minWidth": 800,
         "minHeight": 500,
         "resizable": true,
-        "fullscreen": false,
-        "hiddenTitle": true,
-        "titleBarStyle": "Overlay"
+        "fullscreen": false
       }
     ],
     "security": {
