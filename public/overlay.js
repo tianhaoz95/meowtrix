@@ -144,36 +144,11 @@ function initQuickOverlay() {
     document.body.classList.add('is-tauri-app');
   }
 
-  // Traffic light button controls in normal window mode
-  const trafficCloseBtn = document.getElementById('traffic-btn-close');
-  if (trafficCloseBtn) {
-    trafficCloseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      tauriInvoke('close_window').catch(() => {});
-    });
-  }
-
-  const trafficMinBtn = document.getElementById('traffic-btn-minimize');
-  if (trafficMinBtn) {
-    trafficMinBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      tauriInvoke('minimize_window').catch(() => {});
-    });
-  }
-
-  const trafficMaxBtn = document.getElementById('traffic-btn-maximize');
-  if (trafficMaxBtn) {
-    trafficMaxBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      tauriInvoke('maximize_window').catch(() => {});
-    });
-  }
-
   // Window header dragging and double-click to maximize/zoom
   const windowHeader = document.getElementById('window-header');
   if (windowHeader) {
     windowHeader.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .traffic-btn')) {
+      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .window-header-traffic-spacer')) {
         return;
       }
       if (e.button === 0) {
@@ -181,7 +156,7 @@ function initQuickOverlay() {
       }
     });
     windowHeader.addEventListener('dblclick', (e) => {
-      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .traffic-btn')) {
+      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .window-header-traffic-spacer')) {
         return;
       }
       tauriInvoke('maximize_window').catch(() => {});

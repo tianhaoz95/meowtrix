@@ -602,9 +602,8 @@ test.describe('Meowtrix E2E Tests', () => {
     // 2. In normal mode, verify overlay pill is hidden and normal title is present
     await expect(page.locator('.dynamic-island-pill')).toBeHidden();
     await expect(page.locator('#header-btn-collapse')).toBeHidden();
-    await expect(page.locator('#traffic-btn-close')).toBeAttached();
-    await expect(page.locator('#traffic-btn-minimize')).toBeAttached();
-    await expect(page.locator('#traffic-btn-maximize')).toBeAttached();
+    await expect(page.locator('.window-header-traffic-spacer')).toBeAttached();
+    await expect(page.locator('#traffic-btn-close')).toHaveCount(0);
 
     // Test overlay summon
     await page.evaluate(() => window.summonQuickOverlay());

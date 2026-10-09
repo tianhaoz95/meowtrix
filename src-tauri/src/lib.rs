@@ -567,7 +567,9 @@ pub fn run() {
             }
 
             // Setup system tray / status bar icon
-            let open_item = MenuItemBuilder::with_id("open", "🐾 Open Meowtrix Window").build(app)?;
+            let version_str = app.package_info().version.to_string();
+            let version_item = MenuItemBuilder::with_id("version_info", format!("🐾 Meowtrix v{version_str}")).enabled(false).build(app)?;
+            let open_item = MenuItemBuilder::with_id("open", "🪟 Open Meowtrix Window").build(app)?;
             let url_item = MenuItemBuilder::with_id("url_info", format!("🌐 Web: http://127.0.0.1:{port}")).enabled(false).build(app)?;
             let copy_item = MenuItemBuilder::with_id("copy_url", "📋 Copy Web URL").build(app)?;
             let check_update_item = MenuItemBuilder::with_id("check_update", "🔄 Check for Updates...").build(app)?;
@@ -575,6 +577,8 @@ pub fn run() {
             let quit_item = MenuItemBuilder::with_id("quit", "⏹️ Quit Meowtrix").build(app)?;
 
             let tray_menu = MenuBuilder::new(app)
+                .item(&version_item)
+                .separator()
                 .item(&open_item)
                 .separator()
                 .item(&url_item)
@@ -599,7 +603,7 @@ pub fn run() {
                 .icon(tray_icon)
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
-                .tooltip(format!("Meowtrix (Port {port})"))
+                .tooltip(format!("Meowtrix v{version_str} (Port {port})"))
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "open" => {
