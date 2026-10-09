@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "remote-window",
+  "description": "The main window navigates to the local Node server (http://127.0.0.1:<port>), which Tauri treats as a remote origin with no IPC access by default. Grant it just the window-drag commands used by data-tauri-drag-region on the custom title bar.",
+  "windows": [
+    "main"
+  ],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:*",
+      "http://localhost:*"
+    ]
+  },
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}

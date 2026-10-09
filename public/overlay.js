@@ -138,30 +138,14 @@ function notifyNativeOverlayHide() {
   tauriInvoke('hide_overlay').catch(() => {});
 }
 
-// Initialize Dynamic Island UI, window dragging, and keyboard hooks
+// Initialize Dynamic Island UI and keyboard hooks
 function initQuickOverlay() {
   if (window.__TAURI__ || window.__TAURI_INTERNALS__) {
     document.body.classList.add('is-tauri-app');
   }
 
-  // Window header dragging and double-click to maximize/zoom
-  const windowHeader = document.getElementById('window-header');
-  if (windowHeader) {
-    windowHeader.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .window-header-traffic-spacer')) {
-        return;
-      }
-      if (e.button === 0) {
-        tauriInvoke('start_window_drag').catch(() => {});
-      }
-    });
-    windowHeader.addEventListener('dblclick', (e) => {
-      if (e.target.closest('button, input, select, textarea, a, .dynamic-island-pill, .window-header-traffic-spacer')) {
-        return;
-      }
-      tauriInvoke('maximize_window').catch(() => {});
-    });
-  }
+  // Window dragging / double-click zoom on #window-header is handled by Tauri's
+  // built-in data-tauri-drag-region script (see src-tauri/capabilities/remote-window.json).
 
   // Click on the header collapse button
   const headerCollapseBtn = document.getElementById('header-btn-collapse');
