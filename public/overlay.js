@@ -20,6 +20,15 @@ function setOverlayTransparent(on) {
   document.documentElement.classList.toggle('overlay-transparent', on && isDesktopApp());
 }
 
+// Called by the desktop app before a summon: the overlay window starts at the very top of
+// the screen (over the menu bar and notch) so notch-style call-out animations can grow out
+// of the real notch. `topInset` is the menu-bar/notch strip the page keeps empty, so the
+// overlay itself rests below it; the notch size is 0 on displays without one.
+function setOverlayScreenGeometry(topInset, notchW, notchH) {
+  window.__overlayScreenGeometry = { topInset: +topInset || 0, notchW: +notchW || 0, notchH: +notchH || 0 };
+  document.documentElement.style.setProperty('--overlay-top-inset', `${window.__overlayScreenGeometry.topInset}px`);
+}
+
 function tauriInvoke(cmd, args = {}) {
   if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
     return window.__TAURI__.core.invoke(cmd, args);
@@ -215,6 +224,7 @@ function initQuickOverlay() {
   window.summonQuickOverlay = summonQuickOverlay;
   window.dismissQuickOverlay = dismissQuickOverlay;
   window.exitOverlayMode = exitOverlayMode;
+  window.setOverlayScreenGeometry = setOverlayScreenGeometry;
   window.toggleQuickOverlay = toggleQuickOverlay;
   window.applyOverlayOpacity = applyOverlayOpacity;
   window.__meowtrixHide = notifyNativeOverlayHide;

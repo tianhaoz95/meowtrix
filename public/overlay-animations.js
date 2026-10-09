@@ -6,13 +6,15 @@
 // Animations run on the Web Animations API against:
 //   #app                       the overlay "window" (in the desktop app the native window is
 //                              transparent in overlay mode, so #app is all that's visible)
-//   #overlay-anim-island       a black pill that starts under the notch (top-center of the
-//                              window, which is centered under the notch) — for notch effects
+//   #overlay-anim-island       a black pill that starts over the notch (top-center of the
+//                              window, which starts at the top of the screen, centered on the
+//                              notch; #app rests below the menu-bar strip) — for notch effects
 //   #overlay-anim-shine        a light sweep across #app
 //   OVERLAY_CONTENT / panes    #app's main regions, for content fades and cascades
 //
 // A style is a list of tracks { t: selector, k: keyframes, d: ms, delay?, stagger?, e: easing }
-// (k may be a function of { bg } for theme-dependent colors). `out` defaults to the mirror
+// (k may be a function of { bg, top, notchW, notchH } for theme/screen-dependent values:
+// `top` is the menu-bar/notch strip above #app, in px; notchW/notchH the notch size). `out` defaults to the mirror
 // of `in`: reversed keyframes and schedule, faster, accelerating. The first `in` keyframe
 // (= last `out` keyframe) must leave the window looking empty.
 
@@ -52,9 +54,14 @@
   const CONTENT = '#app > #window-header, #app > #toolbar, #app > #workspace';
   const CHROME = '#app > #window-header, #app > #toolbar';
   const PANES = '#workspace .pane';
-  // MacBook notch footprint (pt); on displays without one the pill just grows from top-center.
-  const NOTCH_W = '190px', NOTCH_H = '34px';
-  const notchFrame = (extra = {}) => ({ width: NOTCH_W, height: NOTCH_H, borderRadius: '0 0 14px 14px', background: '#000', ...extra });
+  // Fallback notch footprint (pt) when the screen's isn't known; on displays without a
+  // notch the pill just grows from top-center.
+  const NOTCH_W = 190, NOTCH_H = 34;
+  const notchFrame = ({ notchW, notchH }, extra = {}) =>
+    ({ width: `${notchW}px`, height: `${notchH}px`, borderRadius: '0 0 14px 14px', background: '#000', ...extra });
+  // The notch-style islands end covering #app exactly, not the menu-bar strip above it.
+  const unclipped = { clipPath: 'inset(0px 0px 0px 0px round 0px)' };
+  const clipToApp = top => ({ clipPath: `inset(${top}px 0px 0px 0px round 12px)` });
 
   const springSoft = spring({ stiffness: 190, damping: 22 });
   const springBouncy = spring({ stiffness: 260, damping: 17 });
@@ -83,10 +90,10 @@
       id: 'notch-morph',
       name: 'Notch Morph',
       in: [
-        { t: ISLAND, d: springSoft.d, e: springSoft.e, k: ({ bg }) => [
-          notchFrame(),
-          { width: '46vw', height: '52px', borderRadius: '0 0 26px 26px', background: '#000', offset: 0.3 },
-          { width: '100vw', height: '100vh', borderRadius: '0 0 12px 12px', background: bg },
+        { t: ISLAND, d: springSoft.d, e: springSoft.e, k: ctx => [
+          notchFrame(ctx, unclipped),
+          { width: '46vw', height: `${ctx.top + 18}px`, borderRadius: '0 0 26px 26px', background: '#000', ...unclipped, offset: 0.3 },
+          { width: '100vw', height: '100vh', borderRadius: '0 0 12px 12px', background: ctx.bg, ...clipToApp(ctx.top) },
         ] },
         { t: APP, d: 220, delay: 230, e: EASE_OUT, k: [
           { opacity: 0, transform: 'translateY(-10px)' },
@@ -114,10 +121,11 @@
       id: 'genie',
       name: 'Notch Genie',
       in: [
-        { t: APP, d: 460, e: EASE_OUT_EXPO, k: [
-          { opacity: 1, clipPath: 'polygon(39% 0%, 61% 0%, 54% 5.7%, 46% 5.7%)' },
-          { opacity: 1, clipPath: 'polygon(20% 0%, 80% 0%, 66% 55%, 34% 55%)', offset: 0.35 },
-          { opacity: 1, clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)' },
+        // Starts lifted into the notch strip so it pours out of the notch.
+        { t: APP, d: 460, e: EASE_OUT_EXPO, k: ({ top }) => [
+          { opacity: 1, transform: `translateY(${-top}px)`, clipPath: 'polygon(39% 0%, 61% 0%, 54% 5.7%, 46% 5.7%)' },
+          { opacity: 1, transform: 'translateY(0px)', clipPath: 'polygon(20% 0%, 80% 0%, 66% 55%, 34% 55%)', offset: 0.35 },
+          { opacity: 1, transform: 'translateY(0px)', clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)' },
         ] },
         { t: CONTENT, d: 460, e: EASE_OUT_EXPO, k: [
           { transform: 'scale(0.3, 0.4)', transformOrigin: '50% 0%' },
@@ -129,9 +137,10 @@
       id: 'iris',
       name: 'Notch Iris',
       in: [
-        { t: APP, d: 420, e: 'cubic-bezier(0.5, 0, 0.2, 1)', k: [
-          { opacity: 1, clipPath: 'circle(0px at 50% 0%)' },
-          { opacity: 1, clipPath: 'circle(150vmax at 50% 0%)' },
+        // Centered on the notch, above #app.
+        { t: APP, d: 420, e: 'cubic-bezier(0.5, 0, 0.2, 1)', k: ({ top, notchH }) => [
+          { opacity: 1, clipPath: `circle(0px at 50% ${-Math.max(0, top - notchH / 2)}px)` },
+          { opacity: 1, clipPath: `circle(150vmax at 50% ${-Math.max(0, top - notchH / 2)}px)` },
         ] },
         { t: CONTENT, d: 420, e: EASE_OUT, k: [
           { transform: 'scale(1.04)', filter: 'brightness(1.4)' },
@@ -177,11 +186,11 @@
       id: 'elastic',
       name: 'Elastic Unfold',
       in: [
-        { t: ISLAND, d: 620, e: 'linear', k: ({ bg }) => [
-          notchFrame({ easing: springSnappy.e }),
-          { width: '210px', height: '50px', borderRadius: '0 0 25px 25px', background: '#000', offset: 0.22, easing: springSnappy.e },
-          { width: '100vw', height: '50px', borderRadius: '0 0 25px 25px', background: '#000', offset: 0.5, easing: springBouncy.e },
-          { width: '100vw', height: '100vh', borderRadius: '0 0 12px 12px', background: bg },
+        { t: ISLAND, d: 620, e: 'linear', k: ctx => [
+          notchFrame(ctx, { easing: springSnappy.e, ...unclipped }),
+          { width: `${ctx.notchW + 20}px`, height: `${ctx.top + 16}px`, borderRadius: '0 0 25px 25px', background: '#000', ...unclipped, offset: 0.22, easing: springSnappy.e },
+          { width: '100vw', height: `${ctx.top + 16}px`, borderRadius: '0 0 25px 25px', background: '#000', ...unclipped, offset: 0.5, easing: springBouncy.e },
+          { width: '100vw', height: '100vh', borderRadius: '0 0 12px 12px', background: ctx.bg, ...clipToApp(ctx.top) },
         ] },
         { t: APP, d: 200, delay: 470, e: EASE_OUT, k: [{ opacity: 0 }, { opacity: 1 }] },
       ],
@@ -228,21 +237,22 @@
       id: 'notch-pulse',
       name: 'Notch Pulse',
       in: [
-        { t: ISLAND, d: 300, e: EASE_OUT, k: [
-          notchFrame({ boxShadow: '0 0 0 0 rgba(129,140,248,0)' }),
-          { width: '222px', height: '42px', borderRadius: '0 0 20px 20px', background: '#000', boxShadow: '0 0 24px 6px rgba(129,140,248,0.85)', offset: 0.3 },
-          notchFrame({ boxShadow: '0 0 0 0 rgba(129,140,248,0)' }),
+        { t: ISLAND, d: 300, e: EASE_OUT, k: ctx => [
+          notchFrame(ctx, { boxShadow: '0 0 0 0 rgba(129,140,248,0)' }),
+          { width: `${ctx.notchW + 32}px`, height: `${ctx.notchH + 8}px`, borderRadius: '0 0 20px 20px', background: '#000', boxShadow: '0 0 24px 6px rgba(129,140,248,0.85)', offset: 0.3 },
+          notchFrame(ctx, { boxShadow: '0 0 0 0 rgba(129,140,248,0)' }),
         ] },
-        { t: APP, d: springSoft.d, delay: 90, e: springSoft.e, k: [
-          { opacity: 0, transform: 'translateY(-40px) scale(0.3, 0.1)', transformOrigin: '50% 0%' },
+        // Springs out of the notch: starts inside the strip above #app.
+        { t: APP, d: springSoft.d, delay: 90, e: springSoft.e, k: ({ top }) => [
+          { opacity: 0, transform: `translateY(${-Math.max(top, 40)}px) scale(0.3, 0.1)`, transformOrigin: '50% 0%' },
           { opacity: 1, transform: 'translateY(0) scale(1, 1)', transformOrigin: '50% 0%', offset: 0.35 },
           { opacity: 1, transform: 'translateY(0) scale(1, 1)', transformOrigin: '50% 0%' },
         ] },
       ],
       out: [
-        { t: APP, d: 200, e: EASE_IN, k: [
+        { t: APP, d: 200, e: EASE_IN, k: ({ top }) => [
           { opacity: 1, transform: 'translateY(0) scale(1, 1)', transformOrigin: '50% 0%' },
-          { opacity: 0, transform: 'translateY(-20px) scale(0.3, 0.1)', transformOrigin: '50% 0%' },
+          { opacity: 0, transform: `translateY(${-Math.max(top, 20)}px) scale(0.3, 0.1)`, transformOrigin: '50% 0%' },
         ] },
       ],
     },
@@ -322,12 +332,21 @@
     ensureElements();
     const style = STYLES.find(s => s.id === styleId) || STYLES.find(s => s.id === DEFAULT_STYLE);
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#090d16';
+    // Screen geometry from the desktop app (overlay.js setOverlayScreenGeometry); it only
+    // applies while the window is in its transparent overlay mode (not e.g. a Settings preview).
+    const geo = document.documentElement.classList.contains('overlay-transparent') && window.__overlayScreenGeometry || {};
+    const ctx = {
+      bg,
+      top: geo.topInset || 0,
+      notchW: geo.notchW || NOTCH_W,
+      notchH: geo.notchH || NOTCH_H,
+    };
     document.documentElement.classList.add('overlay-animating');
     // The island sits under the notch; only show it for styles that animate it, or it
     // would be a stray black pill on displays without a notch.
     const tracks = dir === 'in' || !style.out ? style.in : style.out;
     document.documentElement.classList.toggle('overlay-anim-uses-island', tracks.some(t => t.t === ISLAND));
-    const anims = plan(style, dir, { bg }).map(s =>
+    const anims = plan(style, dir, ctx).map(s =>
       s.el.animate(s.k, { duration: s.d, delay: s.delay, easing: s.e, fill: 'both' }));
     running = anims;
     return Promise.all(anims.map(a => a.finished)).then(() => {

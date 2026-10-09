@@ -5142,9 +5142,12 @@ html.overlay-transparent body {
 html.overlay-transparent #app {
   background: var(--bg);
   border-radius: 12px;
+  /* The window starts at the top of the screen; keep the menu-bar/notch strip empty. */
+  margin-top: var(--overlay-top-inset, 0px);
+  height: calc(100vh - var(--overlay-top-inset, 0px));
 }
 
-/* Black pill under the notch that notch-style animations grow into the window. */
+/* Black pill over the notch (top of the screen) that notch-style animations grow into the window. */
 #overlay-anim-island {
   display: none;
   position: fixed;

@@ -99,6 +99,20 @@ pub fn read_quick_overlay_config() -> QuickOverlayConfig {
     QuickOverlayConfig::default()
 }
 
+/// AppKit keeps a titled window below the menu bar, so the overlay drops the Titled style
+/// bit (it starts at the very top of the screen, over the notch) and the normal window gets
+/// it back. Toggled directly rather than via set_decorations, which would also reset the
+/// window's overlay title bar style (FullSizeContentView).
+#[cfg(target_os = "macos")]
+fn set_macos_window_titled(ns_window: &objc2_app_kit::NSWindow, titled: bool) {
+    use objc2_app_kit::NSWindowStyleMask;
+    let mask = ns_window.styleMask();
+    let new_mask = if titled { mask | NSWindowStyleMask::Titled } else { mask & !NSWindowStyleMask::Titled };
+    if new_mask != mask {
+        ns_window.setStyleMask(new_mask);
+    }
+}
+
 #[cfg(target_os = "macos")]
 pub fn configure_macos_normal_window(window: &tauri::WebviewWindow) {
     if let Ok(ptr) = window.ns_window() {
@@ -108,6 +122,7 @@ pub fn configure_macos_normal_window(window: &tauri::WebviewWindow) {
         use objc2::MainThreadMarker;
         unsafe {
             let ns_window = &*(ptr as *mut NSWindow);
+            set_macos_window_titled(ns_window, true);
             ns_window.setLevel(NSNormalWindowLevel);
             let behavior = NSWindowCollectionBehavior::FullScreenPrimary
                 | NSWindowCollectionBehavior::Managed;
@@ -134,6 +149,7 @@ pub fn configure_macos_overlay_window(window: &tauri::WebviewWindow) {
         };
         unsafe {
             let ns_window = &*(ptr as *mut NSWindow);
+            set_macos_window_titled(ns_window, false);
             let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary;
             ns_window.setCollectionBehavior(behavior);
@@ -155,6 +171,7 @@ pub fn bring_macos_overlay_to_front(window: &tauri::WebviewWindow) {
         use objc2::MainThreadMarker;
         unsafe {
             let ns_window = &*(ptr as *mut NSWindow);
+            set_macos_window_titled(ns_window, false);
             let behavior = NSWindowCollectionBehavior::CanJoinAllSpaces
                 | NSWindowCollectionBehavior::FullScreenAuxiliary;
             ns_window.setCollectionBehavior(behavior);
@@ -196,6 +213,42 @@ fn get_active_monitor_on_macos(window: &tauri::WebviewWindow) -> Option<tauri::M
         }
     }
     None
+}
+
+/// Geometry of the top of the screen with the given logical size (the overlay's monitor):
+/// (menu-bar/notch strip height, notch width, notch height), in points. The notch values
+/// are 0 on displays without one.
+#[cfg(target_os = "macos")]
+fn macos_screen_top_geometry(width: f64, height: f64) -> (f64, f64, f64) {
+    use objc2::runtime::NSObjectProtocol;
+    use objc2::{sel, MainThreadMarker};
+    use objc2_app_kit::NSScreen;
+    let Some(mtm) = MainThreadMarker::new() else { return (0.0, 0.0, 0.0) };
+    let matches = |s: &NSScreen| {
+        let f = s.frame();
+        (f.size.width - width).abs() < 2.0 && (f.size.height - height).abs() < 2.0
+    };
+    let screen = NSScreen::mainScreen(mtm)
+        .filter(|s| matches(s))
+        .or_else(|| NSScreen::screens(mtm).iter().find(|s| matches(s)));
+    let Some(screen) = screen else { return (0.0, 0.0, 0.0) };
+    let frame = screen.frame();
+    let visible = screen.visibleFrame();
+    let menu_bar = ((frame.origin.y + frame.size.height) - (visible.origin.y + visible.size.height)).max(0.0);
+    // safeAreaInsets / auxiliaryTop*Area are macOS 12+.
+    let (notch_w, notch_h) = if screen.respondsToSelector(sel!(safeAreaInsets)) {
+        let top = screen.safeAreaInsets().top;
+        if top > 0.0 {
+            let left = screen.auxiliaryTopLeftArea().size.width;
+            let right = screen.auxiliaryTopRightArea().size.width;
+            ((frame.size.width - left - right).max(0.0), top)
+        } else {
+            (0.0, 0.0)
+        }
+    } else {
+        (0.0, 0.0)
+    };
+    (menu_bar.max(notch_h), notch_w, notch_h)
 }
 
 #[cfg(target_os = "macos")]
@@ -357,7 +410,19 @@ fn summon_overlay_window_on_main(window: &tauri::WebviewWindow) {
         let target_x = (m_pos.x as f64 / scale) + ((screen_w - target_w) / 2.0);
         let target_y = m_pos.y as f64 / scale;
 
-        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: target_w, height: target_h }));
+        // The window starts at the very top of the screen, over the menu bar and notch, so
+        // the notch-style call-out animations can grow out of the real notch. The page keeps
+        // that strip empty (--overlay-top-inset), so the overlay itself still rests below
+        // the menu bar.
+        #[cfg(target_os = "macos")]
+        let (top_inset, notch_w, notch_h) = macos_screen_top_geometry(screen_w, screen_h);
+        #[cfg(not(target_os = "macos"))]
+        let (top_inset, notch_w, notch_h) = (0.0f64, 0.0f64, 0.0f64);
+        let _ = window.eval(&format!(
+            "if (typeof setOverlayScreenGeometry === 'function') {{ setOverlayScreenGeometry({top_inset}, {notch_w}, {notch_h}); }}"
+        ));
+
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: target_w, height: (target_h + top_inset).min(screen_h) }));
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x: target_x, y: target_y }));
     }
 
