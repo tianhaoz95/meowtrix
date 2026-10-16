@@ -31,9 +31,7 @@ jobs:
           mkdir -p _site
           # Landing page + documentation at the site root.
           cp -r website/. _site/
-          # The live demo IS the app's public/ served statically (visited as /demo/?demo).
-          mkdir -p _site/demo
-          cp -r public/. _site/demo/
+          # Meowtrix moved: website/ is only redirects now (the demo moved too, to site/demo/).
           # Disable Jekyll so nothing is filtered out.
           touch _site/.nojekyll
 

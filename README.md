@@ -1,5 +1,13 @@
 # 🐾 Meowtrix
 
+> **Meowtrix has moved.** Development continues in
+> [`tianhaoz95/hejitech-apps`](https://github.com/tianhaoz95/hejitech-apps/tree/main/projects/meowtrix)
+> (`projects/meowtrix`), with its full history; releases are tagged `meowtrix-v<version>` there and
+> the newest build is always on the [`meowtrix-latest`](https://github.com/tianhaoz95/hejitech-apps/releases/tag/meowtrix-latest)
+> release. Installed copies update there by themselves. This repository is archived. Install:
+> `curl -fsSL https://raw.githubusercontent.com/tianhaoz95/hejitech-apps/main/projects/meowtrix/install.sh | bash` ·
+> Site: https://tianhaoz95.github.io/hejitech-apps/meowtrix/site/
+
 [![Deploy project site to GitHub Pages](https://github.com/tianhaoz95/meowtrix/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/tianhaoz95/meowtrix/actions/workflows/deploy-pages.yml)
 [![Build and Release](https://github.com/tianhaoz95/meowtrix/actions/workflows/release.yml/badge.svg)](https://github.com/tianhaoz95/meowtrix/actions/workflows/release.yml)
 [![E2E Tests](https://github.com/tianhaoz95/meowtrix/actions/workflows/e2e.yml/badge.svg)](https://github.com/tianhaoz95/meowtrix/actions/workflows/e2e.yml)
